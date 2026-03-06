@@ -69,7 +69,7 @@ Pads with general searches if needed to reach 12 total
        │
        ▼
 Opens each search in a background tab → waits for load
-→ waits 2.5s → closes tab → waits 2s → next search
+→ dwell 1.8–4.5s → closes tab → delay 1.8–5s → next search
        │
        ▼
 Progress updates sent to popup in real time
@@ -117,5 +117,5 @@ If the DOM extraction finds 0 activities (e.g. the rewards page structure change
 
 - The extension does not interact with the rewards page beyond reading it — no clicks, no form submissions
 - All searches run in background tabs that close automatically
-- Bing may occasionally not credit a search if the tab closes too fast; the `LOAD_WAIT_MS` constant in `background.js` (default 2500ms) can be increased if you notice missed points
+- Bing may occasionally not credit a search if the tab closes too fast; increase the dwell range in `randMs(1800, 4500)` inside `performSearch` in `background.js` if you notice missed points
 - The extension only runs when you manually trigger it — there is no auto-schedule
