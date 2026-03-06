@@ -23,6 +23,16 @@ The whole run takes roughly 2–4 minutes depending on the randomized search cou
 
 ## Installation
 
+### Option 1: From Release (recommended)
+
+1. Download the latest `BingBotV2-*.zip` from the [Releases page](../../releases)
+2. Extract the ZIP file
+3. Open Chrome and go to `chrome://extensions`
+4. Enable **Developer mode** (toggle in the top right)
+5. Click **Load unpacked** and select the extracted folder
+
+### Option 2: From Source
+
 1. Clone or download this repo
 2. Open Chrome and go to `chrome://extensions`
 3. Enable **Developer mode** (toggle in the top right)
@@ -34,7 +44,11 @@ You must be signed into your Microsoft account in Chrome for rewards to accrue.
 
 Click the extension icon → **Run today's searches**.
 
-The extension remembers if you've already run today and tracks progress. If interrupted mid-run, it resumes from where it left off. The popup shows real-time progress with a status indicator, progress bar, and the current search being performed.
+The extension tracks the last run date and progress:
+- If you run it today and complete all searches, it shows "Done for today!" and won't run again until tomorrow
+- If interrupted mid-run, it resumes from where it left off (same day only)
+- Each new day, the date check resets and you can run it again
+- The popup shows real-time progress with a status indicator, progress bar, and the current search being performed
 
 ## How it works
 
