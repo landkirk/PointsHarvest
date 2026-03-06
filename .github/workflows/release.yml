@@ -14,9 +14,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Get version
+        id: version
+        run: |
+          if [ "${{ github.ref_name }}" != "" ]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          fi
+      
       - name: Create extension ZIP
         run: |
-          zip -r BingBotV2-${{ github.ref_name }}.zip . \
+          zip -r BingBotV2-${{ steps.version.outputs.version }}.zip . \
             -x "*.git*" \
             -x "*.github*" \
             -x "*.DS_Store"
