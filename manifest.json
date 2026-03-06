@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Bing Rewards Automator",
+  "version": "1.0",
+  "description": "Automates daily Bing Rewards searches and Explore activities",
+  "permissions": ["tabs", "storage"],
+  "host_permissions": [
+    "https://*.bing.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://rewards.bing.com/*"],
+      "js": ["rewards-content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

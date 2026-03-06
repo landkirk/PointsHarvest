@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      width: 320px;
+      background: #0f0f0f;
+      color: #e8e8e8;
+      padding: 16px;
+    }
+
+    h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    h1 span.dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    h1 span.dot.running { background: #22c55e; animation: pulse 1.2s infinite; }
+    h1 span.dot.done    { background: #3b82f6; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.4; }
+    }
+
+    .status {
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .progress-bar-wrap {
+      background: #222;
+      border-radius: 4px;
+      height: 6px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: #3b82f6;
+      border-radius: 4px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    .progress-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 9px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    #btn-start { background: #3b82f6; color: #fff; }
+    #btn-start:hover { background: #2563eb; }
+    #btn-start:disabled { background: #1e3a5f; color: #555; cursor: default; }
+
+    #btn-stop { background: #374151; color: #e8e8e8; margin-top: 8px; display: none; }
+    #btn-stop:hover { background: #4b5563; }
+
+    #btn-purge { background: #1f0f0f; color: #ef4444; margin-top: 10px; border: 1px solid #3f1515; font-size: 11px; padding: 6px; }
+    #btn-purge:hover { background: #2d1212; }
+
+    .last-search {
+      font-size: 11px;
+      color: #555;
+      margin-top: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Debug toggle ── */
+    .debug-toggle {
+      margin-top: 14px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      width: fit-content;
+    }
+    .debug-toggle input { cursor: pointer; accent-color: #3b82f6; }
+    .debug-toggle label { font-size: 11px; color: #555; cursor: pointer; }
+
+    /* ── Debug panel ── */
+    #debug-panel {
+      display: none;
+      margin-top: 12px;
+      border-top: 1px solid #222;
+      padding-top: 12px;
+    }
+    #debug-panel.open { display: block; }
+
+    .dbg-section { margin-bottom: 12px; }
+    .dbg-section h2 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    .dbg-list {
+      max-height: 130px;
+      overflow-y: auto;
+      font-size: 11px;
+      color: #999;
+      line-height: 1.5;
+    }
+    .dbg-list::-webkit-scrollbar { width: 4px; }
+    .dbg-list::-webkit-scrollbar-track { background: transparent; }
+    .dbg-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    .dbg-card {
+      background: #161616;
+      border-radius: 4px;
+      padding: 5px 7px;
+      margin-bottom: 4px;
+    }
+    .dbg-card .card-title { color: #ccc; font-weight: 600; }
+    .dbg-card .card-desc  { color: #666; font-size: 10px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dbg-card .card-query { color: #3b82f6; font-size: 10px; margin-top: 2px; }
+    .dbg-card .card-skip     { color: #ef4444; font-size: 10px; margin-top: 1px; }
+    .dbg-card .card-kw       { color: #666; font-size: 10px; }
+    .dbg-card .card-fallback { color: #f59e0b; font-size: 10px; margin-top: 2px; }
+    .dbg-card .card-query-fb { color: #f59e0b; font-size: 10px; margin-top: 2px; }
+
+    .dbg-queue-item {
+      padding: 2px 0;
+      border-bottom: 1px solid #1a1a1a;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .dbg-queue-item .idx { color: #444; margin-right: 4px; }
+
+    /* Log entries */
+    .log-entry { display: flex; gap: 6px; padding: 1px 0; }
+    .log-entry .log-time { color: #444; flex-shrink: 0; }
+    .log-entry .log-msg  { color: #888; }
+    .log-entry.success .log-msg { color: #22c55e; }
+    .log-entry.warn    .log-msg { color: #f59e0b; }
+    .log-entry.error   .log-msg { color: #ef4444; }
+
+    .dbg-empty { color: #444; font-style: italic; font-size: 11px; }
+
+    .dom-stats {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .dom-stats span { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1><span class="dot" id="dot"></span> Bing Rewards Automator</h1>
+  <div class="status" id="status">Idle</div>
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progress-bar"></div>
+  </div>
+  <div class="progress-label" id="progress-label">—</div>
+  <button id="btn-start">Run today's searches</button>
+  <button id="btn-stop">Stop</button>
+  <div class="last-search" id="last-search"></div>
+
+  <div class="debug-toggle">
+    <input type="checkbox" id="debug-check" />
+    <label for="debug-check">Debug mode</label>
+  </div>
+
+  <div id="debug-panel">
+
+    <div class="dbg-section">
+      <h2>DOM Extraction</h2>
+      <div class="dom-stats" id="dom-stats"></div>
+      <div class="dbg-list" id="dbg-cards">
+        <div class="dbg-empty">Run the extension to see extraction results.</div>
+      </div>
+    </div>
+
+    <div class="dbg-section">
+      <h2>Search Queue</h2>
+      <div class="dbg-list" id="dbg-queue">
+        <div class="dbg-empty">Not yet built.</div>
+      </div>
+    </div>
+
+    <div class="dbg-section">
+      <h2>Event Log</h2>
+      <div class="dbg-list" id="dbg-log">
+        <div class="dbg-empty">No events yet.</div>
+      </div>
+    </div>
+
+    <button id="btn-purge">Purge all state</button>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
