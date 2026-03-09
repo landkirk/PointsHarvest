@@ -13,13 +13,21 @@
 
 ```
 manifest.json         Extension config (Manifest V3)
-background.js         Service worker — orchestrates the entire flow
-content/
-  rewards-content.js  Content script injected into rewards.bing.com
-  search-content.js   Content script injected into www.bing.com
-popup.html            Extension popup UI
-popup.js              Popup logic and state management
-config.js             Static data: keyword map, search pools, constants
+src/
+  popup.html          Extension popup UI
+  background.js       Service worker — entry point, listeners, main flow
+  state.js            Shared in-memory state and closeRewardsTab helper
+  popup.js            Popup logic and state management
+  steps/
+    fetch-activities.js  Open rewards tab, extract cards, map to queries
+    run-searches.js      Click each card and run the search loop
+    perform-search.js    Dwell and execute a single search in a tab
+  util/
+    config.js         Static data: search pools, constants
+    debug.js          Logging and timing helpers
+  content/
+    rewards-content.js  Content script injected into rewards.bing.com
+    search-content.js   Content script injected into www.bing.com
 .github/workflows/    GitHub Actions for automated releases
 ```
 
@@ -32,7 +40,7 @@ config.js             Static data: keyword map, search pools, constants
 - Tracks state in chrome.storage.local
 - Implements randomized timing (triangular distribution)
 
-### content/rewards-content.js
+### src/content/rewards-content.js
 - Injected into rewards.bing.com
 - Polls the SPA until activity cards render (max 15s)
 - Extracts available activities (skips locked/completed)
@@ -44,25 +52,12 @@ config.js             Static data: keyword map, search pools, constants
 - Debug panel with DOM extraction, search queue, and event log
 - State management (start/stop/purge)
 
-### config.js
-- Activity keyword mappings (17 categories, 3 query variants each)
+### util/config.js
 - General search pool (25 queries)
 - Search count range (12-17 per run)
 - URLs and constants
 
 ## Making Changes
-
-### Adding New Activity Keywords
-
-Edit `config.js` and add a new entry to `ACTIVITY_KEYWORD_MAP`:
-
-```javascript
-{ keywords: ['your', 'keywords'], queries: [
-  'query variant 1',
-  'query variant 2',
-  'query variant 3',
-]},
-```
 
 ### Adjusting Timing
 
@@ -87,7 +82,7 @@ The extension picks a random target between these values each run.
 
 ### Modifying DOM Extraction
 
-Edit `content/rewards-content.js`:
+Edit `src/content/rewards-content.js`:
 
 - `MAX_WAIT_MS` — how long to wait for page load (default: 15s)
 - `POLL_INTERVAL_MS` — how often to check for content (default: 500ms)
@@ -168,7 +163,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 **No activities extracted**
 - Check if you're logged into Bing Rewards
-- Bing may have changed their page structure — inspect `content/rewards-content.js` extraction logic
+- Bing may have changed their page structure — inspect `src/content/rewards-content.js` extraction logic
 - Enable debug mode to see DOM extraction stats
 
 **Searches not credited**
@@ -196,7 +191,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Message Passing
 - `popup.js` ↔ `background.js`: bidirectional via `chrome.runtime.sendMessage`
-- `content/rewards-content.js` → `background.js`: one-way via `chrome.runtime.sendMessage`
+- `src/content/rewards-content.js` → `background.js`: one-way via `chrome.runtime.sendMessage`
 - Real-time progress updates pushed to popup during run
 
 ### Randomization Strategy
