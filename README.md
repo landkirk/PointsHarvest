@@ -56,13 +56,21 @@ The extension tracks the last run date and progress:
 
 ```
 manifest.json         Extension config (MV3)
-background.js         Service worker — orchestrates the whole flow
-content/
-  rewards-content.js  Content script injected into rewards.bing.com
-  search-content.js   Content script injected into www.bing.com
-popup.html            Extension popup UI
-popup.js              Popup logic
-config.js             Static data: keyword map, search pools, URL/count constants
+src/
+  popup.html          Extension popup UI
+  background.js       Service worker — entry point, listeners, main flow
+  state.js            Shared in-memory state and closeRewardsTab helper
+  popup.js            Popup logic
+  steps/
+    fetch-activities.js  Open rewards tab, extract cards, map to queries
+    run-searches.js      Click each card and run the search loop
+    perform-search.js    Dwell and execute a single search in a tab
+  util/
+    config.js         Static data: search pools, URL/count constants
+    debug.js          Logging and timing helpers
+  content/
+    rewards-content.js  Content script injected into rewards.bing.com
+    search-content.js   Content script injected into www.bing.com
 ```
 
 ### Flow
@@ -74,7 +82,7 @@ config.js             Static data: keyword map, search pools, URL/count constant
 Open rewards.bing.com (background tab)
        │
        ▼
-content/rewards-content.js polls the SPA until cards render (max 15s),
+src/content/rewards-content.js polls the SPA until cards render (max 15s),
 extracts available activities, sends them to background
        │
        ▼

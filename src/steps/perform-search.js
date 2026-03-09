@@ -1,7 +1,7 @@
 // Responsible for completing a search activity in a Bing tab opened by a card click.
 // The tab is already loaded at https://www.bing.com/?form=... when this is called.
 
-import { dbg, randMs, sleep } from './debug.js';
+import { dbg, randMs, sleep } from '../util/debug.js';
 
 export async function performSearchInTab(tabId, query) {
   const preDwell = randMs(1000, 3000);
