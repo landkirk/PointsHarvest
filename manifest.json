@@ -17,7 +17,12 @@
   "content_scripts": [
     {
       "matches": ["https://rewards.bing.com/*"],
-      "js": ["rewards-content.js"],
+      "js": ["content/rewards-content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.bing.com/*"],
+      "js": ["content/search-content.js"],
       "run_at": "document_idle"
     }
   ]

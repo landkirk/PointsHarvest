@@ -117,7 +117,7 @@ function clearDebug() {
   domStats.innerHTML = '';
   dbgCards.innerHTML = '<div class="dbg-empty">Waiting for extraction…</div>';
   dbgQueue.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
-  dbgLog.innerHTML   = '<div class="dbg-empty">No events yet.</div>';
+  dbgLog.innerHTML    = '<div class="dbg-empty">No events yet.</div>';
 }
 
 function renderDebug({ domDebug, mappedActivities, searchQueue, debugLog }) {
@@ -131,12 +131,12 @@ function renderDomStats(domDebug) {
   if (!domDebug) { domStats.innerHTML = ''; return; }
   const el = domStats;
   el.innerHTML = `
-    <span title="Total DOM elements scanned">${domDebug.totalElements} elements</span>
-    <span title="Elements with Complete/Explore now text">${domDebug.actionElementsFound} actions</span>
+    <span title="Total cards scanned">${domDebug.totalCards} cards</span>
+    <span title="'Search on Bing' cards found">${domDebug.actionElementsFound} matches</span>
     <span title="Cards skipped because they were locked">${domDebug.skippedLocked} locked</span>
-    <span title="Action elements with no identifiable card ancestor">${domDebug.skippedNoCard} no-card</span>
   `;
 }
+
 
 function renderCards(mappedActivities, domDebug) {
   const el = dbgCards;
@@ -159,10 +159,8 @@ function renderCards(mappedActivities, domDebug) {
       <div class="card-title">${esc(a.title || '(no title)')}</div>
       <div class="card-desc">${esc(a.description || '')}</div>
       ${a.unmatched
-        ? '<div class="card-skip">No match &amp; fallback failed — skipped</div>'
-        : a.fallback
-          ? `<div class="card-query-fb">→ ${esc(a.query)}</div><div class="card-fallback">fallback: stripped from description</div>`
-          : `<div class="card-query">→ ${esc(a.query)}</div><div class="card-kw">keyword: "${esc(a.keyword)}"</div>`
+        ? '<div class="card-skip">No query could be generated — skipped</div>'
+        : `<div class="card-query">→ ${esc(a.query)}</div>`
       }
     </div>
   `).join('') + skipped.map(c => `

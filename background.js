@@ -1,4 +1,6 @@
-import { ACTIVITY_KEYWORD_MAP, GENERAL_SEARCH_POOL, MIN_SEARCHES, MAX_SEARCHES, REWARDS_URL } from './config.js';
+import { REWARDS_URL } from './config.js';
+import { dbg, resetLog, randMs, sleep } from './debug.js';
+import { performSearchInTab } from './search.js';
 
 const BLANK_STATE = {
   isRunning: false,
@@ -19,17 +21,15 @@ const BLANK_STATE = {
 let pendingTabId = null;
 let pendingResolve = null;
 let resolveActivities = null;
-const openedTabIds = new Set(); // all tabs this extension has opened
-let isActivelyRunning = false;  // distinguishes "storage says running" from "actually running"
-let rewardsTabId = null;        // the rewards dashboard tab, watched for login redirects
-let debugLog = [];              // in-memory log; synced to storage on each dbg() call
-
-// ── Fallback query generation ─────────────────────────────────────────────
+let captureNextTabResolve = null; // set just before each card click to capture the opened tab
+const openedTabIds = new Set();   // all tabs this extension has opened
+let isActivelyRunning = false;    // distinguishes "storage says running" from "actually running"
+let rewardsTabId = null;          // the rewards dashboard tab — kept open until all cards are clicked
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
 // descriptions and returns the remainder as a usable search query.
 // If the description is unhelpful, falls back to the title text.
-function generateFallbackQuery(title, description) {
+function generateSearchQuery(title, description) {
   const BOILERPLATE = [
     /^search on bing (?:to |for )?/i,
     /^search bing (?:to |for )?/i,
@@ -45,38 +45,21 @@ function generateFallbackQuery(title, description) {
   // If what's left is too short, use the title instead
   if (base.length < 8) base = (title || '').trim();
 
-  // Trim to a sensible search length
   return base.slice(0, 80).trim();
 }
 
-// ── Randomisation helpers ──────────────────────────────────────────────────
+// ── Run helpers ────────────────────────────────────────────────────────────
 
-// Triangular distribution biased toward the middle of [min, max].
-// Feels more human than a flat uniform range.
-function randMs(min, max) {
-  return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));
+function closeRewardsTab() {
+  if (rewardsTabId) { chrome.tabs.remove(rewardsTabId).catch(() => {}); rewardsTabId = null; }
 }
 
-function randItem(arr) {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// ── Debug helpers ──────────────────────────────────────────────────────────
-
-async function dbg(type, message) {
-  const entry = { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type, message };
-  debugLog = [...debugLog, entry].slice(-100);
-  await chrome.storage.local.set({ debugLog });
-  chrome.runtime.sendMessage({ action: 'debugEntry', entry }).catch(() => {});
+async function abortRun(status, errorMsg) {
+  isActivelyRunning = false;
+  closeRewardsTab();
+  await chrome.storage.local.set({ isRunning: false, status });
+  await dbg('error', errorMsg);
+  chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
 }
 
 // ── Top-level listeners ────────────────────────────────────────────────────
@@ -89,14 +72,28 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     resolve();
   }
 
-  // Detect redirect away from rewards.bing.com after the page fully loads → not logged in
-  if (tabId === rewardsTabId && changeInfo.status === 'complete' &&
-      tab.url && !tab.url.startsWith(REWARDS_URL)) {
-    dbg('error', `Not logged in — redirected to: ${tab.url}`);
-    if (resolveActivities) {
-      resolveActivities([], null, false); // loggedIn = false
-      resolveActivities = null;
+  // Detect when the rewards tab finishes loading
+  if (tabId === rewardsTabId && changeInfo.status === 'complete' && tab.url) {
+    if (tab.url.startsWith(REWARDS_URL)) {
+      // Page loaded — tell the content script to begin extraction
+      chrome.tabs.sendMessage(tabId, { action: 'startExtract' }).catch(() => {});
+    } else {
+      // Redirected away from rewards — not logged in
+      dbg('error', `Not logged in — redirected to: ${tab.url}`);
+      if (resolveActivities) {
+        resolveActivities({ activities: [], domDebug: null, loggedIn: false });
+        resolveActivities = null;
+      }
     }
+  }
+});
+
+// Capture the tab opened by a card click.
+chrome.tabs.onCreated.addListener((tab) => {
+  if (captureNextTabResolve && tab.id !== rewardsTabId) {
+    const resolve = captureNextTabResolve;
+    captureNextTabResolve = null;
+    resolve(tab);
   }
 });
 
@@ -107,7 +104,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === 'activitiesFound') {
     if (resolveActivities) {
-      resolveActivities(msg.activities, msg.domDebug, msg.loggedIn !== false);
+      resolveActivities({ activities: msg.activities, domDebug: msg.domDebug, loggedIn: msg.loggedIn !== false });
       resolveActivities = null;
     }
     return;
@@ -147,7 +144,7 @@ async function startRun() {
   ]);
   const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
-  debugLog = [];
+  resetLog();
   await chrome.storage.local.set({
     isRunning: true,
     status: 'Fetching rewards activities...',
@@ -162,42 +159,42 @@ async function startRun() {
   isActivelyRunning = true;
   await dbg('info', 'Run started');
 
-  // Step 1: scrape rewards dashboard
+  // Step 1: open rewards dashboard and extract activity cards (no clicking yet)
   await dbg('info', `Opening ${REWARDS_URL}`);
   const { activities, domDebug, loggedIn } = await fetchAvailableActivities();
 
   if (!isActivelyRunning) { await dbg('warn', 'Stopped during activity fetch'); return; }
 
   if (!loggedIn) {
-    isActivelyRunning = false;
-    await chrome.storage.local.set({ isRunning: false, status: 'Not logged in — sign into Bing first' });
-    await dbg('error', 'Aborting: not logged into Bing Rewards');
-    chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
+    await abortRun('Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards');
     return;
   }
 
   await chrome.storage.local.set({ extractedActivities: activities, domDebug });
-  await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} action elements, ${domDebug?.skippedLocked ?? 0} locked skipped`);
-  await dbg('success', `Extracted ${activities.length} available activit${activities.length === 1 ? 'y' : 'ies'}`);
+  await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} "Search on Bing" cards found, ${domDebug?.skippedLocked ?? 0} locked`);
 
-  // Step 2: map activities → queries, shuffle and pad to a random target count
-  const targetCount = MIN_SEARCHES + Math.floor(Math.random() * (MAX_SEARCHES - MIN_SEARCHES + 1));
-  const { searches, mapped } = buildSearchList(activities, targetCount);
-  await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: searches });
+  if (activities.length === 0) {
+    await abortRun('No activity cards found — check Debug panel', 'Aborting: no "Search on Bing" activity cards detected on the rewards page');
+    return;
+  }
+
+  await dbg('success', `Found ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}`);
+
+  // Step 2: map activities → queries
+  const mapped = buildSearchList(activities);
+  await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
   chrome.runtime.sendMessage({ action: 'debugReady' }).catch(() => {});
 
-  const unmapped  = mapped.filter(m => m.unmatched).length;
-  const fallbacks = mapped.filter(m => m.fallback).length;
-  await dbg('info', `Mapped ${mapped.length - unmapped} activit${mapped.length - unmapped === 1 ? 'y' : 'ies'} (${fallbacks} fallback${fallbacks !== 1 ? 's' : ''}), ${unmapped} fully unmatched`);
-  await dbg('info', `Target: ${targetCount} searches (${searches.length - mapped.filter(m => !m.unmatched).length} general fills, queue shuffled)`);
+  const unmapped = mapped.filter(m => m.unmatched).length;
+  await dbg('info', `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
 
   // Step 3: resume or start fresh
   const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
   await chrome.storage.local.set({
-    totalSearches: searches.length,
+    totalSearches: mapped.length,
     currentIndex: startIndex,
     completedSearches: startIndex,
-    status: `Running (0 / ${searches.length})`,
+    status: `Running (0 / ${mapped.length})`,
   });
 
   // Initial random delay before the first search (0–8s)
@@ -205,9 +202,12 @@ async function startRun() {
   await dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
   await sleep(initialDelay);
 
-  if (!isActivelyRunning) return;
+  if (!isActivelyRunning) {
+    closeRewardsTab();
+    return;
+  }
 
-  runAllSearches(searches, startIndex);
+  runAllSearches(mapped, startIndex);
 }
 
 async function stopRun() {
@@ -215,13 +215,14 @@ async function stopRun() {
   await chrome.storage.local.set({ isRunning: false, status: 'Stopped' });
   await dbg('warn', 'Run stopped by user');
   if (pendingResolve) { pendingResolve(); pendingResolve = null; }
-  if (resolveActivities) { resolveActivities([], null); resolveActivities = null; }
-  // Close every tab this extension opened
+  if (resolveActivities) { resolveActivities({}); resolveActivities = null; }
+  if (captureNextTabResolve) { captureNextTabResolve(null); captureNextTabResolve = null; }
   for (const tabId of openedTabIds) {
     chrome.tabs.remove(tabId).catch(() => {});
   }
   openedTabIds.clear();
   pendingTabId = null;
+  rewardsTabId = null;
 }
 
 async function fetchAvailableActivities() {
@@ -230,9 +231,9 @@ async function fetchAvailableActivities() {
 
   const timeout = setTimeout(() => {
     resolveActivities = null;
-    rewardsTabId = null;
-    dbg('warn', 'Rewards page timed out — continuing with no activities');
-    resolveLocal({ activities: [], domDebug: null, loggedIn: true }); // assume logged in on timeout
+    closeRewardsTab();
+    dbg('warn', 'Rewards page timed out — no activities');
+    resolveLocal({ activities: [], domDebug: null, loggedIn: true });
   }, 20000);
 
   const rewardsTab = await chrome.tabs.create({ url: REWARDS_URL, active: false }).catch(() => null);
@@ -246,95 +247,97 @@ async function fetchAvailableActivities() {
   openedTabIds.add(rewardsTab.id);
   rewardsTabId = rewardsTab.id;
 
-  // When content script responds (or redirect detected), close the tab and resolve
-  resolveActivities = (activities, domDebug, loggedIn = true) => {
+  // Rewards tab stays open after resolving — background will click cards and then close it.
+  resolveActivities = ({ activities = [], domDebug = null, loggedIn = true } = {}) => {
     clearTimeout(timeout);
-    rewardsTabId = null;
-    chrome.tabs.remove(rewardsTab.id).catch(() => {});
     resolveLocal({ activities, domDebug, loggedIn });
   };
 
   return result;
 }
 
-function buildSearchList(activities, targetCount) {
-  const mapped = [];
-  const seen = new Set(); // dedup across activity queries and general fills
-
-  // Map each activity to a randomly chosen query variant, then shuffle
-  const activityQueries = [];
-  for (const { title, description } of activities) {
-    const text = `${title} ${description}`.toLowerCase();
-    const match = ACTIVITY_KEYWORD_MAP.find(({ keywords }) =>
-      keywords.some(kw => text.includes(kw))
-    );
-    if (match) {
-      const query = randItem(match.queries); // pick a random variant
-      const keyword = match.keywords.find(kw => text.includes(kw));
-      if (!seen.has(query)) {
-        seen.add(query);
-        activityQueries.push(query);
-        mapped.push({ title, description, query, keyword, unmatched: false, fallback: false });
-      }
-    } else {
-      // No keyword match — generate a query directly from the activity text
-      const query = generateFallbackQuery(title, description);
-      if (query && !seen.has(query)) {
-        seen.add(query);
-        activityQueries.push(query);
-        mapped.push({ title, description, query, keyword: null, unmatched: false, fallback: true });
-      } else {
-        mapped.push({ title, description, query: null, keyword: null, unmatched: true, fallback: false });
-      }
-    }
-  }
-
-  // Shuffle the activity queries so order varies each run
-  const queries = shuffle(activityQueries);
-
-  // Pad with shuffled general searches until we hit targetCount
-  const generalPool = shuffle(GENERAL_SEARCH_POOL);
-  for (const q of generalPool) {
-    if (queries.length >= targetCount) break;
-    if (!seen.has(q)) { seen.add(q); queries.push(q); }
-  }
-
-  // Shuffle the full combined list so activities don't always come first
-  const finalQueue = shuffle(queries);
-
-  return { searches: finalQueue, mapped };
+// Maps each activity to a query (may be null if none could be generated).
+function buildSearchList(activities) {
+  return activities.map(({ title, description }) => {
+    const query = generateSearchQuery(title, description);
+    return query
+      ? { title, description, query, unmatched: false }
+      : { title, description, query: null, unmatched: true };
+  });
 }
 
-async function runAllSearches(searches, startIndex) {
-  for (let i = startIndex; i < searches.length; i++) {
+async function runAllSearches(mapped, startIndex) {
+  for (let i = startIndex; i < mapped.length; i++) {
     if (!isActivelyRunning) return;
 
-    const q = searches[i];
-    const label = q.length > 40 ? q.slice(0, 40) + '…' : q;
+    const { query, title } = mapped[i];
+
+    if (!query) {
+      await dbg('warn', `Skipping card ${i + 1} — no query could be generated for "${title}"`);
+      continue;
+    }
+
+    const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
     await chrome.storage.local.set({ currentIndex: i, status: `Searching: "${label}"` });
-    await dbg('info', `[${i + 1}/${searches.length}] "${q}"`);
+    await dbg('info', `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
-    await performSearch(q);
+    // Set up capture before sending click — tab may open before sendMessage resolves
+    const captureTabPromise = new Promise(resolve => { captureNextTabResolve = resolve; });
 
-    // Re-check: stop may have been called during the search's dwell wait
+    const clickResult = await chrome.tabs.sendMessage(rewardsTabId, { action: 'clickCard', index: i })
+      .catch(() => null);
+
+    if (!clickResult?.clicked) {
+      captureNextTabResolve = null;
+      await dbg('warn', `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
+      continue;
+    }
+
+    const searchTab = await Promise.race([captureTabPromise, sleep(10000).then(() => null)]);
+    captureNextTabResolve = null;
+
+    if (!searchTab) {
+      await dbg('warn', `No tab opened after clicking card "${title}"`);
+      continue;
+    }
+
+    openedTabIds.add(searchTab.id);
+
+    // Wait for the tab to finish loading
+    pendingTabId = searchTab.id;
+    await Promise.race([
+      new Promise(resolve => { pendingResolve = resolve; }),
+      sleep(30000),
+    ]);
+    pendingResolve = null;
+    pendingTabId = null;
+
+    if (!isActivelyRunning) {
+      chrome.tabs.remove(searchTab.id).catch(() => {});
+      return;
+    }
+
+    await performSearchInTab(searchTab.id, query);
+    chrome.tabs.remove(searchTab.id).catch(() => {});
+
     if (!isActivelyRunning) return;
 
     const completed = i + 1;
     await chrome.storage.local.set({
       completedSearches: completed,
-      lastLabel: q,
-      status: `Running (${completed} / ${searches.length})`,
+      lastLabel: query,
+      status: `Running (${completed} / ${mapped.length})`,
     });
-    await dbg('success', `Search ${completed}/${searches.length} complete`);
+    await dbg('success', `Search ${completed}/${mapped.length} complete`);
 
     chrome.runtime.sendMessage({
       action: 'progress',
       completed,
-      total: searches.length,
-      label: q,
+      total: mapped.length,
+      label: query,
     }).catch(() => {});
 
-    if (i < searches.length - 1) {
+    if (i < mapped.length - 1) {
       const delay = randMs(1800, 5000);
       await dbg('info', `Next search in ${(delay / 1000).toFixed(1)}s`);
       await sleep(delay);
@@ -342,36 +345,12 @@ async function runAllSearches(searches, startIndex) {
     }
   }
 
+  // Close the rewards tab now that all cards have been clicked
+  closeRewardsTab();
+
   isActivelyRunning = false;
   await chrome.storage.local.set({ isRunning: false, status: 'Done for today!' });
   await dbg('success', 'All searches complete');
   chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
 }
 
-async function performSearch(query) {
-  const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}`;
-  const tab = await chrome.tabs.create({ url, active: false }).catch(() => null);
-  if (!tab) { await dbg('error', `Failed to open tab for: ${query}`); return; }
-  openedTabIds.add(tab.id);
-
-  pendingTabId = tab.id;
-
-  await Promise.race([
-    new Promise(resolve => { pendingResolve = resolve; }),
-    sleep(30000),
-  ]);
-
-  pendingResolve = null;
-  pendingTabId = null;
-
-  // Random dwell time after page load (1.8s–4.5s)
-  const dwell = randMs(1800, 4500);
-  await dbg('info', `Dwell: ${(dwell / 1000).toFixed(1)}s`);
-  await sleep(dwell);
-
-  chrome.tabs.remove(tab.id).catch(() => {});
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
