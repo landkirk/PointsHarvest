@@ -35,17 +35,33 @@ src/
 
 ### background.js
 - Main orchestration logic
-- Manages search queue building and execution
-- Handles activity mapping and fallback query generation
+- Handles tab event listeners (load detection, tab capture, tab removal)
+- Coordinates the fetch → map → run pipeline
 - Tracks state in chrome.storage.local
-- Implements randomized timing (triangular distribution)
+- Implements randomized initial delay (triangular distribution)
+
+### src/steps/fetch-activities.js
+- Opens rewards.bing.com in a background tab
+- Waits up to 20s for content script to report extracted activities
+- Maps each activity → search query via boilerplate stripping (`generateSearchQuery`)
 
 ### src/content/rewards-content.js
 - Injected into rewards.bing.com
 - Polls the SPA until activity cards render (max 15s)
-- Extracts available activities (skips locked/completed)
+- Extracts "Search on Bing" cards (skips locked/completed)
+- Retains card DOM elements for on-demand clicking
 - Detects login status
-- Sends extracted data back to background script
+- Handles `startExtract` and `clickCard` messages from background
+
+### src/steps/run-searches.js
+- Iterates the mapped activity list
+- Sends `clickCard` to content script for each card, captures the new tab
+- Waits for tab to load, calls `performSearchInTab`, closes tab
+- Sends progress updates to popup
+
+### src/steps/perform-search.js
+- Pre-search dwell, then sends `performSearch` to search-content.js
+- Post-search dwell before returning
 
 ### popup.js
 - Real-time UI updates via chrome.runtime.onMessage
@@ -53,8 +69,8 @@ src/
 - State management (start/stop/purge)
 
 ### util/config.js
-- General search pool (25 queries)
-- Search count range (12-17 per run)
+- General search pool (25 queries, currently unused in main flow)
+- Search count range constants (currently unused in main flow)
 - URLs and constants
 
 ## Making Changes
@@ -63,22 +79,10 @@ src/
 
 All timing uses `randMs(min, max)` with triangular distribution:
 
-- **Initial delay**: `randMs(0, 8000)` — delay before first search
-- **Dwell time**: `randMs(1800, 4500)` — time spent on each search page
-- **Between searches**: `randMs(1800, 5000)` — delay between searches
-
-Edit these values in `background.js` → `startRun()` and `performSearch()`.
-
-### Changing Search Count
-
-Edit `config.js`:
-
-```javascript
-export const MIN_SEARCHES = 12;
-export const MAX_SEARCHES = 17;
-```
-
-The extension picks a random target between these values each run.
+- **Initial delay**: `randMs(0, 8000)` in `background.js` → `startRun()` — delay before first search
+- **Pre-search dwell**: `randMs(1000, 3000)` in `steps/perform-search.js` — pause before typing the query
+- **Post-search dwell**: `randMs(1000, 3000)` in `steps/perform-search.js` — pause after search navigates
+- **Between searches**: `randMs(1800, 5000)` in `steps/run-searches.js` — delay between cards
 
 ### Modifying DOM Extraction
 
@@ -86,8 +90,15 @@ Edit `src/content/rewards-content.js`:
 
 - `MAX_WAIT_MS` — how long to wait for page load (default: 15s)
 - `POLL_INTERVAL_MS` — how often to check for content (default: 500ms)
-- `AVAILABLE_STATUSES` — text patterns that indicate an actionable activity
 - `LOCKED_KEYWORDS` — text patterns that indicate a locked activity
+
+### Modifying Query Generation
+
+Edit `src/steps/fetch-activities.js` → `generateSearchQuery`:
+
+- `BOILERPLATE` — regex patterns stripped from activity descriptions
+- Minimum useful length threshold (`base.length < 8` falls back to title)
+- Max query length (currently truncated to 80 chars)
 
 ## Testing
 
@@ -100,10 +111,10 @@ Edit `src/content/rewards-content.js`:
 6. Monitor the debug panel for extraction results, search queue, and event log
 
 ### Testing Without Running Searches
-To test activity extraction without running searches, add a return statement in `background.js` → `startRun()` after the activity mapping step:
+To test activity extraction without running searches, add a return statement in `background.js` → `startRun()` after the mapping step:
 
 ```javascript
-await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: searches });
+await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
 chrome.runtime.sendMessage({ action: 'debugReady' }).catch(() => {});
 return; // Stop here for testing
 ```
@@ -167,7 +178,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - Enable debug mode to see DOM extraction stats
 
 **Searches not credited**
-- Increase dwell time in `performSearch()`: `randMs(2500, 6000)`
+- Increase dwell time in `steps/perform-search.js`: `randMs(2000, 5000)`
 - Check if you're logged into the correct Microsoft account
 - Bing may have rate limiting — increase delays between searches
 
@@ -185,20 +196,19 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Tab Management
 - All opened tabs tracked in `openedTabIds` Set
-- Tabs closed automatically after search completes
-- Rewards dashboard tab closed after extraction
+- The rewards tab stays open throughout the run so cards can be clicked on demand; closed after all cards are done
+- Search tabs close automatically after each search completes
 - Stop button closes all extension-opened tabs
 
 ### Message Passing
 - `popup.js` ↔ `background.js`: bidirectional via `chrome.runtime.sendMessage`
-- `src/content/rewards-content.js` → `background.js`: one-way via `chrome.runtime.sendMessage`
+- `background.js` ↔ `rewards-content.js`: bidirectional (`startExtract`, `clickCard` commands; `activitiesFound` response)
+- `background.js` → `search-content.js`: one-way `performSearch` command
 - Real-time progress updates pushed to popup during run
 
 ### Randomization Strategy
 - Triangular distribution (`randMs`) biases toward middle of range — more human-like
-- Search queue shuffled each run for variety
-- Random query variant selected from each keyword pool
-- Random target count (12-17) varies total searches per run
+- Random initial delay (0–8s) before the first search each run
 
 ## Chrome Extension Manifest V3 Notes
 
