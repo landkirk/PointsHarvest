@@ -138,10 +138,10 @@ async function startRun() {
   }
 
   await chrome.storage.local.set({ extractedActivities: activities, domDebug });
-  await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} "Search on Bing" cards found, ${domDebug?.skippedLocked ?? 0} locked`);
+  await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
 
   if (activities.length === 0) {
-    await abortRun('No activity cards found — check Debug panel', 'Aborting: no "Search on Bing" activity cards detected on the rewards page');
+    await abortRun('No activity cards found — check Debug panel', 'Aborting: no "Explore on Bing" activity cards detected on the rewards page');
     return;
   }
 
