@@ -2,29 +2,35 @@
 // Waits for the SPA to render activity cards, then reports them to the background.
 // Cards are clicked on demand (one at a time) via 'clickCard' messages from the background.
 
-// Cards are <a class="ds-card-sec"> elements.
-// "Search on Bing" activities are identified via aria-label on the card anchor.
+// Actionable cards are <a class="ds-card-sec"> elements; locked cards are <div class="locked-card">.
+// "Search on Bing" activities are identified via aria-label on the card element.
 const SEARCH_ON_BING_RE = /search on bing/i;
-const LOCKED_KEYWORDS = ['locked', 'available on', 'coming soon'];
 const MAX_WAIT_MS = 15000;
 const POLL_INTERVAL_MS = 500;
 
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls = [];
 
-function isLocked(text) {
-  const t = text.toLowerCase();
-  return LOCKED_KEYWORDS.some(kw => t.includes(kw));
+// Returns 'actionable', 'completed', 'locked', or 'unknown'.
+// Locked check must come first — locked cards still contain the points-earned span.
+function cardState(card) {
+  if (card.closest('.locked-card'))                               return 'locked';
+  if (card.querySelector('[aria-label="Points you have earned"]')) return 'completed';
+  if (card.querySelector('[aria-label="Points you will earn"]'))   return 'actionable';
+  return 'unknown';
 }
 
 // Returns { activities, domDebug, cardEls }
 function extractActivities() {
-  const allCards = Array.from(document.querySelectorAll('a.ds-card-sec'));
+  // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
+  const allCards = [
+    ...document.querySelectorAll('.locked-card'),
+    ...Array.from(document.querySelectorAll('a.ds-card-sec')).filter(a => !a.closest('.locked-card')),
+  ];
 
   const activities = [];
   const cardEls = [];
   const debugCards = [];
-  let skippedLocked = 0;
 
   for (const card of allCards) {
     const ariaLabel = card.getAttribute('aria-label') || '';
@@ -32,13 +38,10 @@ function extractActivities() {
 
     if (!SEARCH_ON_BING_RE.test(ariaLabel) && !SEARCH_ON_BING_RE.test(cardText)) continue;
 
-    const ariaLower = ariaLabel.toLowerCase();
-    const cardLower = cardText.toLowerCase();
-    const descText  = (ariaLabel || cardText.trim()).slice(0, 120);
-
-    if (LOCKED_KEYWORDS.some(kw => ariaLower.includes(kw) || cardLower.includes(kw))) {
-      skippedLocked++;
-      debugCards.push({ skipped: 'locked', cardSnippet: descText });
+    const descText = (ariaLabel || cardText.trim()).slice(0, 120);
+    const state = cardState(card);
+    if (state !== 'actionable') {
+      debugCards.push({ skipped: state, cardSnippet: descText });
       continue;
     }
 
@@ -60,7 +63,9 @@ function extractActivities() {
   const domDebug = {
     totalCards: allCards.length,
     actionElementsFound: cardEls.length,
-    skippedLocked,
+    skippedLocked: debugCards.filter(d => d.skipped === 'locked').length,
+    skippedCompleted: debugCards.filter(d => d.skipped === 'completed').length,
+    skippedUnknown: debugCards.filter(d => d.skipped === 'unknown').length,
     cards: debugCards,
   };
 

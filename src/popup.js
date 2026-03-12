@@ -165,7 +165,7 @@ function renderCards(mappedActivities, domDebug) {
     </div>
   `).join('') + skipped.map(c => `
     <div class="dbg-card">
-      <div class="card-title" style="color:#555">${esc(c.actionText)}</div>
+      <div class="card-title" style="color:#555">${esc(c.cardSnippet || '(no title)')}</div>
       <div class="card-skip">Skipped: ${esc(c.skipped)}</div>
     </div>
   `).join('');
