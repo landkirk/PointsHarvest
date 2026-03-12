@@ -30,9 +30,47 @@ const CARD_STATE = /** @type {Record<string, CardState>} */ ({
 /** @param {Element} card @returns {CardState} */
 function determineCardState(card) {
   if (card.closest('.locked-card'))                               return CARD_STATE.LOCKED;
+  if (card.getAttribute('aria-disabled') === 'true')              return CARD_STATE.LOCKED;
   if (card.querySelector('[aria-label="Points you have earned"]')) return CARD_STATE.COMPLETED;
   if (card.querySelector('[aria-label="Points you will earn"]'))   return CARD_STATE.ACTIONABLE;
   return CARD_STATE.UNKNOWN;
+}
+
+// Returns { dailySets, dailySetDebug }
+function extractDailySets() {
+  const container = document.querySelector('#daily-sets');
+  if (!container) return { dailySets: [], dailySetDebug: { sectionFound: false } };
+
+  const tiles = Array.from(container.querySelectorAll('a.ds-card-sec'));
+
+  const actionable = [];
+  const debugTiles = [];
+
+  for (const tile of tiles) {
+    const tileState = determineCardState(tile);
+    const ariaLabel = tile.getAttribute('aria-label') || '';
+    const href = tile.href || null;
+    const biId = tile.getAttribute('data-bi-id') || '';
+    const snippet = ariaLabel.slice(0, 80);
+
+    if (tileState !== CARD_STATE.ACTIONABLE || !href) {
+      debugTiles.push({ skipped: !href ? 'no-href' : tileState, snippet, biId });
+      continue;
+    }
+
+    debugTiles.push({ href, snippet, biId, skipped: null });
+    actionable.push({ href, ariaLabel, biId });
+  }
+
+  return {
+    dailySets: actionable,
+    dailySetDebug: {
+      sectionFound: true,
+      totalTiles: tiles.length,
+      actionable: actionable.length,
+      tiles: debugTiles,
+    },
+  };
 }
 
 // Returns { activities, domDebug, cardEls }
@@ -130,10 +168,11 @@ function waitAndExtract() {
     }
 
     const { activities, domDebug, cardEls } = extractActivities();
+    const { dailySets, dailySetDebug } = extractDailySets();
 
-    if (activities.length > 0 || Date.now() - start >= MAX_WAIT_MS) {
+    if (activities.length > 0 || dailySets.length > 0 || Date.now() - start >= MAX_WAIT_MS) {
       extractedCardEls = cardEls; // retain for on-demand clicks
-      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, loggedIn: true });
+      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
     } else {
       setTimeout(poll, POLL_INTERVAL_MS);
     }

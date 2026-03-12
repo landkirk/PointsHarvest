@@ -1,12 +1,13 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { state, closeRewardsTab } from '../state.js';
+import { state, closeRewardsTab, waitForTabLoad } from '../state.js';
 import { dbg, randMs, sleep } from '../util/debug.js';
 import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
+import { completeDailySets } from './complete-daily-sets.js';
 
-export async function runAllSearches(mapped, startIndex) {
+export async function runAllSearches(mapped, startIndex, dailySets = []) {
   for (let i = startIndex; i < mapped.length; i++) {
     if (!state.isActivelyRunning) return;
 
@@ -44,13 +45,7 @@ export async function runAllSearches(mapped, startIndex) {
     state.openedTabIds.add(searchTab.id);
 
     // Wait for the tab to finish loading
-    state.pendingTabId = searchTab.id;
-    await Promise.race([
-      new Promise(resolve => { state.pendingResolve = resolve; }),
-      sleep(30000),
-    ]);
-    state.pendingResolve = null;
-    state.pendingTabId = null;
+    await waitForTabLoad(searchTab.id, 30000);
 
     if (!state.isActivelyRunning) {
       chrome.tabs.remove(searchTab.id).catch(() => {});
@@ -85,11 +80,12 @@ export async function runAllSearches(mapped, startIndex) {
     }
   }
 
-  // Close the rewards tab now that all cards have been clicked
-  closeRewardsTab();
+  // Complete daily set tiles before closing the rewards tab
+  await completeDailySets(dailySets);
 
+  closeRewardsTab();
   state.isActivelyRunning = false;
   await chrome.storage.local.set({ isRunning: false, status: 'Done for today!' });
-  await dbg('success', 'All searches complete');
+  await dbg('success', 'All tasks complete');
   chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
 }

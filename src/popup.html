@@ -40,7 +40,7 @@
 
     .status {
       font-size: 12px;
-      color: #aaa;
+      color: #ccc;
       margin-bottom: 10px;
       white-space: nowrap;
       overflow: hidden;
@@ -64,7 +64,7 @@
 
     .progress-label {
       font-size: 11px;
-      color: #666;
+      color: #aaa;
       margin-bottom: 14px;
     }
 
@@ -91,7 +91,7 @@
 
     .last-search {
       font-size: 11px;
-      color: #555;
+      color: #999;
       margin-top: 10px;
       white-space: nowrap;
       overflow: hidden;
@@ -109,7 +109,7 @@
       width: fit-content;
     }
     .debug-toggle input { cursor: pointer; accent-color: #3b82f6; }
-    .debug-toggle label { font-size: 11px; color: #555; cursor: pointer; }
+    .debug-toggle label { font-size: 11px; color: #999; cursor: pointer; }
 
     /* ── Debug panel ── */
     #debug-panel {
@@ -126,7 +126,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #555;
+      color: #888;
       margin-bottom: 6px;
     }
 
@@ -134,7 +134,7 @@
       max-height: 130px;
       overflow-y: auto;
       font-size: 11px;
-      color: #999;
+      color: #ccc;
       line-height: 1.5;
     }
     .dbg-list::-webkit-scrollbar { width: 4px; }
@@ -147,11 +147,12 @@
       padding: 5px 7px;
       margin-bottom: 4px;
     }
-    .dbg-card .card-title { color: #ccc; font-weight: 600; }
-    .dbg-card .card-desc  { color: #666; font-size: 10px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .dbg-card .card-query { color: #3b82f6; font-size: 10px; margin-top: 2px; }
+    .dbg-card .card-title { color: #eee; font-weight: 600; }
+    .dbg-card .card-title.skipped { color: #888; }
+    .dbg-card .card-desc  { color: #aaa; font-size: 10px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dbg-card .card-query { color: #3b82f6; font-size: 10px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .dbg-card .card-skip     { color: #ef4444; font-size: 10px; margin-top: 1px; }
-    .dbg-card .card-kw       { color: #666; font-size: 10px; }
+    .dbg-card .card-kw       { color: #aaa; font-size: 10px; }
     .dbg-card .card-fallback { color: #f59e0b; font-size: 10px; margin-top: 2px; }
     .dbg-card .card-query-fb { color: #f59e0b; font-size: 10px; margin-top: 2px; }
 
@@ -162,21 +163,22 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .dbg-queue-item .idx { color: #444; margin-right: 4px; }
+    .dbg-queue-item .idx { color: #777; margin-right: 4px; }
 
     /* Log entries */
     .log-entry { display: flex; gap: 6px; padding: 1px 0; }
-    .log-entry .log-time { color: #444; flex-shrink: 0; }
-    .log-entry .log-msg  { color: #888; }
+    .log-entry .log-time { color: #777; flex-shrink: 0; }
+    .log-entry .log-msg  { color: #bbb; }
     .log-entry.success .log-msg { color: #22c55e; }
     .log-entry.warn    .log-msg { color: #f59e0b; }
     .log-entry.error   .log-msg { color: #ef4444; }
 
-    .dbg-empty { color: #444; font-style: italic; font-size: 11px; }
+    .dbg-empty { color: #777; font-style: italic; font-size: 11px; }
+    .dbg-section-label { color: #888; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; margin: 6px 0 2px; }
 
     .dom-stats {
       font-size: 11px;
-      color: #666;
+      color: #aaa;
       margin-bottom: 6px;
       display: flex;
       flex-wrap: wrap;
