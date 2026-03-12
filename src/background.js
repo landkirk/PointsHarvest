@@ -14,6 +14,7 @@ const BLANK_STATE = {
   lastLabel: '',
   debugLog: [],
   domDebug: null,
+  dailySetDebug: null,
   extractedActivities: [],
   mappedActivities: [],
   searchQueue: [],
@@ -71,7 +72,13 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.ACTIVITIES_FOUND) {
     if (state.resolveActivities) {
-      state.resolveActivities({ activities: msg.activities, domDebug: msg.domDebug, loggedIn: msg.loggedIn !== false });
+      state.resolveActivities({
+        activities: msg.activities,
+        domDebug: msg.domDebug,
+        dailySets: msg.dailySets ?? [],
+        dailySetDebug: msg.dailySetDebug ?? null,
+        loggedIn: msg.loggedIn !== false,
+      });
       state.resolveActivities = null;
     }
     return;
@@ -128,7 +135,7 @@ async function startRun() {
 
   // Step 1: open rewards dashboard and extract activity cards (no clicking yet)
   await dbg('info', `Opening ${REWARDS_URL}`);
-  const { activities, domDebug, loggedIn } = await fetchAvailableActivities();
+  const { activities, domDebug, dailySets, dailySetDebug, loggedIn } = await fetchAvailableActivities();
 
   if (!state.isActivelyRunning) { await dbg('warn', 'Stopped during activity fetch'); return; }
 
@@ -137,10 +144,11 @@ async function startRun() {
     return;
   }
 
-  await chrome.storage.local.set({ extractedActivities: activities, domDebug });
+  await chrome.storage.local.set({ extractedActivities: activities, domDebug, dailySetDebug });
   await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
+  await dbg('info', `Daily sets: ${dailySetDebug?.actionable ?? 0} actionable (section ${dailySetDebug?.sectionFound ? 'found' : 'not found'})`);
 
-  if (activities.length === 0) {
+  if (activities.length === 0 && dailySets.length === 0) {
     await abortRun('No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
     return;
   }
@@ -174,7 +182,7 @@ async function startRun() {
     return;
   }
 
-  runAllSearches(mapped, startIndex);
+  runAllSearches(mapped, startIndex, dailySets);
 }
 
 async function stopRun() {

@@ -44,7 +44,7 @@ export async function fetchAvailableActivities() {
     state.resolveActivities = null;
     closeRewardsTab();
     dbg('warn', 'Rewards page timed out — no activities');
-    resolveLocal({ activities: [], domDebug: null, loggedIn: true });
+    resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
   }, 20000);
 
   const rewardsTab = await chrome.tabs.create({ url: REWARDS_URL, active: false }).catch(() => null);
@@ -52,7 +52,7 @@ export async function fetchAvailableActivities() {
     clearTimeout(timeout);
     state.resolveActivities = null;
     dbg('error', 'Failed to open rewards tab');
-    resolveLocal({ activities: [], domDebug: null, loggedIn: true });
+    resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
     return result;
   }
 
@@ -60,9 +60,9 @@ export async function fetchAvailableActivities() {
   state.rewardsTabId = rewardsTab.id;
 
   // Rewards tab stays open after resolving — background will click cards and then close it.
-  state.resolveActivities = ({ activities = [], domDebug = null, loggedIn = true } = {}) => {
+  state.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true } = {}) => {
     clearTimeout(timeout);
-    resolveLocal({ activities, domDebug, loggedIn });
+    resolveLocal({ activities, domDebug, dailySets, dailySetDebug, loggedIn });
   };
 
   return result;
