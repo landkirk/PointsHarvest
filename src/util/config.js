@@ -1,5 +1,26 @@
 export const REWARDS_URL = 'https://rewards.bing.com/';
 
+/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'performSearch'|'start'|'stop'|'getState'|'ping'|'purgeState'|'complete'|'progress'|'debugReady'|'debugEntry'} MsgAction */
+export const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
+  // Background ↔ rewards content script
+  START_EXTRACT:    'startExtract',
+  ACTIVITIES_FOUND: 'activitiesFound',
+  CLICK_CARD:       'clickCard',
+  // Background ↔ search content script
+  PERFORM_SEARCH:   'performSearch',
+  // Popup → background
+  START:      'start',
+  STOP:       'stop',
+  GET_STATE:  'getState',
+  PING:       'ping',
+  PURGE:      'purgeState',
+  // Background/steps → popup
+  COMPLETE:    'complete',
+  PROGRESS:    'progress',
+  DEBUG_READY: 'debugReady',
+  DEBUG_ENTRY: 'debugEntry',
+});
+
 export const MIN_SEARCHES = 12;
 export const MAX_SEARCHES = 17; // random target count per run
 

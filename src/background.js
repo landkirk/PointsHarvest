@@ -1,4 +1,4 @@
-import { REWARDS_URL } from './util/config.js';
+import { REWARDS_URL, MSG_ACTION } from './util/config.js';
 import { dbg, resetLog, randMs, sleep } from './util/debug.js';
 import { state, closeRewardsTab } from './state.js';
 import { fetchAvailableActivities, buildSearchList } from './steps/fetch-activities.js';
@@ -26,7 +26,7 @@ async function abortRun(status, errorMsg) {
   closeRewardsTab();
   await chrome.storage.local.set({ isRunning: false, status });
   await dbg('error', errorMsg);
-  chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
+  chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
 }
 
 // ── Top-level listeners ────────────────────────────────────────────────────
@@ -43,7 +43,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (tabId === state.rewardsTabId && changeInfo.status === 'complete' && tab.url) {
     if (tab.url.startsWith(REWARDS_URL)) {
       // Page loaded — tell the content script to begin extraction
-      chrome.tabs.sendMessage(tabId, { action: 'startExtract' }).catch(() => {});
+      chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
     } else {
       // Redirected away from rewards — not logged in
       dbg('error', `Not logged in — redirected to: ${tab.url}`);
@@ -69,30 +69,30 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.action === 'activitiesFound') {
+  if (msg.action === MSG_ACTION.ACTIVITIES_FOUND) {
     if (state.resolveActivities) {
       state.resolveActivities({ activities: msg.activities, domDebug: msg.domDebug, loggedIn: msg.loggedIn !== false });
       state.resolveActivities = null;
     }
     return;
   }
-  if (msg.action === 'start') {
+  if (msg.action === MSG_ACTION.START) {
     startRun().then(() => sendResponse({ ok: true }));
     return true;
   }
-  if (msg.action === 'stop') {
+  if (msg.action === MSG_ACTION.STOP) {
     stopRun().then(() => sendResponse({ ok: true }));
     return true;
   }
-  if (msg.action === 'getState') {
+  if (msg.action === MSG_ACTION.GET_STATE) {
     chrome.storage.local.get(null).then(sendResponse);
     return true;
   }
-  if (msg.action === 'ping') {
+  if (msg.action === MSG_ACTION.PING) {
     sendResponse({ running: state.isActivelyRunning });
     return true;
   }
-  if (msg.action === 'purgeState') {
+  if (msg.action === MSG_ACTION.PURGE) {
     chrome.storage.local.set(BLANK_STATE).then(() => sendResponse({ ok: true }));
     return true;
   }
@@ -141,7 +141,7 @@ async function startRun() {
   await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
 
   if (activities.length === 0) {
-    await abortRun('No activity cards found — check Debug panel', 'Aborting: no "Explore on Bing" activity cards detected on the rewards page');
+    await abortRun('No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
     return;
   }
 
@@ -150,7 +150,7 @@ async function startRun() {
   // Step 2: map activities → queries
   const mapped = buildSearchList(activities);
   await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
-  chrome.runtime.sendMessage({ action: 'debugReady' }).catch(() => {});
+  chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
 
   const unmapped = mapped.filter(m => m.unmatched).length;
   await dbg('info', `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
