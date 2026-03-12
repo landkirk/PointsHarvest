@@ -1,5 +1,7 @@
 // Shared in-memory state for the service worker.
 // Reset whenever the service worker restarts.
+import { sleep } from './util/debug.js';
+
 export const state = {
   pendingTabId: null,         // search tab we're waiting on to load
   pendingResolve: null,       // resolves when pendingTabId finishes loading
@@ -15,4 +17,15 @@ export function closeRewardsTab() {
     chrome.tabs.remove(state.rewardsTabId).catch(() => {});
     state.rewardsTabId = null;
   }
+}
+
+// Waits for a tab to reach 'complete' status (via chrome.tabs.onUpdated) or times out.
+export async function waitForTabLoad(tabId, timeoutMs = 30000) {
+  state.pendingTabId = tabId;
+  await Promise.race([
+    new Promise(resolve => { state.pendingResolve = resolve; }),
+    sleep(timeoutMs),
+  ]);
+  state.pendingResolve = null;
+  state.pendingTabId = null;
 }

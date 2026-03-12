@@ -85,8 +85,8 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === MSG_ACTION.DEBUG_READY && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
       if (state) {
-        renderDomStats(state.domDebug);
-        renderCards(state.mappedActivities, state.domDebug);
+        renderDomStats(state.domDebug, state.dailySetDebug);
+        renderCards(state.mappedActivities, state.domDebug, state.dailySetDebug);
         renderQueue(state.searchQueue);
       }
     });
@@ -133,43 +133,48 @@ function clearDebug() {
   dbgLog.innerHTML    = '<div class="dbg-empty">No events yet.</div>';
 }
 
-function renderDebug({ domDebug, mappedActivities, searchQueue, debugLog }) {
-  renderDomStats(domDebug);
-  renderCards(mappedActivities, domDebug);
+function renderDebug({ domDebug, dailySetDebug, mappedActivities, searchQueue, debugLog }) {
+  renderDomStats(domDebug, dailySetDebug);
+  renderCards(mappedActivities, domDebug, dailySetDebug);
   renderQueue(searchQueue);
   renderLog(debugLog);
 }
 
-function renderDomStats(domDebug) {
-  if (!domDebug) { domStats.innerHTML = ''; return; }
-  const el = domStats;
-  el.innerHTML = `
-    <span title="Total cards scanned">${domDebug.totalCards} cards</span>
-    <span title="'Search on Bing' cards found">${domDebug.actionElementsFound} matches</span>
-    <span title="Cards skipped because they were locked">${domDebug.skippedLocked} locked</span>
+function renderDomStats(domDebug, dailySetDebug) {
+  if (!domDebug && !dailySetDebug) { domStats.innerHTML = ''; return; }
+  const ds = dailySetDebug;
+  domStats.innerHTML = `
+    ${domDebug ? `
+      <span title="Total cards scanned">${domDebug.totalCards} cards</span>
+      <span title="'Search on Bing' cards found">${domDebug.actionElementsFound} matches</span>
+      <span title="Cards skipped because they were locked">${domDebug.skippedLocked} locked</span>
+    ` : ''}
+    ${ds ? `
+      <span title="Daily set section found on page">Daily set: ${ds.sectionFound ? `${ds.actionable}/${ds.totalTiles} actionable` : 'not found'}</span>
+    ` : ''}
   `;
 }
 
 
-function renderCards(mappedActivities, domDebug) {
+function renderCards(mappedActivities, domDebug, dailySetDebug) {
   const el = dbgCards;
-  if (!domDebug && (!mappedActivities || mappedActivities.length === 0)) {
+  const skipped = (domDebug?.cards ?? []).filter(c => c.skipped);
+  const items = mappedActivities ?? [];
+  const dsTiles = dailySetDebug?.tiles ?? [];
+
+  if (!domDebug && !dailySetDebug && items.length === 0) {
     el.innerHTML = '<div class="dbg-empty">Run the extension to see extraction results.</div>';
     return;
   }
 
-  // Show skipped/locked cards from domDebug
-  const skipped = (domDebug?.cards || []).filter(c => c.skipped);
-  const items = [...(mappedActivities || [])];
-
-  if (items.length === 0 && skipped.length === 0) {
+  if (items.length === 0 && skipped.length === 0 && dsTiles.length === 0) {
     el.innerHTML = '<div class="dbg-empty">No activity cards found.</div>';
     return;
   }
 
-  el.innerHTML = items.map(a => `
+  const searchHtml = items.map(a => `
     <div class="dbg-card">
-      <div class="card-title">${esc(a.title || '(no title)')}</div>
+      <div class="card-title${a.unmatched ? ' skipped' : ''}">${esc(a.title || '(no title)')}</div>
       <div class="card-desc">${esc(a.description || '')}</div>
       ${a.unmatched
         ? '<div class="card-skip">No query could be generated — skipped</div>'
@@ -178,10 +183,25 @@ function renderCards(mappedActivities, domDebug) {
     </div>
   `).join('') + skipped.map(c => `
     <div class="dbg-card">
-      <div class="card-title" style="color:#555">${esc(c.cardSnippet || '(no title)')}</div>
+      <div class="card-title skipped">${esc(c.cardSnippet || '(no title)')}</div>
       <div class="card-skip">Skipped: ${esc(c.skipped)}</div>
     </div>
   `).join('');
+
+  const dsHtml = dsTiles.length === 0 ? '' : `
+    <div class="dbg-section-label">Daily set</div>
+    ${dsTiles.map(t => `
+      <div class="dbg-card">
+        <div class="card-title${t.skipped ? ' skipped' : ''}">${esc(t.snippet || t.biId || '(no title)')}</div>
+        ${t.skipped
+          ? `<div class="card-skip">Skipped: ${esc(t.skipped)}</div>`
+          : `<div class="card-query" title="${esc(t.href)}">→ ${esc(t.href)}</div>`
+        }
+      </div>
+    `).join('')}
+  `;
+
+  el.innerHTML = searchHtml + dsHtml;
 }
 
 function renderQueue(searchQueue) {
