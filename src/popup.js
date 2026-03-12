@@ -1,3 +1,16 @@
+/** @typedef {'start'|'stop'|'getState'|'ping'|'purgeState'|'complete'|'progress'|'debugReady'|'debugEntry'} MsgAction */
+const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
+  START:       'start',
+  STOP:        'stop',
+  GET_STATE:   'getState',
+  PING:        'ping',
+  PURGE:       'purgeState',
+  COMPLETE:    'complete',
+  PROGRESS:    'progress',
+  DEBUG_READY: 'debugReady',
+  DEBUG_ENTRY: 'debugEntry',
+});
+
 const dot        = document.getElementById('dot');
 const statusEl   = document.getElementById('status');
 const bar        = document.getElementById('progress-bar');
@@ -37,14 +50,14 @@ function render({ isRunning, status, completedSearches, totalSearches, lastLabel
 // Load state on open. If storage says running, ping to confirm the service worker
 // is actually alive and running — if it was restarted, isActivelyRunning is false
 // and we reset rather than showing a permanently-stuck running state.
-chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
+chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
   if (!state) return;
   if (!state.isRunning) {
     render(state);
     if (debugCheck.checked) renderDebug(state);
     return;
   }
-  chrome.runtime.sendMessage({ action: 'ping' }, (response) => {
+  chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response) => {
     if (!response?.running) {
       chrome.storage.local.set({ isRunning: false, status: 'Stopped' });
       state = { ...state, isRunning: false, status: 'Stopped' };
@@ -55,7 +68,7 @@ chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.action === 'progress') {
+  if (msg.action === MSG_ACTION.PROGRESS) {
     render({
       isRunning: true,
       status: `Running (${msg.completed} / ${msg.total})`,
@@ -64,13 +77,13 @@ chrome.runtime.onMessage.addListener((msg) => {
       lastLabel: msg.label,
     });
   }
-  if (msg.action === 'complete') {
-    chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
+  if (msg.action === MSG_ACTION.COMPLETE) {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
       if (state) { render(state); if (debugCheck.checked) renderDebug(state); }
     });
   }
-  if (msg.action === 'debugReady' && debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
+  if (msg.action === MSG_ACTION.DEBUG_READY && debugCheck.checked) {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
       if (state) {
         renderDomStats(state.domDebug);
         renderCards(state.mappedActivities, state.domDebug);
@@ -78,25 +91,25 @@ chrome.runtime.onMessage.addListener((msg) => {
       }
     });
   }
-  if (msg.action === 'debugEntry' && debugCheck.checked) {
+  if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
     appendLogEntry(msg.entry);
   }
 });
 
 btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
-  chrome.runtime.sendMessage({ action: 'start' });
+  chrome.runtime.sendMessage({ action: MSG_ACTION.START });
   render({ isRunning: true, status: 'Starting…', completedSearches: 0, totalSearches: 0 });
   if (debugCheck.checked) clearDebug();
 });
 
 btnStop.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: 'stop' });
+  chrome.runtime.sendMessage({ action: MSG_ACTION.STOP });
   render({ isRunning: false, status: 'Stopped' });
 });
 
 btnPurge.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: 'purgeState' }, () => {
+  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }, () => {
     render({ isRunning: false, status: 'Idle' });
     clearDebug();
   });
@@ -107,7 +120,7 @@ btnPurge.addEventListener('click', () => {
 debugCheck.addEventListener('change', () => {
   debugPanel.classList.toggle('open', debugCheck.checked);
   if (debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: 'getState' }, (state) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
       if (state) renderDebug(state);
     });
   }

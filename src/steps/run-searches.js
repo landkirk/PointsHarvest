@@ -3,6 +3,7 @@
 
 import { state, closeRewardsTab } from '../state.js';
 import { dbg, randMs, sleep } from '../util/debug.js';
+import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
 
 export async function runAllSearches(mapped, startIndex) {
@@ -23,7 +24,7 @@ export async function runAllSearches(mapped, startIndex) {
     // Set up capture before sending click — tab may open before sendMessage resolves
     const captureTabPromise = new Promise(resolve => { state.captureNextTabResolve = resolve; });
 
-    const clickResult = await chrome.tabs.sendMessage(state.rewardsTabId, { action: 'clickCard', index: i })
+    const clickResult = await chrome.tabs.sendMessage(state.rewardsTabId, { action: MSG_ACTION.CLICK_CARD, index: i })
       .catch(() => null);
 
     if (!clickResult?.clicked) {
@@ -70,7 +71,7 @@ export async function runAllSearches(mapped, startIndex) {
     await dbg('success', `Search ${completed}/${mapped.length} complete`);
 
     chrome.runtime.sendMessage({
-      action: 'progress',
+      action: MSG_ACTION.PROGRESS,
       completed,
       total: mapped.length,
       label: query,
@@ -90,5 +91,5 @@ export async function runAllSearches(mapped, startIndex) {
   state.isActivelyRunning = false;
   await chrome.storage.local.set({ isRunning: false, status: 'Done for today!' });
   await dbg('success', 'All searches complete');
-  chrome.runtime.sendMessage({ action: 'complete' }).catch(() => {});
+  chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
 }

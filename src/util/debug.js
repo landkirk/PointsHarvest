@@ -1,4 +1,5 @@
 // Manages the debug log: in-memory buffer, storage sync, and popup broadcast.
+import { MSG_ACTION } from './config.js';
 
 const MAX_LOG_ENTRIES = 100;
 
@@ -15,7 +16,7 @@ export async function dbg(type, message) {
   log.push(entry);
   if (log.length > MAX_LOG_ENTRIES) log.shift();
   await chrome.storage.local.set({ debugLog: log });
-  chrome.runtime.sendMessage({ action: 'debugEntry', entry }).catch(() => {});
+  chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {});
 }
 
 /** Triangular distribution biased toward the middle of [min, max]. */
