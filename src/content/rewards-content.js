@@ -11,13 +11,28 @@ const POLL_INTERVAL_MS = 500;
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls = [];
 
-// Returns 'actionable', 'completed', 'locked', or 'unknown'.
-// Locked check must come first — locked cards still contain the points-earned span.
-function cardState(card) {
-  if (card.closest('.locked-card'))                               return 'locked';
-  if (card.querySelector('[aria-label="Points you have earned"]')) return 'completed';
-  if (card.querySelector('[aria-label="Points you will earn"]'))   return 'actionable';
-  return 'unknown';
+/** @typedef {'startExtract'|'activitiesFound'|'clickCard'} MsgAction */
+const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
+  START_EXTRACT:    'startExtract',
+  ACTIVITIES_FOUND: 'activitiesFound',
+  CLICK_CARD:       'clickCard',
+});
+
+/** @typedef {'actionable'|'completed'|'locked'|'unknown'} CardState */
+const CARD_STATE = /** @type {Record<string, CardState>} */ ({
+  ACTIONABLE: 'actionable',
+  COMPLETED:  'completed',
+  LOCKED:     'locked',
+  UNKNOWN:    'unknown',
+});
+
+// Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
+/** @param {Element} card @returns {CardState} */
+function determineCardState(card) {
+  if (card.closest('.locked-card'))                               return CARD_STATE.LOCKED;
+  if (card.querySelector('[aria-label="Points you have earned"]')) return CARD_STATE.COMPLETED;
+  if (card.querySelector('[aria-label="Points you will earn"]'))   return CARD_STATE.ACTIONABLE;
+  return CARD_STATE.UNKNOWN;
 }
 
 // Returns { activities, domDebug, cardEls }
@@ -39,8 +54,8 @@ function extractActivities() {
     if (!SEARCH_ON_BING_RE.test(ariaLabel) && !SEARCH_ON_BING_RE.test(cardText)) continue;
 
     const descText = (ariaLabel || cardText.trim()).slice(0, 120);
-    const state = cardState(card);
-    if (state !== 'actionable') {
+    const state = determineCardState(card);
+    if (state !== CARD_STATE.ACTIONABLE) {
       debugCards.push({ skipped: state, cardSnippet: descText });
       continue;
     }
@@ -63,9 +78,9 @@ function extractActivities() {
   const domDebug = {
     totalCards: allCards.length,
     actionElementsFound: cardEls.length,
-    skippedLocked: debugCards.filter(d => d.skipped === 'locked').length,
-    skippedCompleted: debugCards.filter(d => d.skipped === 'completed').length,
-    skippedUnknown: debugCards.filter(d => d.skipped === 'unknown').length,
+    skippedLocked: debugCards.filter(d => d.skipped === CARD_STATE.LOCKED).length,
+    skippedCompleted: debugCards.filter(d => d.skipped === CARD_STATE.COMPLETED).length,
+    skippedUnknown: debugCards.filter(d => d.skipped === CARD_STATE.UNKNOWN).length,
     cards: debugCards,
   };
 
@@ -107,7 +122,7 @@ function waitAndExtract() {
 
     const loginStatus = isLoggedIn(bodyText);
     if (loginStatus === false) {
-      chrome.runtime.sendMessage({ action: 'activitiesFound', activities: [], domDebug: null, loggedIn: false });
+      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities: [], domDebug: null, loggedIn: false });
       return;
     }
     if (loginStatus === null) {
@@ -118,7 +133,7 @@ function waitAndExtract() {
 
     if (activities.length > 0 || Date.now() - start >= MAX_WAIT_MS) {
       extractedCardEls = cardEls; // retain for on-demand clicks
-      chrome.runtime.sendMessage({ action: 'activitiesFound', activities, domDebug, loggedIn: true });
+      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, loggedIn: true });
     } else {
       setTimeout(poll, POLL_INTERVAL_MS);
     }
@@ -128,12 +143,12 @@ function waitAndExtract() {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.action === 'startExtract') {
+  if (msg.action === MSG_ACTION.START_EXTRACT) {
     waitAndExtract();
     return;
   }
 
-  if (msg.action === 'clickCard') {
+  if (msg.action === MSG_ACTION.CLICK_CARD) {
     const card = extractedCardEls[msg.index];
     if (!card) {
       sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
