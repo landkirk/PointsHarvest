@@ -1,11 +1,21 @@
 export const REWARDS_URL = 'https://rewards.bing.com/';
 
-/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'performSearch'|'start'|'stop'|'getState'|'ping'|'purgeState'|'complete'|'progress'|'debugReady'|'debugEntry'} MsgAction */
+/** @typedef {'actionable'|'completed'|'locked'|'unknown'|'not-found'} CardState */
+export const CARD_STATE = /** @type {Record<string, CardState>} */ ({
+  ACTIONABLE: 'actionable',
+  COMPLETED:  'completed',
+  LOCKED:     'locked',
+  UNKNOWN:    'unknown',
+  NOT_FOUND:  'not-found',
+});
+
+/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'validateTile'|'performSearch'|'start'|'stop'|'getState'|'ping'|'purgeState'|'complete'|'progress'|'debugReady'|'debugEntry'} MsgAction */
 export const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
   // Background ↔ rewards content script
   START_EXTRACT:    'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
   CLICK_CARD:       'clickCard',
+  VALIDATE_TILE:    'validateTile',
   // Background ↔ search content script
   PERFORM_SEARCH:   'performSearch',
   // Popup → background

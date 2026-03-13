@@ -29,11 +29,11 @@ function generateSearchQuery(title, description) {
 
 // Maps each activity to a query (may be null if none could be generated).
 export function buildSearchList(activities) {
-  return activities.map(({ title, description }) => {
+  return activities.map(({ title, description, href }) => {
     const query = generateSearchQuery(title, description);
     return query
-      ? { title, description, query, unmatched: false }
-      : { title, description, query: null, unmatched: true };
+      ? { title, description, href, query, unmatched: false }
+      : { title, description, href, query: null, unmatched: true };
   });
 }
 
