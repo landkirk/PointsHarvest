@@ -1,7 +1,8 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { state, closeRewardsTab, waitForTabLoad } from '../state.js';
+import { session, setState } from '../util/state.js';
+import { closeRewardsTab, waitForTabLoad } from '../util/tabs.js';
 import { dbg, randMs, sleep } from '../util/debug.js';
 import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
@@ -9,7 +10,7 @@ import { completeDailySets } from './complete-daily-sets.js';
 
 export async function runAllSearches(mapped, startIndex, dailySets = []) {
   for (let i = startIndex; i < mapped.length; i++) {
-    if (!state.isActivelyRunning) return;
+    if (!session.isActivelyRunning) return;
 
     const { query, title } = mapped[i];
 
@@ -19,35 +20,35 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
     }
 
     const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-    await chrome.storage.local.set({ currentIndex: i, status: `Searching: "${label}"` });
+    await setState({ currentIndex: i, status: `Searching: "${label}"` });
     await dbg('info', `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
     // Set up capture before sending click — tab may open before sendMessage resolves
-    const captureTabPromise = new Promise(resolve => { state.captureNextTabResolve = resolve; });
+    const captureTabPromise = new Promise(resolve => { session.captureNextTabResolve = resolve; });
 
-    const clickResult = await chrome.tabs.sendMessage(state.rewardsTabId, { action: MSG_ACTION.CLICK_CARD, index: i })
+    const clickResult = await chrome.tabs.sendMessage(session.rewardsTabId, { action: MSG_ACTION.CLICK_CARD, index: i })
       .catch(() => null);
 
     if (!clickResult?.clicked) {
-      state.captureNextTabResolve = null;
+      session.captureNextTabResolve = null;
       await dbg('warn', `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
       continue;
     }
 
     const searchTab = await Promise.race([captureTabPromise, sleep(10000).then(() => null)]);
-    state.captureNextTabResolve = null;
+    session.captureNextTabResolve = null;
 
     if (!searchTab) {
       await dbg('warn', `No tab opened after clicking card "${title}"`);
       continue;
     }
 
-    state.openedTabIds.add(searchTab.id);
+    session.openedTabIds.add(searchTab.id);
 
     // Wait for the tab to finish loading
     await waitForTabLoad(searchTab.id, 30000);
 
-    if (!state.isActivelyRunning) {
+    if (!session.isActivelyRunning) {
       chrome.tabs.remove(searchTab.id).catch(() => {});
       return;
     }
@@ -55,10 +56,10 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
     await performSearchInTab(searchTab.id, query);
     chrome.tabs.remove(searchTab.id).catch(() => {});
 
-    if (!state.isActivelyRunning) return;
+    if (!session.isActivelyRunning) return;
 
     const completed = i + 1;
-    await chrome.storage.local.set({
+    await setState({
       completedSearches: completed,
       lastLabel: query,
       status: `Running (${completed} / ${mapped.length})`,
@@ -76,7 +77,7 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
       const delay = randMs(1800, 5000);
       await dbg('info', `Next search in ${(delay / 1000).toFixed(1)}s`);
       await sleep(delay);
-      if (!state.isActivelyRunning) return;
+      if (!session.isActivelyRunning) return;
     }
   }
 
@@ -84,8 +85,8 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
   await completeDailySets(dailySets);
 
   closeRewardsTab();
-  state.isActivelyRunning = false;
-  await chrome.storage.local.set({ isRunning: false, status: 'Done for today!' });
+  session.isActivelyRunning = false;
+  await setState({ isRunning: false, status: 'Done for today!' });
   await dbg('success', 'All tasks complete');
   chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
 }

@@ -1,7 +1,8 @@
 // Opens the rewards dashboard, waits for the content script to extract activity
 // cards, and maps each activity to a usable search query.
 
-import { state, closeRewardsTab } from '../state.js';
+import { session } from '../util/state.js';
+import { closeRewardsTab } from '../util/tabs.js';
 import { dbg } from '../util/debug.js';
 import { REWARDS_URL } from '../util/config.js';
 
@@ -41,7 +42,7 @@ export async function fetchAvailableActivities() {
   const result = new Promise(resolve => { resolveLocal = resolve; });
 
   const timeout = setTimeout(() => {
-    state.resolveActivities = null;
+    session.resolveActivities = null;
     closeRewardsTab();
     dbg('warn', 'Rewards page timed out — no activities');
     resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
@@ -50,17 +51,17 @@ export async function fetchAvailableActivities() {
   const rewardsTab = await chrome.tabs.create({ url: REWARDS_URL, active: false }).catch(() => null);
   if (!rewardsTab) {
     clearTimeout(timeout);
-    state.resolveActivities = null;
+    session.resolveActivities = null;
     dbg('error', 'Failed to open rewards tab');
     resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
     return result;
   }
 
-  state.openedTabIds.add(rewardsTab.id);
-  state.rewardsTabId = rewardsTab.id;
+  session.openedTabIds.add(rewardsTab.id);
+  session.rewardsTabId = rewardsTab.id;
 
   // Rewards tab stays open after resolving — background will click cards and then close it.
-  state.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true } = {}) => {
+  session.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true } = {}) => {
     clearTimeout(timeout);
     resolveLocal({ activities, domDebug, dailySets, dailySetDebug, loggedIn });
   };

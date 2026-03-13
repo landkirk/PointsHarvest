@@ -1,5 +1,5 @@
 import { MSG_ACTION } from '../util/config.js';
-import { state } from '../state.js';
+import { session, setState } from '../util/state.js';
 
 // lingerOnTab(tabId)
 //
@@ -16,10 +16,10 @@ export async function lingerOnTab(tabId) {
   } catch {
     return; // tab already closed before we started waiting
   }
-  state.lingerTabId = tabId;
-  await chrome.storage.local.set({ isLingering: true });
+  session.lingerTabId = tabId;
+  await setState({ isLingering: true });
   chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
-  await new Promise(resolve => { state.lingerResolve = resolve; });
-  state.lingerTabId = null;
-  await chrome.storage.local.set({ isLingering: false });
+  await new Promise(resolve => { session.lingerResolve = resolve; });
+  session.lingerTabId = null;
+  await setState({ isLingering: false });
 }
