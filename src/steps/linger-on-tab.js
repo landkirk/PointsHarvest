@@ -17,7 +17,9 @@ export async function lingerOnTab(tabId) {
     return; // tab already closed before we started waiting
   }
   state.lingerTabId = tabId;
+  await chrome.storage.local.set({ isLingering: true });
   chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
   await new Promise(resolve => { state.lingerResolve = resolve; });
   state.lingerTabId = null;
+  await chrome.storage.local.set({ isLingering: false });
 }

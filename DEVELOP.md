@@ -19,9 +19,11 @@ src/
   state.js            Shared in-memory state and closeRewardsTab helper
   popup.js            Popup logic and state management
   steps/
-    fetch-activities.js  Open rewards tab, extract cards, map to queries
-    run-searches.js      Click each card and run the search loop
-    perform-search.js    Dwell and execute a single search in a tab
+    fetch-activities.js    Open rewards tab, extract cards, map to queries
+    run-searches.js        Click each card and run the search loop
+    perform-search.js      Dwell and execute a single search in a tab
+    complete-daily-sets.js Open each daily set tile; linger for interactive ones
+    linger-on-tab.js       Pause automation and wait for user to complete a tile
   util/
     config.js         Static data: search pools, constants
     debug.js          Logging and timing helpers
@@ -48,7 +50,7 @@ src/
 ### src/content/rewards-content.js
 - Injected into rewards.bing.com
 - Polls the SPA until activity cards render (max 15s)
-- Extracts "Search on Bing" cards (skips locked/completed)
+- Extracts "Search on Bing" cards (skips locked/completed; treats in-progress as actionable) and daily set tiles
 - Retains card DOM elements for on-demand clicking
 - Detects login status
 - Handles `startExtract` and `clickCard` messages from background
@@ -60,8 +62,19 @@ src/
 - Sends progress updates to popup
 
 ### src/steps/perform-search.js
-- Pre-search dwell, then sends `performSearch` to search-content.js
-- Post-search dwell before returning
+- Pre-search dwell (1–3s), then sends `performSearch` to search-content.js
+- Post-search dwell (3–5s) before returning
+
+### src/steps/complete-daily-sets.js
+- Iterates daily set tiles extracted from the rewards page
+- Opens each tile's URL in a background tab; waits up to 15s for load
+- If the page title matches `quiz|poll|test|puzzle`, calls `lingerOnTab()` to pause for user interaction
+- Otherwise dwells 1.5–4s and closes the tab
+- Random delay 1.5–4s between tiles
+
+### src/steps/linger-on-tab.js
+- Activates the daily set tab so the user can see and complete it
+- Sets `state.lingerResolve` so the popup's **Done** button (or tab close) resumes the run
 
 ### popup.js
 - Real-time UI updates via chrome.runtime.onMessage
@@ -81,8 +94,10 @@ All timing uses `randMs(min, max)` with triangular distribution:
 
 - **Initial delay**: `randMs(0, 8000)` in `background.js` → `startRun()` — delay before first search
 - **Pre-search dwell**: `randMs(1000, 3000)` in `steps/perform-search.js` — pause before typing the query
-- **Post-search dwell**: `randMs(1000, 3000)` in `steps/perform-search.js` — pause after search navigates
+- **Post-search dwell**: `randMs(3000, 5000)` in `steps/perform-search.js` — pause after search navigates
 - **Between searches**: `randMs(1800, 5000)` in `steps/run-searches.js` — delay between cards
+- **Daily set tile dwell**: `randMs(1500, 4000)` in `steps/complete-daily-sets.js` — pause on non-interactive tiles
+- **Between daily set tiles**: `randMs(1500, 4000)` in `steps/complete-daily-sets.js` — delay between tiles
 
 ### Modifying DOM Extraction
 
