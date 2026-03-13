@@ -11,24 +11,28 @@ const POLL_INTERVAL_MS = 500;
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls = [];
 
-/** @typedef {'startExtract'|'activitiesFound'|'clickCard'} MsgAction */
+// Content scripts run as classic scripts (not ES modules), so they cannot import from config.js.
+// MSG_ACTION and CARD_STATE are duplicated here intentionally — the canonical definitions live in util/config.js.
+/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'validateTile'} MsgAction */
 const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
   START_EXTRACT:    'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
   CLICK_CARD:       'clickCard',
+  VALIDATE_TILE:    'validateTile',
 });
 
-/** @typedef {'actionable'|'completed'|'locked'|'unknown'} CardState */
+// Duplicated from util/config.js — see note above.
+/** @typedef {'actionable'|'completed'|'locked'|'unknown'|'not-found'} CardState */
 const CARD_STATE = /** @type {Record<string, CardState>} */ ({
   ACTIONABLE: 'actionable',
   COMPLETED:  'completed',
   LOCKED:     'locked',
   UNKNOWN:    'unknown',
+  NOT_FOUND:  'not-found',
 });
 
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
-/** @param {Element} card @returns {CardState} */
 function determineCardState(card) {
   if (card.closest('.locked-card'))                               return CARD_STATE.LOCKED;
   if (card.getAttribute('aria-disabled') === 'true')              return CARD_STATE.LOCKED;
@@ -172,7 +176,7 @@ function waitAndExtract() {
     const { activities, domDebug, cardEls } = extractActivities();
     const { dailySets, dailySetDebug } = extractDailySets();
 
-    if (activities.length > 0 || dailySets.length > 0 || Date.now() - start >= MAX_WAIT_MS) {
+    if (activities.length > 0 || dailySets.length > 0 || domDebug.totalCards > 0 || dailySetDebug.sectionFound || Date.now() - start >= MAX_WAIT_MS) {
       extractedCardEls = cardEls; // retain for on-demand clicks
       chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
     } else {
@@ -201,6 +205,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     } catch (err) {
       sendResponse({ clicked: false, error: String(err) });
     }
+    return true;
+  }
+
+  if (msg.action === MSG_ACTION.VALIDATE_TILE) {
+    const tiles = Array.from(document.querySelectorAll('a.ds-card-sec'));
+    const match = tiles.find(el => el.href === msg.href);
+    sendResponse({ state: match ? determineCardState(match) : CARD_STATE.NOT_FOUND });
     return true;
   }
 });
