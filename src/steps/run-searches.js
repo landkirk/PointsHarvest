@@ -7,6 +7,7 @@ import { dbg, randMs, sleep } from '../util/debug.js';
 import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
 import { completeDailySets } from './complete-daily-sets.js';
+import { validateTileComplete } from './validate-tile.js';
 
 export async function runAllSearches(mapped, startIndex, dailySets = []) {
   for (let i = startIndex; i < mapped.length; i++) {
@@ -65,6 +66,7 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
       status: `Running (${completed} / ${mapped.length})`,
     });
     await dbg('success', `Search ${completed}/${mapped.length} complete`);
+    await validateTileComplete(session.rewardsTabId, { href: mapped[i].href, ariaLabel: title });
 
     chrome.runtime.sendMessage({
       action: MSG_ACTION.PROGRESS,

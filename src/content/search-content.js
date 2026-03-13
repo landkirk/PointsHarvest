@@ -2,8 +2,12 @@
 // Waits for a 'performSearch' message from the background, then types the query
 // into the Bing search bar and submits the form.
 
+// Content scripts run as classic scripts (not ES modules), so they cannot import from config.js.
+// MSG_ACTION is duplicated here intentionally — the canonical definition lives in util/config.js.
+const MSG_ACTION = { PERFORM_SEARCH: 'performSearch' };
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg.action !== 'performSearch') return;
+  if (msg.action !== MSG_ACTION.PERFORM_SEARCH) return;
 
   const textarea = document.querySelector('#sb_form_q');
   if (!textarea) {

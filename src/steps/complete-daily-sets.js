@@ -5,6 +5,7 @@ import { session } from '../util/state.js';
 import { waitForTabLoad } from '../util/tabs.js';
 import { dbg, randMs, sleep } from '../util/debug.js';
 import { lingerOnTab } from './linger-on-tab.js';
+import { validateTileComplete } from './validate-tile.js';
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
@@ -31,7 +32,7 @@ export async function completeDailySets(dailySets) {
 
     session.openedTabIds.add(tab.id);
 
-    // Wait for tab to load (reuses same pendingTabId mechanism as search tabs)
+    // Wait for tab to load
     await waitForTabLoad(tab.id, 15000);
 
     if (!session.isActivelyRunning) {
@@ -43,17 +44,19 @@ export async function completeDailySets(dailySets) {
     if (USER_ACTION_RE.test(tileText)) {
       await dbg('info', 'User action required — waiting for completion');
       await lingerOnTab(tab.id);
+      await validateTileComplete(session.rewardsTabId, dailySets[i]);
     } else {
-      const dwell = randMs(1500, 4000);
+      const dwell = randMs(3500, 7000);
       await dbg('info', `Dwell ${(dwell / 1000).toFixed(1)}s`);
       await sleep(dwell);
       chrome.tabs.remove(tab.id).catch(() => {});
+      await validateTileComplete(session.rewardsTabId, dailySets[i]);
     }
     await dbg('success', `Daily set tile ${i + 1}/${dailySets.length} complete`);
 
     if (i < dailySets.length - 1) {
       if (!session.isActivelyRunning) return;
-      const delay = randMs(1500, 4000);
+      const delay = randMs(2500, 5000);
       await dbg('info', `Next daily set tile in ${(delay / 1000).toFixed(1)}s`);
       await sleep(delay);
     }
