@@ -27,11 +27,13 @@ const CARD_STATE = /** @type {Record<string, CardState>} */ ({
 });
 
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
+// In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
 /** @param {Element} card @returns {CardState} */
 function determineCardState(card) {
   if (card.closest('.locked-card'))                               return CARD_STATE.LOCKED;
   if (card.getAttribute('aria-disabled') === 'true')              return CARD_STATE.LOCKED;
   if (card.querySelector('[aria-label="Points you have earned"]')) return CARD_STATE.COMPLETED;
+  if (card.querySelector('[aria-label="Points in progress"]'))     return CARD_STATE.ACTIONABLE;
   if (card.querySelector('[aria-label="Points you will earn"]'))   return CARD_STATE.ACTIONABLE;
   return CARD_STATE.UNKNOWN;
 }
