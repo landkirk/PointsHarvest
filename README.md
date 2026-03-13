@@ -14,10 +14,12 @@ Bing Rewards gives points for completing "Explore on Bing" activities — specif
 
 This extension:
 1. Opens your Rewards dashboard in a background tab and waits for activity cards to render
-2. Extracts available "Search on Bing" activity cards (skipping locked or already-completed ones)
+2. Extracts available "Search on Bing" activity cards (skipping locked or already-completed ones; treats in-progress cards as actionable)
 3. Maps each card to a search query by stripping the "Search on Bing to/for…" boilerplate from the description; falls back to the card title if the description is too short
-4. Clicks each card on the rewards page, which opens a Bing search tab, then performs the mapped query in that tab with randomized timing (1–3s dwell before and after search, 1.8–5s between searches)
-5. Closes each search tab when done; closes the rewards tab after all cards are clicked
+4. Clicks each card on the rewards page, which opens a Bing search tab, then performs the mapped query in that tab with randomized timing (1–3s dwell before search, 3–5s after, 1.8–5s between searches)
+5. Closes each search tab when done
+6. Opens each daily set tile in a background tab; for quizzes, polls, tests, and puzzles it activates the tab and waits for you to complete them manually (click **Done** when finished); for other tile types it dwells briefly and closes automatically
+7. Closes the rewards tab after all cards and daily sets are processed
 
 ## Installation
 
@@ -60,9 +62,11 @@ src/
   state.js            Shared in-memory state and closeRewardsTab helper
   popup.js            Popup logic
   steps/
-    fetch-activities.js  Open rewards tab, extract cards, map to queries
-    run-searches.js      Click each card and run the search loop
-    perform-search.js    Dwell and execute a single search in a tab
+    fetch-activities.js    Open rewards tab, extract cards, map to queries
+    run-searches.js        Click each card and run the search loop
+    perform-search.js      Dwell and execute a single search in a tab
+    complete-daily-sets.js Open each daily set tile; linger for interactive ones
+    linger-on-tab.js       Pause automation and wait for user to complete a tile
   util/
     config.js         Static data: search pools, URL/count constants
     debug.js          Logging and timing helpers
@@ -81,7 +85,8 @@ Open rewards.bing.com (background tab)
        │
        ▼
 src/content/rewards-content.js polls the SPA until cards render (max 15s),
-extracts available "Search on Bing" activities, sends them to background
+extracts available "Search on Bing" activities + daily set tiles,
+sends them to background
        │
        ▼
 background.js maps each activity description → search query
@@ -92,11 +97,20 @@ by stripping "Search on Bing to/for..." boilerplate
 For each activity card:
   background sends clickCard → content script clicks the card
   → new Bing search tab opens → wait for tab to load
-  → pre-search dwell 1–3s → perform query → post-search dwell 1–3s
+  → pre-search dwell 1–3s → perform query → post-search dwell 3–5s
   → close tab → delay 1.8–5s → next card
        │
        ▼
-Rewards tab closed after all cards are clicked
+For each daily set tile:
+  open tile URL in background tab → wait for load (15s timeout)
+  if title matches quiz/poll/test/puzzle:
+    → activate tab → wait for user to complete it → user clicks Done
+  else:
+    → dwell 1.5–4s → close tab
+  → delay 1.5–4s → next tile
+       │
+       ▼
+Rewards tab closed after all cards and tiles are processed
        │
        ▼
 Progress updates sent to popup in real time
@@ -126,8 +140,9 @@ The debug panel also includes a **Purge all state** button that clears all store
 
 - The extension clicks activity cards on the rewards page to open search tabs — this is how Bing tracks the activity as completed
 - All search tabs close automatically after each search
+- Daily set tiles that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
 - Uses triangular distribution for randomized timing to appear more human-like
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message
-- Bing may occasionally not credit a search if the tab closes too fast; the default dwell range (1–3s) should be sufficient, but you can increase it in `randMs(1000, 3000)` inside `performSearchInTab` in `src/steps/perform-search.js` if you notice missed points
+- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `performSearchInTab` in `src/steps/perform-search.js` if you notice missed points
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - Service worker state is preserved across restarts, allowing mid-run resumption
