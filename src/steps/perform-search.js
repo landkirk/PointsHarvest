@@ -17,7 +17,7 @@ export async function performSearchInTab(tabId, query) {
   }
 
   // Dwell on the (now-navigating) search results page.
-  const dwell = randMs(1000, 3000);
+  const dwell = randMs(3000, 5000);
   await dbg('info', `Dwell ${(dwell / 1000).toFixed(1)}s after search: "${query}"`);
   await sleep(dwell);
 }
