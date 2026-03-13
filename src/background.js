@@ -1,31 +1,16 @@
 import { REWARDS_URL, MSG_ACTION } from './util/config.js';
 import { dbg, resetLog, randMs, sleep } from './util/debug.js';
-import { state, closeRewardsTab } from './state.js';
+import { session, resetSession, loadState, setState, resetState } from './util/state.js';
+import { closeRewardsTab } from './util/tabs.js';
 import { fetchAvailableActivities, buildSearchList } from './steps/fetch-activities.js';
 import { runAllSearches } from './steps/run-searches.js';
-
-const BLANK_STATE = {
-  isRunning: false,
-  status: 'idle',
-  currentIndex: 0,
-  completedSearches: 0,
-  totalSearches: 0,
-  lastRunDate: null,
-  lastLabel: '',
-  debugLog: [],
-  domDebug: null,
-  dailySetDebug: null,
-  extractedActivities: [],
-  mappedActivities: [],
-  searchQueue: [],
-};
 
 // ── Run helpers ────────────────────────────────────────────────────────────
 
 async function abortRun(status, errorMsg) {
-  state.isActivelyRunning = false;
+  session.isActivelyRunning = false;
   closeRewardsTab();
-  await chrome.storage.local.set({ isRunning: false, status });
+  await setState({ isRunning: false, status });
   await dbg('error', errorMsg);
   chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
 }
@@ -34,23 +19,23 @@ async function abortRun(status, errorMsg) {
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Signal search tab loaded
-  if (changeInfo.status === 'complete' && tabId === state.pendingTabId && state.pendingResolve) {
-    const resolve = state.pendingResolve;
-    state.pendingResolve = null;
+  if (changeInfo.status === 'complete' && tabId === session.pendingTabId && session.pendingResolve) {
+    const resolve = session.pendingResolve;
+    session.pendingResolve = null;
     resolve();
   }
 
   // Detect when the rewards tab finishes loading
-  if (tabId === state.rewardsTabId && changeInfo.status === 'complete' && tab.url) {
+  if (tabId === session.rewardsTabId && changeInfo.status === 'complete' && tab.url) {
     if (tab.url.startsWith(REWARDS_URL)) {
       // Page loaded — tell the content script to begin extraction
       chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
     } else {
       // Redirected away from rewards — not logged in
       dbg('error', `Not logged in — redirected to: ${tab.url}`);
-      if (state.resolveActivities) {
-        state.resolveActivities({ activities: [], domDebug: null, loggedIn: false });
-        state.resolveActivities = null;
+      if (session.resolveActivities) {
+        session.resolveActivities({ activities: [], domDebug: null, loggedIn: false });
+        session.resolveActivities = null;
       }
     }
   }
@@ -58,34 +43,34 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 // Capture the tab opened by a card click.
 chrome.tabs.onCreated.addListener((tab) => {
-  if (state.captureNextTabResolve && tab.id !== state.rewardsTabId) {
-    const resolve = state.captureNextTabResolve;
-    state.captureNextTabResolve = null;
+  if (session.captureNextTabResolve && tab.id !== session.rewardsTabId) {
+    const resolve = session.captureNextTabResolve;
+    session.captureNextTabResolve = null;
     resolve(tab);
   }
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  state.openedTabIds.delete(tabId);
+  session.openedTabIds.delete(tabId);
   // If the user closes a linger tab directly, treat it as completing the action.
-  if (tabId === state.lingerTabId && state.lingerResolve) {
-    const resolve = state.lingerResolve;
-    state.lingerResolve = null;
+  if (tabId === session.lingerTabId && session.lingerResolve) {
+    const resolve = session.lingerResolve;
+    session.lingerResolve = null;
     resolve();
   }
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.ACTIVITIES_FOUND) {
-    if (state.resolveActivities) {
-      state.resolveActivities({
+    if (session.resolveActivities) {
+      session.resolveActivities({
         activities: msg.activities,
         domDebug: msg.domDebug,
         dailySets: msg.dailySets ?? [],
         dailySetDebug: msg.dailySetDebug ?? null,
         loggedIn: msg.loggedIn !== false,
       });
-      state.resolveActivities = null;
+      session.resolveActivities = null;
     }
     return;
   }
@@ -98,22 +83,22 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === MSG_ACTION.GET_STATE) {
-    chrome.storage.local.get(null).then(sendResponse);
+    loadState().then(sendResponse);
     return true;
   }
   if (msg.action === MSG_ACTION.PING) {
-    sendResponse({ running: state.isActivelyRunning });
+    sendResponse({ running: session.isActivelyRunning });
     return true;
   }
   if (msg.action === MSG_ACTION.PURGE) {
-    chrome.storage.local.set(BLANK_STATE).then(() => sendResponse({ ok: true }));
+    resetState().then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
-    if (state.lingerResolve) {
-      const resolve = state.lingerResolve;
-      state.lingerResolve = null;
-      if (state.lingerTabId) chrome.tabs.remove(state.lingerTabId).catch(() => {});
+    if (session.lingerResolve) {
+      const resolve = session.lingerResolve;
+      session.lingerResolve = null;
+      if (session.lingerTabId) chrome.tabs.remove(session.lingerTabId).catch(() => {});
       resolve();
     }
     return;
@@ -121,45 +106,35 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set(BLANK_STATE);
+  resetState();
 });
 
 // ── Main flow ──────────────────────────────────────────────────────────────
 
 async function startRun() {
   const today = new Date().toDateString();
-  const { lastRunDate, currentIndex, completedSearches } = await chrome.storage.local.get([
-    'lastRunDate', 'currentIndex', 'completedSearches',
-  ]);
+  const { lastRunDate, currentIndex, completedSearches } = await loadState();
   const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
+  resetSession();
   resetLog();
-  await chrome.storage.local.set({
-    isRunning: true,
-    status: 'Fetching rewards activities...',
-    lastRunDate: today,
-    debugLog: [],
-    domDebug: null,
-    extractedActivities: [],
-    mappedActivities: [],
-    searchQueue: [],
-  });
+  await resetState({ isRunning: true, status: 'Fetching rewards activities...', lastRunDate: today });
 
-  state.isActivelyRunning = true;
+  session.isActivelyRunning = true;
   await dbg('info', 'Run started');
 
   // Step 1: open rewards dashboard and extract activity cards (no clicking yet)
   await dbg('info', `Opening ${REWARDS_URL}`);
   const { activities, domDebug, dailySets, dailySetDebug, loggedIn } = await fetchAvailableActivities();
 
-  if (!state.isActivelyRunning) { await dbg('warn', 'Stopped during activity fetch'); return; }
+  if (!session.isActivelyRunning) { await dbg('warn', 'Stopped during activity fetch'); return; }
 
   if (!loggedIn) {
     await abortRun('Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards');
     return;
   }
 
-  await chrome.storage.local.set({ extractedActivities: activities, domDebug, dailySetDebug });
+  await setState({ extractedActivities: activities, domDebug, dailySetDebug });
   await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
   await dbg('info', `Daily sets: ${dailySetDebug?.actionable ?? 0} actionable (section ${dailySetDebug?.sectionFound ? 'found' : 'not found'})`);
 
@@ -172,7 +147,7 @@ async function startRun() {
 
   // Step 2: map activities → queries
   const mapped = buildSearchList(activities);
-  await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
+  await setState({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
   chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
 
   const unmapped = mapped.filter(m => m.unmatched).length;
@@ -180,7 +155,7 @@ async function startRun() {
 
   // Step 3: resume or start fresh
   const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
-  await chrome.storage.local.set({
+  await setState({
     totalSearches: mapped.length,
     currentIndex: startIndex,
     completedSearches: startIndex,
@@ -192,7 +167,7 @@ async function startRun() {
   await dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
   await sleep(initialDelay);
 
-  if (!state.isActivelyRunning) {
+  if (!session.isActivelyRunning) {
     closeRewardsTab();
     return;
   }
@@ -201,18 +176,18 @@ async function startRun() {
 }
 
 async function stopRun() {
-  state.isActivelyRunning = false;
-  await chrome.storage.local.set({ isRunning: false, status: 'Stopped' });
+  session.isActivelyRunning = false;
+  await setState({ isRunning: false, status: 'Stopped' });
   await dbg('warn', 'Run stopped by user');
-  if (state.pendingResolve) { state.pendingResolve(); state.pendingResolve = null; }
-  if (state.resolveActivities) { state.resolveActivities({}); state.resolveActivities = null; }
-  if (state.captureNextTabResolve) { state.captureNextTabResolve(null); state.captureNextTabResolve = null; }
-  if (state.lingerResolve) { state.lingerResolve(); state.lingerResolve = null; }
-  state.lingerTabId = null;
-  for (const tabId of state.openedTabIds) {
+  if (session.pendingResolve) { session.pendingResolve(); session.pendingResolve = null; }
+  if (session.resolveActivities) { session.resolveActivities({}); session.resolveActivities = null; }
+  if (session.captureNextTabResolve) { session.captureNextTabResolve(null); session.captureNextTabResolve = null; }
+  if (session.lingerResolve) { session.lingerResolve(); session.lingerResolve = null; }
+  session.lingerTabId = null;
+  for (const tabId of session.openedTabIds) {
     chrome.tabs.remove(tabId).catch(() => {});
   }
-  state.openedTabIds.clear();
-  state.pendingTabId = null;
-  state.rewardsTabId = null;
+  session.openedTabIds.clear();
+  session.pendingTabId = null;
+  session.rewardsTabId = null;
 }
