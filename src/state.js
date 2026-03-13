@@ -10,6 +10,8 @@ export const state = {
   openedTabIds: new Set(),    // all tabs this extension has opened
   isActivelyRunning: false,   // distinguishes "storage says running" from "actually running"
   rewardsTabId: null,         // the rewards dashboard tab — kept open until all cards are clicked
+  lingerTabId: null,          // tab the user needs to interact with (requiresUserAction tiles)
+  lingerResolve: null,        // resolves lingerOnTab()'s promise
 };
 
 export function closeRewardsTab() {

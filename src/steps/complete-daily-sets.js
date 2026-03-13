@@ -1,8 +1,11 @@
 // Opens each daily set tile's href URL in a background tab, dwells briefly, then closes.
-// No search interaction is required — visiting the URL counts as completing the tile.
+// Tiles matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { state, waitForTabLoad } from '../state.js';
 import { dbg, randMs, sleep } from '../util/debug.js';
+import { lingerOnTab } from './linger-on-tab.js';
+
+const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
 export async function completeDailySets(dailySets) {
   if (!dailySets || dailySets.length === 0) {
@@ -35,11 +38,16 @@ export async function completeDailySets(dailySets) {
       return;
     }
 
-    const dwell = randMs(1500, 4000);
-    await dbg('info', `Dwell ${(dwell / 1000).toFixed(1)}s`);
-    await sleep(dwell);
-
-    chrome.tabs.remove(tab.id).catch(() => {});
+    const tileText = ariaLabel || biId;
+    if (USER_ACTION_RE.test(tileText)) {
+      await dbg('info', 'User action required — waiting for completion');
+      await lingerOnTab(tab.id);
+    } else {
+      const dwell = randMs(1500, 4000);
+      await dbg('info', `Dwell ${(dwell / 1000).toFixed(1)}s`);
+      await sleep(dwell);
+      chrome.tabs.remove(tab.id).catch(() => {});
+    }
     await dbg('success', `Daily set tile ${i + 1}/${dailySets.length} complete`);
 
     if (i < dailySets.length - 1) {

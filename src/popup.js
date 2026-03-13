@@ -1,15 +1,4 @@
-/** @typedef {'start'|'stop'|'getState'|'ping'|'purgeState'|'complete'|'progress'|'debugReady'|'debugEntry'} MsgAction */
-const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
-  START:       'start',
-  STOP:        'stop',
-  GET_STATE:   'getState',
-  PING:        'ping',
-  PURGE:       'purgeState',
-  COMPLETE:    'complete',
-  PROGRESS:    'progress',
-  DEBUG_READY: 'debugReady',
-  DEBUG_ENTRY: 'debugEntry',
-});
+import { MSG_ACTION } from './util/config.js';
 
 const dot        = document.getElementById('dot');
 const statusEl   = document.getElementById('status');
@@ -17,6 +6,7 @@ const bar        = document.getElementById('progress-bar');
 const labelEl    = document.getElementById('progress-label');
 const btnStart   = document.getElementById('btn-start');
 const btnStop    = document.getElementById('btn-stop');
+const btnDone    = document.getElementById('btn-done');
 const lastSearch = document.getElementById('last-search');
 const debugCheck = document.getElementById('debug-check');
 const debugPanel = document.getElementById('debug-panel');
@@ -28,7 +18,7 @@ const dbgLog     = document.getElementById('dbg-log');
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
-function render({ isRunning, status, completedSearches, totalSearches, lastLabel }) {
+function render({ isRunning, isLingering, status, completedSearches, totalSearches, lastLabel }) {
   const completed = completedSearches || 0;
   const total     = totalSearches || 0;
   const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -40,11 +30,13 @@ function render({ isRunning, status, completedSearches, totalSearches, lastLabel
   lastSearch.textContent = lastLabel ? `Last: ${lastLabel}` : '';
 
   dot.className = 'dot';
-  if (isRunning)   dot.classList.add('running');
-  else if (isDone) dot.classList.add('done');
+  if (isLingering)     dot.classList.add('waiting');
+  else if (isRunning)  dot.classList.add('running');
+  else if (isDone)     dot.classList.add('done');
 
-  btnStart.disabled      = isRunning;
-  btnStop.style.display  = isRunning ? 'block' : 'none';
+  btnStart.disabled     = isRunning;
+  btnStop.style.display = isRunning ? 'block' : 'none';
+  btnDone.style.display = isLingering ? 'block' : 'none';
 }
 
 // Load state on open. If storage says running, ping to confirm the service worker
@@ -94,6 +86,9 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
     appendLogEntry(msg.entry);
   }
+  if (msg.action === MSG_ACTION.LINGER_WAITING) {
+    render({ isRunning: true, isLingering: true, status: 'Action required — complete the activity in the tab' });
+  }
 });
 
 btnStart.addEventListener('click', () => {
@@ -106,6 +101,11 @@ btnStart.addEventListener('click', () => {
 btnStop.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.STOP });
   render({ isRunning: false, status: 'Stopped' });
+});
+
+btnDone.addEventListener('click', () => {
+  chrome.runtime.sendMessage({ action: MSG_ACTION.USER_ACTION_COMPLETE });
+  render({ isRunning: true, isLingering: false, status: 'Resuming…' });
 });
 
 btnPurge.addEventListener('click', () => {

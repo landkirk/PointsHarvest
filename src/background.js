@@ -67,6 +67,12 @@ chrome.tabs.onCreated.addListener((tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   state.openedTabIds.delete(tabId);
+  // If the user closes a linger tab directly, treat it as completing the action.
+  if (tabId === state.lingerTabId && state.lingerResolve) {
+    const resolve = state.lingerResolve;
+    state.lingerResolve = null;
+    resolve();
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
@@ -102,6 +108,15 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.PURGE) {
     chrome.storage.local.set(BLANK_STATE).then(() => sendResponse({ ok: true }));
     return true;
+  }
+  if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
+    if (state.lingerResolve) {
+      const resolve = state.lingerResolve;
+      state.lingerResolve = null;
+      if (state.lingerTabId) chrome.tabs.remove(state.lingerTabId).catch(() => {});
+      resolve();
+    }
+    return;
   }
 });
 
@@ -192,6 +207,8 @@ async function stopRun() {
   if (state.pendingResolve) { state.pendingResolve(); state.pendingResolve = null; }
   if (state.resolveActivities) { state.resolveActivities({}); state.resolveActivities = null; }
   if (state.captureNextTabResolve) { state.captureNextTabResolve(null); state.captureNextTabResolve = null; }
+  if (state.lingerResolve) { state.lingerResolve(); state.lingerResolve = null; }
+  state.lingerTabId = null;
   for (const tabId of state.openedTabIds) {
     chrome.tabs.remove(tabId).catch(() => {});
   }
