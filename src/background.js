@@ -1,8 +1,9 @@
-import { REWARDS_URL, MSG_ACTION } from './util/config.js';
+import { REWARDS_URL, REWARDS_BREAKDOWN_URL, MSG_ACTION } from './util/config.js';
 import { dbg, resetLog, randMs, sleep } from './util/debug.js';
 import { session, resetSession, loadState, setState, resetState } from './util/state.js';
 import { closeRewardsTab } from './util/tabs.js';
 import { fetchAvailableActivities, buildSearchList } from './steps/fetch-activities.js';
+import { fetchSearchCounters } from './steps/fetch-counters.js';
 import { runAllSearches } from './steps/run-searches.js';
 
 // ── Run helpers ────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Detect when the rewards tab finishes loading
   if (tabId === session.rewardsTabId && changeInfo.status === 'complete' && tab.url) {
     if (tab.url.startsWith(REWARDS_URL)) {
-      // Page loaded — tell the content script to begin extraction
+      // Main page loaded — tell the content script to begin extraction
       chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
     } else {
       // Redirected away from rewards — not logged in
@@ -39,11 +40,12 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       }
     }
   }
+
 });
 
 // Capture the tab opened by a card click.
 chrome.tabs.onCreated.addListener((tab) => {
-  if (session.captureNextTabResolve && tab.id !== session.rewardsTabId) {
+  if (session.captureNextTabResolve && tab.id !== session.rewardsTabId && tab.id !== session.breakdownTabId) {
     const resolve = session.captureNextTabResolve;
     session.captureNextTabResolve = null;
     resolve(tab);
@@ -123,9 +125,15 @@ async function startRun() {
   session.isActivelyRunning = true;
   await dbg('info', 'Run started');
 
-  // Step 1: open rewards dashboard and extract activity cards (no clicking yet)
+  // Step 1: open rewards dashboard and breakdown tab in parallel
   await dbg('info', `Opening ${REWARDS_URL}`);
-  const { activities, domDebug, dailySets, dailySetDebug, loggedIn } = await fetchAvailableActivities();
+  const activitiesPromise = fetchAvailableActivities();
+  const breakdownTab = await chrome.tabs.create({ url: REWARDS_BREAKDOWN_URL, active: false }).catch(() => null);
+  if (breakdownTab) {
+    session.breakdownTabId = breakdownTab.id;
+    session.openedTabIds.add(breakdownTab.id);
+  }
+  const { activities, domDebug, dailySets, dailySetDebug, loggedIn } = await activitiesPromise;
 
   if (!session.isActivelyRunning) { await dbg('warn', 'Stopped during activity fetch'); return; }
 
@@ -139,6 +147,7 @@ async function startRun() {
   await dbg('info', `Daily sets: ${dailySetDebug?.actionable ?? 0} actionable (section ${dailySetDebug?.sectionFound ? 'found' : 'not found'})`);
 
   if (activities.length === 0 && dailySets.length === 0) {
+    await fetchSearchCounters();
     await abortRun('No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
     return;
   }
@@ -184,6 +193,7 @@ async function stopRun() {
   if (session.captureNextTabResolve) { session.captureNextTabResolve(null); session.captureNextTabResolve = null; }
   if (session.lingerResolve) { session.lingerResolve(); session.lingerResolve = null; }
   session.lingerTabId = null;
+  session.breakdownTabId = null;
   for (const tabId of session.openedTabIds) {
     chrome.tabs.remove(tabId).catch(() => {});
   }

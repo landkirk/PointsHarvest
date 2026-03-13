@@ -7,6 +7,7 @@ import { dbg, randMs, sleep } from '../util/debug.js';
 import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
 import { completeDailySets } from './complete-daily-sets.js';
+import { fetchSearchCounters } from './fetch-counters.js';
 import { validateTileComplete } from './validate-tile.js';
 
 export async function runAllSearches(mapped, startIndex, dailySets = []) {
@@ -86,6 +87,7 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
   // Complete daily set tiles before closing the rewards tab
   await completeDailySets(dailySets);
 
+  await fetchSearchCounters();
   closeRewardsTab();
   session.isActivelyRunning = false;
   await setState({ isRunning: false, status: 'Done for today!' });
