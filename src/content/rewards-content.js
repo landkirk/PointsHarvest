@@ -13,12 +13,13 @@ let extractedCardEls = [];
 
 // Content scripts run as classic scripts (not ES modules), so they cannot import from config.js.
 // MSG_ACTION and CARD_STATE are duplicated here intentionally — the canonical definitions live in util/config.js.
-/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'validateTile'} MsgAction */
+/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'validateTile'|'getCounters'} MsgAction */
 const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
   START_EXTRACT:    'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
   CLICK_CARD:       'clickCard',
   VALIDATE_TILE:    'validateTile',
+  GET_COUNTERS:     'getCounters',
 });
 
 // Duplicated from util/config.js — see note above.
@@ -75,6 +76,45 @@ function extractDailySets() {
       totalTiles: tiles.length,
       actionable: actionable.length,
       tiles: debugTiles,
+    },
+  };
+}
+
+// Returns { searchCounters, searchCounterDebug }
+function extractSearchCounters() {
+  const cards = Array.from(document.querySelectorAll('.pointsBreakdownCard'));
+  if (!cards.length) return { searchCounters: [], searchCounterDebug: { sectionFound: false } };
+
+  const counters = [];
+  const debugCards = [];
+
+  for (const card of cards) {
+    const typeEl   = card.querySelector('.title-detail p');
+    const type     = typeEl?.textContent?.trim() || '';
+    const pointsEl = card.querySelector('p.pointsDetail');
+    const rawText  = pointsEl?.textContent?.trim() || '';
+
+    // rawText example: "5 / 150"
+    const parts   = rawText.split('/');
+    const current = parseInt(parts[0]);
+    const max     = parseInt(parts[1]);
+
+    if (!type || isNaN(current) || isNaN(max)) {
+      debugCards.push({ skipped: 'parse-failed', type, rawText });
+      continue;
+    }
+
+    debugCards.push({ type, current, max, skipped: null });
+    counters.push({ type, current, max });
+  }
+
+  return {
+    searchCounters: counters,
+    searchCounterDebug: {
+      sectionFound: true,
+      total: cards.length,
+      extracted: counters.length,
+      cards: debugCards,
     },
   };
 }
@@ -205,6 +245,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     } catch (err) {
       sendResponse({ clicked: false, error: String(err) });
     }
+    return true;
+  }
+
+  if (msg.action === MSG_ACTION.GET_COUNTERS) {
+    const { searchCounters, searchCounterDebug } = extractSearchCounters();
+    sendResponse({ searchCounters, searchCounterDebug });
     return true;
   }
 

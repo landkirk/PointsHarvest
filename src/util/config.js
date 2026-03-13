@@ -1,4 +1,5 @@
-export const REWARDS_URL = 'https://rewards.bing.com/';
+export const REWARDS_URL           = 'https://rewards.bing.com/';
+export const REWARDS_BREAKDOWN_URL = 'https://rewards.bing.com/pointsbreakdown';
 
 /** @typedef {'actionable'|'completed'|'locked'|'unknown'|'not-found'} CardState */
 export const CARD_STATE = /** @type {Record<string, CardState>} */ ({
@@ -32,6 +33,8 @@ export const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
   LINGER_WAITING:       'lingerWaiting',
   // Popup → background
   USER_ACTION_COMPLETE: 'userActionComplete',
+  // Background → rewards content script (counter extraction)
+  GET_COUNTERS:         'getCounters',
 });
 
 export const MIN_SEARCHES = 12;

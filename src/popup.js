@@ -11,6 +11,7 @@ const lastSearch = document.getElementById('last-search');
 const debugCheck = document.getElementById('debug-check');
 const debugPanel = document.getElementById('debug-panel');
 const btnPurge   = document.getElementById('btn-purge');
+const dbgCounters = document.getElementById('dbg-counters');
 const domStats   = document.getElementById('dom-stats');
 const dbgCards   = document.getElementById('dbg-cards');
 const dbgQueue   = document.getElementById('dbg-queue');
@@ -77,6 +78,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === MSG_ACTION.DEBUG_READY && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
       if (state) {
+        renderSearchCounters(state.searchCounters);
         renderDomStats(state.domDebug, state.dailySetDebug);
         renderCards(state.mappedActivities, state.domDebug, state.dailySetDebug);
         renderQueue(state.searchQueue);
@@ -127,17 +129,29 @@ debugCheck.addEventListener('change', () => {
 });
 
 function clearDebug() {
+  dbgCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
   domStats.innerHTML = '';
   dbgCards.innerHTML = '<div class="dbg-empty">Waiting for extraction…</div>';
   dbgQueue.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
   dbgLog.innerHTML    = '<div class="dbg-empty">No events yet.</div>';
 }
 
-function renderDebug({ domDebug, dailySetDebug, mappedActivities, searchQueue, debugLog }) {
+function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, searchQueue, debugLog }) {
+  renderSearchCounters(searchCounters);
   renderDomStats(domDebug, dailySetDebug);
   renderCards(mappedActivities, domDebug, dailySetDebug);
   renderQueue(searchQueue);
   renderLog(debugLog);
+}
+
+function renderSearchCounters(searchCounters) {
+  if (!searchCounters || searchCounters.length === 0) {
+    dbgCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
+    return;
+  }
+  dbgCounters.innerHTML = searchCounters.map(c => `
+    <span title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>
+  `).join('');
 }
 
 function renderDomStats(domDebug, dailySetDebug) {
