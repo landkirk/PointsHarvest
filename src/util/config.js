@@ -15,10 +15,13 @@ export const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
   PING:       'ping',
   PURGE:      'purgeState',
   // Background/steps → popup
-  COMPLETE:    'complete',
-  PROGRESS:    'progress',
-  DEBUG_READY: 'debugReady',
-  DEBUG_ENTRY: 'debugEntry',
+  COMPLETE:             'complete',
+  PROGRESS:             'progress',
+  DEBUG_READY:          'debugReady',
+  DEBUG_ENTRY:          'debugEntry',
+  LINGER_WAITING:       'lingerWaiting',
+  // Popup → background
+  USER_ACTION_COMPLETE: 'userActionComplete',
 });
 
 export const MIN_SEARCHES = 12;
