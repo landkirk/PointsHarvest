@@ -1,11 +1,15 @@
 import { session } from './state.js';
 import { sleep } from './debug.js';
 
-/** Close the rewards dashboard tab and clear its session reference. */
+/** Close the rewards dashboard and breakdown tabs and clear their session references. */
 export function closeRewardsTab() {
   if (session.rewardsTabId) {
     chrome.tabs.remove(session.rewardsTabId).catch(() => {});
     session.rewardsTabId = null;
+  }
+  if (session.breakdownTabId) {
+    chrome.tabs.remove(session.breakdownTabId).catch(() => {});
+    session.breakdownTabId = null;
   }
 }
 
