@@ -1,17 +1,36 @@
 export const REWARDS_URL           = 'https://rewards.bing.com/';
 export const REWARDS_BREAKDOWN_URL = 'https://rewards.bing.com/pointsbreakdown';
 
-/** @typedef {'actionable'|'completed'|'locked'|'unknown'|'not-found'} CardState */
-export const CARD_STATE = /** @type {Record<string, CardState>} */ ({
+export type CardState = 'actionable' | 'completed' | 'locked' | 'unknown' | 'not-found';
+
+export const CARD_STATE: Record<string, CardState> = {
   ACTIONABLE: 'actionable',
   COMPLETED:  'completed',
   LOCKED:     'locked',
   UNKNOWN:    'unknown',
   NOT_FOUND:  'not-found',
-});
+};
 
-/** @typedef {'startExtract'|'activitiesFound'|'clickCard'|'validateTile'|'performSearch'|'start'|'stop'|'getState'|'ping'|'purgeState'|'complete'|'progress'|'debugReady'|'debugEntry'} MsgAction */
-export const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
+export type MsgAction =
+  | 'startExtract'
+  | 'activitiesFound'
+  | 'clickCard'
+  | 'validateTile'
+  | 'performSearch'
+  | 'start'
+  | 'stop'
+  | 'getState'
+  | 'ping'
+  | 'purgeState'
+  | 'complete'
+  | 'progress'
+  | 'debugReady'
+  | 'debugEntry'
+  | 'lingerWaiting'
+  | 'userActionComplete'
+  | 'getCounters';
+
+export const MSG_ACTION: Record<string, MsgAction> = {
   // Background ↔ rewards content script
   START_EXTRACT:    'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
@@ -35,5 +54,4 @@ export const MSG_ACTION = /** @type {Record<string, MsgAction>} */ ({
   USER_ACTION_COMPLETE: 'userActionComplete',
   // Background → rewards content script (counter extraction)
   GET_COUNTERS:         'getCounters',
-});
-
+};
