@@ -9,6 +9,40 @@ export interface DebugEntry {
   message: string;
 }
 
+export interface DomDebugCard {
+  skipped:      string | null;
+  cardSnippet?: string;
+}
+
+export interface DomDebug {
+  totalCards:          number;
+  actionElementsFound: number;
+  skippedLocked:       number;
+  skippedCompleted:    number;
+  skippedUnknown:      number;
+  cards:               DomDebugCard[];
+}
+
+export interface DailySetDebugTile {
+  skipped:  string | null;
+  snippet:  string;
+  biId:     string;
+  href?:    string;
+}
+
+export interface DailySetDebug {
+  sectionFound: boolean;
+  totalTiles?:  number;
+  actionable?:  number;
+  tiles?:       DailySetDebugTile[];
+}
+
+export interface SearchCounterDebug {
+  sectionFound: boolean;
+  total?:       number;
+  extracted?:   number;
+}
+
 const MAX_LOG_ENTRIES = 100;
 
 let log: DebugEntry[] = [];
