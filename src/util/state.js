@@ -58,11 +58,6 @@ export async function loadState() {
   return cache;
 }
 
-/** Synchronous read from cache. Requires loadState() to have been called first. */
-export function getState() {
-  return cache ?? { ...INITIAL_STATE };
-}
-
 /** Write updates to both the cache and storage. */
 export async function setState(updates) {
   if (!cache) cache = { ...INITIAL_STATE };

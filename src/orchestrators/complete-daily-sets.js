@@ -23,7 +23,7 @@ export async function run(ctx, { dailySets = [], dailySetDebug = null } = {}) {
     if (!ctx.session.isActivelyRunning) return;
 
     const { href, ariaLabel, biId } = dailySets[i];
-    const label = (ariaLabel || biId || href).slice(0, 60);
+    const label = (ariaLabel || biId || href || '').slice(0, 60);
     await ctx.dbg('info', `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
     let tab;

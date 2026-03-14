@@ -26,7 +26,6 @@ export async function run(ctx) {
   } finally {
     if (ownBreakdownTab && ctx.session.breakdownTabId) {
       chrome.tabs.remove(ctx.session.breakdownTabId).catch(() => {});
-      ctx.session.openedTabIds.delete(ctx.session.breakdownTabId);
       ctx.session.breakdownTabId = null;
     }
   }
@@ -69,13 +68,11 @@ async function _farm(ctx) {
 
     if (!ctx.session.isActivelyRunning) {
       chrome.tabs.remove(tab.id).catch(() => {});
-      ctx.session.openedTabIds.delete(tab.id);
       return;
     }
 
     await performSearch.run(ctx, tab.id, query);
     chrome.tabs.remove(tab.id).catch(() => {});
-    ctx.session.openedTabIds.delete(tab.id);
 
     if (!ctx.session.isActivelyRunning) return;
 

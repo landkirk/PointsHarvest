@@ -26,7 +26,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
-  form.requestSubmit();
-  sendResponse({ ok: true });
+  try {
+    form.requestSubmit();
+    sendResponse({ ok: true });
+  } catch (err) {
+    sendResponse({ ok: false, error: String(err) });
+  }
   return true;
 });

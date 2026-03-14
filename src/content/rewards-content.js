@@ -96,8 +96,12 @@ function extractSearchCounters() {
 
     // rawText example: "5 / 150"
     const parts   = rawText.split('/');
-    const current = parseInt(parts[0]);
-    const max     = parseInt(parts[1]);
+    if (parts.length < 2) {
+      debugCards.push({ skipped: 'parse-failed', type, rawText });
+      continue;
+    }
+    const current = parseInt(parts[0].trim());
+    const max     = parseInt(parts[1].trim());
 
     if (!type || isNaN(current) || isNaN(max)) {
       debugCards.push({ skipped: 'parse-failed', type, rawText });
