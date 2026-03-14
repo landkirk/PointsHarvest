@@ -12,6 +12,9 @@ export interface DebugEntry {
 export interface DomDebugCard {
   skipped:      string | null;
   cardSnippet?: string;
+  title?:       string;
+  description?: string;
+  href?:        string | null;
 }
 
 export interface DomDebug {
@@ -37,10 +40,19 @@ export interface DailySetDebug {
   tiles?:       DailySetDebugTile[];
 }
 
+export interface SearchCounterDebugCard {
+  skipped:   string | null;
+  type:      string;
+  rawText?:  string;
+  current?:  number;
+  max?:      number;
+}
+
 export interface SearchCounterDebug {
   sectionFound: boolean;
   total?:       number;
   extracted?:   number;
+  cards?:       SearchCounterDebugCard[];
 }
 
 const MAX_LOG_ENTRIES = 100;

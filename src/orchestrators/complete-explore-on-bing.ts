@@ -5,7 +5,7 @@ import { waitForTabLoad } from '../util/tabs.js';
 import { lingerOnPage, sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/config.js';
 import type { Context } from '../util/context.js';
-import type { MappedActivity } from './start-run.js';
+import type { MappedActivity } from '../util/activity.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as validateTile from '../steps/validate-tile.js';
 
@@ -28,7 +28,7 @@ export async function run(ctx: Context, mapped: MappedActivity[], startIndex: nu
     const captureTabPromise = new Promise<chrome.tabs.Tab>(resolve => { ctx.session.captureNextTabResolve = resolve; });
 
     const clickResult = await chrome.tabs.sendMessage(ctx.session.rewardsTabId!, { action: MSG_ACTION.CLICK_CARD, index: i })
-      .catch((err: unknown) => { ctx.dbg('warn', `Card click message error for "${title}": ${(err as Error)?.message ?? err}`); return null; });
+      .catch((err: unknown) => { ctx.dbg('warn', `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
 
     if (!clickResult?.clicked) {
       ctx.session.captureNextTabResolve = null;

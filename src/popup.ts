@@ -2,7 +2,7 @@ import { MSG_ACTION } from './util/config.js';
 import type { AppState, SearchCounter } from './util/state.js';
 import type { DomDebug, DailySetDebug } from './util/debug.js';
 import type { DebugEntry } from './util/debug.js';
-import type { MappedActivity } from './orchestrators/start-run.js';
+import type { MappedActivity } from './util/activity.js';
 
 const dot         = document.getElementById('dot')!;
 const statusEl    = document.getElementById('status')!;
@@ -209,7 +209,7 @@ function renderCards(mappedActivities: MappedActivity[], domDebug: DomDebug | nu
   `).join('') + skipped.map(c => `
     <div class="dbg-card">
       <div class="card-title skipped">${esc(c.cardSnippet || '(no title)')}</div>
-      <div class="card-skip">Skipped: ${esc(c.skipped)}</div>
+      <div class="card-skip">Skipped: ${esc(c.skipped ?? '')}</div>
     </div>
   `).join('');
 
@@ -220,7 +220,7 @@ function renderCards(mappedActivities: MappedActivity[], domDebug: DomDebug | nu
         <div class="card-title${t.skipped ? ' skipped' : ''}">${esc(t.snippet || t.biId || '(no title)')}</div>
         ${t.skipped
           ? `<div class="card-skip">Skipped: ${esc(t.skipped)}</div>`
-          : `<div class="card-query" title="${esc(t.href)}">→ ${esc(t.href)}</div>`
+          : `<div class="card-query" title="${esc(t.href ?? '')}">→ ${esc(t.href ?? '')}</div>`
         }
       </div>
     `).join('')}
@@ -265,8 +265,8 @@ function appendLogEntry(entry: DebugEntry): void {
   dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
-function esc(str: unknown): string {
-  return String(str ?? '')
+function esc(str: string): string {
+  return str
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

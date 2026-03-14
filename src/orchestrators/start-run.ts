@@ -7,18 +7,11 @@ import { createContext } from '../util/context.js';
 import { run as fetchActivities, buildSearchList } from '../steps/fetch-activities.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/state.js';
+import type { MappedActivity } from '../util/activity.js';
 
 import * as completeExploreOnBing from './complete-explore-on-bing.js';
 import * as completeDailySets from './complete-daily-sets.js';
 import * as farmPcSearches from './farm-pc-searches.js';
-
-export interface MappedActivity {
-  title:       string;
-  description: string;
-  href:        string;
-  query:       string | null;
-  unmatched:   boolean;
-}
 
 interface RunOptions {
   today:          string;

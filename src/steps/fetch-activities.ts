@@ -5,19 +5,13 @@ import { closeRewardsTab, openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/state.js';
-import type { MappedActivity } from '../orchestrators/start-run.js';
+import type { Activity, MappedActivity } from '../util/activity.js';
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
 // descriptions and returns the remainder as a usable search query.
 // If the description is unhelpful, falls back to the title text.
 // Descriptions shorter than this are usually too generic after boilerplate is stripped
 const MIN_QUERY_LENGTH = 8;
-
-interface RawActivity {
-  title:       string;
-  description: string;
-  href:        string;
-}
 
 function generateSearchQuery(title: string, description: string): string {
   const BOILERPLATE = [
@@ -38,8 +32,8 @@ function generateSearchQuery(title: string, description: string): string {
 }
 
 // Maps each activity to a query (may be null if none could be generated).
-export function buildSearchList(activities: unknown[]): MappedActivity[] {
-  return (activities as RawActivity[]).map(({ title, description, href }) => {
+export function buildSearchList(activities: Activity[]): MappedActivity[] {
+  return activities.map(({ title, description, href }) => {
     const query = generateSearchQuery(title, description);
     return query
       ? { title, description, href, query, unmatched: false }

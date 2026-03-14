@@ -15,7 +15,7 @@ export type DailySetTile = Tile;
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
 export async function run(ctx: Context, { dailySets = [], dailySetDebug = null }: Partial<ActivitiesResult> = {}): Promise<void> {
-  const tiles = dailySets as DailySetTile[];
+  const tiles = dailySets;
   const debug = dailySetDebug as DailySetDebug | null;
 
   await ctx.setState({ dailySetDebug });

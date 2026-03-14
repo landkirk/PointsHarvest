@@ -8,7 +8,7 @@ export interface Tile {
 }
 
 export async function run(ctx: Context, tile: Tile): Promise<boolean | null> {
-  if (!ctx.session.rewardsTabId || !tile?.href) return null;
+  if (!ctx.session.rewardsTabId) return null;
 
   const response = await chrome.tabs.sendMessage(ctx.session.rewardsTabId, {
     action: MSG_ACTION.VALIDATE_TILE,
