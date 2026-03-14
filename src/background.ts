@@ -51,15 +51,15 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // ── Message routing ────────────────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void => {
   if (msg.action === MSG_ACTION.ACTIVITIES_FOUND) {
     if (session.resolveActivities) {
       session.resolveActivities({
-        activities: msg.activities,
-        domDebug: msg.domDebug,
-        dailySets: msg.dailySets ?? [],
+        activities:   msg.activities,
+        domDebug:     msg.domDebug,
+        dailySets:    msg.dailySets ?? [],
         dailySetDebug: msg.dailySetDebug ?? null,
-        loggedIn: msg.loggedIn !== false,
+        loggedIn:     msg.loggedIn !== false,
       });
       session.resolveActivities = null;
     }
