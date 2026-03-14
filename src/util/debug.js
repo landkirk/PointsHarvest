@@ -20,11 +20,3 @@ export async function dbg(type, message) {
   chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {});
 }
 
-/** Triangular distribution biased toward the middle of [min, max]. */
-export function randMs(min, max) {
-  return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));
-}
-
-export function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}

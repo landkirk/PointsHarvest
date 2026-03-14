@@ -3,7 +3,8 @@
 
 import { session } from '../util/state.js';
 import { waitForTabLoad } from '../util/tabs.js';
-import { dbg, randMs, sleep } from '../util/debug.js';
+import { dbg } from '../util/debug.js';
+import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab } from './linger-on-tab.js';
 import { validateTileComplete } from './validate-tile.js';
 
@@ -24,7 +25,7 @@ export async function completeDailySets(dailySets) {
     const label = (ariaLabel || biId || href).slice(0, 60);
     await dbg('info', `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
-    const tab = await chrome.tabs.create({ url: href, active: false }).catch(() => null);
+    const tab = await chrome.tabs.create({ url: href, active: true }).catch(() => null);
     if (!tab) {
       await dbg('warn', `Failed to open tab for daily set tile ${i + 1}`);
       continue;
@@ -46,9 +47,7 @@ export async function completeDailySets(dailySets) {
       await lingerOnTab(tab.id);
       await validateTileComplete(session.rewardsTabId, dailySets[i]);
     } else {
-      const dwell = randMs(3500, 7000);
-      await dbg('info', `Dwell ${(dwell / 1000).toFixed(1)}s`);
-      await sleep(dwell);
+      await lingerOnPage('daily set tile');
       chrome.tabs.remove(tab.id).catch(() => {});
       await validateTileComplete(session.rewardsTabId, dailySets[i]);
     }
@@ -56,9 +55,7 @@ export async function completeDailySets(dailySets) {
 
     if (i < dailySets.length - 1) {
       if (!session.isActivelyRunning) return;
-      const delay = randMs(2500, 5000);
-      await dbg('info', `Next daily set tile in ${(delay / 1000).toFixed(1)}s`);
-      await sleep(delay);
+      await lingerOnPage('between daily set tiles');
     }
   }
 
