@@ -1,4 +1,6 @@
 import type { DebugEntry, DomDebug, DailySetDebug, SearchCounterDebug } from './debug.js';
+import type { Activity, MappedActivity } from './activity.js';
+import type { Tile } from '../steps/validate-tile.js';
 
 // ── Ephemeral session ──────────────────────────────────────────────────────
 // In-memory only. Resets whenever the service worker restarts.
@@ -17,9 +19,9 @@ export interface Session {
 }
 
 export interface ActivitiesResult {
-  activities:      unknown[];
+  activities:      Activity[];
   domDebug:        DomDebug | null;
-  dailySets?:      unknown[];
+  dailySets?:      Tile[];
   dailySetDebug?:  DailySetDebug | null;
   loggedIn:        boolean;
 }
@@ -67,8 +69,8 @@ export interface AppState {
   dailySetDebug:       DailySetDebug | null;
   searchCounters:      SearchCounter[];
   searchCounterDebug:  SearchCounterDebug | null;
-  extractedActivities: unknown[];
-  mappedActivities:    unknown[];
+  extractedActivities: Activity[];
+  mappedActivities:    MappedActivity[];
   searchQueue:         string[];
 }
 

@@ -7,7 +7,9 @@
 
 import { MSG_ACTION, CARD_STATE } from '../util/config.js';
 import type { CardState, MsgAction } from '../util/config.js';
-import type { DomDebug, DailySetDebug, DailySetDebugTile } from '../util/debug.js';
+import type { Activity } from '../util/activity.js';
+import type { DomDebug, DomDebugCard, DailySetDebug, DailySetDebugTile, SearchCounterDebugCard } from '../util/debug.js';
+import type { Tile } from '../steps/validate-tile.js';
 
 const SEARCH_ON_BING_RE = /search on bing/i;
 const MAX_WAIT_MS    = 15000;
@@ -15,34 +17,6 @@ const POLL_INTERVAL_MS = 500;
 
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls: HTMLAnchorElement[] = [];
-
-interface Activity {
-  title:       string;
-  description: string;
-  href:        string | null;
-}
-
-interface DailySetTile {
-  href:      string;
-  ariaLabel: string;
-  biId:      string;
-}
-
-interface DebugCard {
-  skipped:      string | null;
-  cardSnippet?: string;
-  title?:       string;
-  description?: string;
-  href?:        string | null;
-}
-
-interface DebugCounter {
-  skipped:  string | null;
-  type:     string;
-  rawText?: string;
-  current?: number;
-  max?:     number;
-}
 
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
@@ -56,19 +30,19 @@ function determineCardState(card: Element): CardState {
 }
 
 // Returns { dailySets, dailySetDebug }
-function extractDailySets(): { dailySets: DailySetTile[]; dailySetDebug: DailySetDebug } {
+function extractDailySets(): { dailySets: Tile[]; dailySetDebug: DailySetDebug } {
   const container = document.querySelector('#daily-sets');
   if (!container) return { dailySets: [], dailySetDebug: { sectionFound: false } };
 
   const tiles = Array.from(container.querySelectorAll('a.ds-card-sec'));
 
-  const actionable: DailySetTile[] = [];
+  const actionable: Tile[] = [];
   const debugTiles: DailySetDebugTile[] = [];
 
   for (const tile of tiles) {
     const tileState = determineCardState(tile);
     const ariaLabel = tile.getAttribute('aria-label') || '';
-    const href      = (tile as HTMLAnchorElement).href || null;
+    const href      = (tile as HTMLAnchorElement).href || '';
     const biId      = tile.getAttribute('data-bi-id') || '';
     const snippet   = ariaLabel.slice(0, 80);
 
@@ -98,7 +72,7 @@ function extractSearchCounters(): { searchCounters: object[]; searchCounterDebug
   if (!cards.length) return { searchCounters: [], searchCounterDebug: { sectionFound: false } };
 
   const counters: { type: string; current: number; max: number }[] = [];
-  const debugCards: DebugCounter[] = [];
+  const debugCards: SearchCounterDebugCard[] = [];
 
   for (const card of cards) {
     const typeEl   = card.querySelector('.title-detail p');
@@ -145,7 +119,7 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebug; card
 
   const activities: Activity[] = [];
   const cardEls: HTMLAnchorElement[] = [];
-  const debugCards: DebugCard[] = [];
+  const debugCards: DomDebugCard[] = [];
 
   for (const card of allCards) {
     const ariaLabel = card.getAttribute('aria-label') || '';
@@ -168,9 +142,10 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebug; card
     const description = descP
       ? descP.textContent!.trim()
       : parts.slice(1).join(', ');
-    const href = (card as HTMLAnchorElement).href || null;
+    const href = (card as HTMLAnchorElement).href || '';
 
-    debugCards.push({ title, description, href, skipped: null });
+    debugCards.push({ title, description, href: href || null, skipped: null });
+    if (!href) continue;
     activities.push({ title, description, href });
     cardEls.push(card as HTMLAnchorElement);
   }
