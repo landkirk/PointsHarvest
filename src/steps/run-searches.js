@@ -9,6 +9,7 @@ import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
 import { completeDailySets } from './complete-daily-sets.js';
 import { fetchSearchCounters } from './fetch-counters.js';
+import { farmPcSearches } from './farm-pc-searches.js';
 import { validateTileComplete } from './validate-tile.js';
 
 export async function runAllSearches(mapped, startIndex, dailySets = []) {
@@ -87,6 +88,11 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
   // Complete daily set tiles before closing the rewards tab
   await completeDailySets(dailySets);
 
+  try {
+    await farmPcSearches();
+  } catch (err) {
+    await dbg('error', `PC search farming failed: ${err.message}`);
+  }
   await fetchSearchCounters();
   closeRewardsTab();
   session.isActivelyRunning = false;
