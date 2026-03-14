@@ -79,7 +79,14 @@ function determineCardState(card: Element): CardStateValue {
 }
 
 // Returns { dailySets, dailySetDebug }
-function extractDailySets(): { dailySets: DailySetTile[]; dailySetDebug: object } {
+interface DailySetDebugResult {
+  sectionFound: boolean;
+  totalTiles?:  number;
+  actionable?:  number;
+  tiles?:       DebugTile[];
+}
+
+function extractDailySets(): { dailySets: DailySetTile[]; dailySetDebug: DailySetDebugResult } {
   const container = document.querySelector('#daily-sets');
   if (!container) return { dailySets: [], dailySetDebug: { sectionFound: false } };
 
@@ -159,7 +166,16 @@ function extractSearchCounters(): { searchCounters: object[]; searchCounterDebug
 }
 
 // Returns { activities, domDebug, cardEls }
-function extractActivities(): { activities: Activity[]; domDebug: object; cardEls: HTMLAnchorElement[] } {
+interface DomDebugResult {
+  totalCards:          number;
+  actionElementsFound: number;
+  skippedLocked:       number;
+  skippedCompleted:    number;
+  skippedUnknown:      number;
+  cards:               DebugCard[];
+}
+
+function extractActivities(): { activities: Activity[]; domDebug: DomDebugResult; cardEls: HTMLAnchorElement[] } {
   // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
   const allCards = [
     ...document.querySelectorAll('.locked-card'),
@@ -255,7 +271,7 @@ function waitAndExtract(): void {
     const { activities, domDebug, cardEls } = extractActivities();
     const { dailySets, dailySetDebug }       = extractDailySets();
 
-    if (activities.length > 0 || dailySets.length > 0 || (domDebug as any).totalCards > 0 || (dailySetDebug as any).sectionFound || Date.now() - start >= MAX_WAIT_MS) {
+    if (activities.length > 0 || dailySets.length > 0 || domDebug.totalCards > 0 || dailySetDebug.sectionFound || Date.now() - start >= MAX_WAIT_MS) {
       extractedCardEls = cardEls;
       chrome.runtime.sendMessage({ action: REWARDS_MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
     } else {
