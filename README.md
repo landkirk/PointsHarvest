@@ -58,18 +58,27 @@ The extension tracks the last run date and progress:
 manifest.json         Extension config (MV3)
 src/
   popup.html          Extension popup UI
-  background.js       Service worker — entry point, listeners, main flow
-  state.js            Shared in-memory state and closeRewardsTab helper
   popup.js            Popup logic
+  background.js       Service worker — tab event listeners, message routing
+  orchestrators/
+    start-run.js           Top-level run coordinator (fire-and-forget from background)
+    stop-run.js            Cancels an active run and closes all opened tabs
+    complete-explore-on-bing.js  Iterates mapped cards, clicks each, runs searches
+    complete-daily-sets.js       Opens each daily set tile; lingers for interactive ones
+    farm-pc-searches.js          Farms remaining PC search points after cards are done
   steps/
-    fetch-activities.js    Open rewards tab, extract cards, map to queries
-    run-searches.js        Click each card and run the search loop
+    fetch-activities.js    Open rewards tab, wait for content script, extract cards
+    fetch-counters.js      Poll breakdown tab for search point counters
     perform-search.js      Dwell and execute a single search in a tab
-    complete-daily-sets.js Open each daily set tile; linger for interactive ones
     linger-on-tab.js       Pause automation and wait for user to complete a tile
+    validate-tile.js       Confirm a tile is marked complete on the rewards page
   util/
     config.js         Static data: search pools, URL/count constants
-    debug.js          Logging and timing helpers
+    context.js        createContext() — bundles session/setState/dbg for orchestrators
+    debug.js          Logging helpers
+    state.js          In-memory session + chrome.storage.local persistent state
+    tabs.js           Tab utilities (waitForTabLoad, closeRewardsTab)
+    timing.js         randMs, sleep, lingerOnPage
   content/
     rewards-content.js  Content script injected into rewards.bing.com
     search-content.js   Content script injected into www.bing.com
@@ -81,26 +90,30 @@ src/
 [User clicks Start]
        │
        ▼
-Open rewards.bing.com (background tab)
+orchestrators/start-run.js loads state, resets session,
+fires _executeRun (fire-and-forget)
        │
        ▼
-src/content/rewards-content.js polls the SPA until cards render (max 15s),
-extracts available "Search on Bing" activities + daily set tiles,
+Open rewards.bing.com + breakdown tab in parallel
+rewards-content.js polls the SPA until cards render (max 15s),
+extracts "Search on Bing" activities + daily set tiles,
 sends them to background
        │
        ▼
-background.js maps each activity description → search query
+steps/fetch-activities.js maps each activity description → search query
 by stripping "Search on Bing to/for..." boilerplate
 (falls back to card title if description is too short)
        │
        ▼
+orchestrators/complete-explore-on-bing.js —
 For each activity card:
-  background sends clickCard → content script clicks the card
+  send clickCard → content script clicks the card
   → new Bing search tab opens → wait for tab to load
   → pre-search dwell 1–3s → perform query → post-search dwell 3–5s
   → close tab → delay 1.8–5s → next card
        │
        ▼
+orchestrators/complete-daily-sets.js —
 For each daily set tile:
   open tile URL in background tab → wait for load (15s timeout)
   if title matches quiz/poll/test/puzzle:
@@ -110,10 +123,13 @@ For each daily set tile:
   → delay 1.5–4s → next tile
        │
        ▼
-Rewards tab closed after all cards and tiles are processed
+orchestrators/farm-pc-searches.js —
+Poll breakdown tab for PC search counter;
+if not at cap, run searches until cap reached or no progress after 3 tries
        │
        ▼
-Progress updates sent to popup in real time
+Rewards tab closed; status set to "Done for today!"
+Progress updates sent to popup in real time throughout
 ```
 
 ### Query generation
@@ -143,6 +159,7 @@ The debug panel also includes a **Purge all state** button that clears all store
 - Daily set tiles that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
 - Uses triangular distribution for randomized timing to appear more human-like
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message
-- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `performSearchInTab` in `src/steps/perform-search.js` if you notice missed points
+- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `src/steps/perform-search.js` if you notice missed points
+- After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/config.js`
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - Service worker state is preserved across restarts, allowing mid-run resumption
