@@ -1,5 +1,6 @@
 import { REWARDS_URL, REWARDS_BREAKDOWN_URL, MSG_ACTION } from './util/config.js';
-import { dbg, resetLog, randMs, sleep } from './util/debug.js';
+import { dbg, resetLog } from './util/debug.js';
+import { randMs, sleep } from './util/timing.js';
 import { session, resetSession, loadState, setState, resetState } from './util/state.js';
 import { closeRewardsTab } from './util/tabs.js';
 import { fetchAvailableActivities, buildSearchList } from './steps/fetch-activities.js';

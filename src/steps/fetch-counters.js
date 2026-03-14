@@ -3,7 +3,8 @@
 // Chrome's background-tab timer throttling.
 
 import { session, setState } from '../util/state.js';
-import { dbg, sleep } from '../util/debug.js';
+import { dbg } from '../util/debug.js';
+import { sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/config.js';
 
 const POLL_INTERVAL_MS = 1000;

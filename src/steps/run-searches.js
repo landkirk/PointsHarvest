@@ -3,7 +3,8 @@
 
 import { session, setState } from '../util/state.js';
 import { closeRewardsTab, waitForTabLoad } from '../util/tabs.js';
-import { dbg, randMs, sleep } from '../util/debug.js';
+import { dbg } from '../util/debug.js';
+import { lingerOnPage, sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/config.js';
 import { performSearchInTab } from './perform-search.js';
 import { completeDailySets } from './complete-daily-sets.js';
@@ -46,6 +47,7 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
     }
 
     session.openedTabIds.add(searchTab.id);
+    chrome.tabs.update(searchTab.id, { active: true }).catch(() => {});
 
     // Wait for the tab to finish loading
     await waitForTabLoad(searchTab.id, 30000);
@@ -77,9 +79,7 @@ export async function runAllSearches(mapped, startIndex, dailySets = []) {
     }).catch(() => {});
 
     if (i < mapped.length - 1) {
-      const delay = randMs(1800, 5000);
-      await dbg('info', `Next search in ${(delay / 1000).toFixed(1)}s`);
-      await sleep(delay);
+      await lingerOnPage('between searches');
       if (!session.isActivelyRunning) return;
     }
   }
