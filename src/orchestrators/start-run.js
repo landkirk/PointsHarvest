@@ -1,5 +1,5 @@
 import { REWARDS_URL, REWARDS_BREAKDOWN_URL, MSG_ACTION } from '../util/config.js';
-import { randMs, sleep } from '../util/timing.js';
+import { randMs, sleep, TIMING } from '../util/timing.js';
 import { resetLog } from '../util/debug.js';
 import { resetSession, loadState, resetState } from '../util/state.js';
 import { closeRewardsTab, openTab } from '../util/tabs.js';
@@ -85,7 +85,7 @@ async function _executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone 
     status: `Running (0 / ${mapped.length})`,
   });
 
-  const initialDelay = randMs(0, 8000);
+  const initialDelay = randMs(...TIMING.INITIAL_DELAY);
   await ctx.dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
   await sleep(initialDelay);
 

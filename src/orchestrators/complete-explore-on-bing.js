@@ -26,7 +26,7 @@ export async function run(ctx, mapped, startIndex) {
     const captureTabPromise = new Promise(resolve => { ctx.session.captureNextTabResolve = resolve; });
 
     const clickResult = await chrome.tabs.sendMessage(ctx.session.rewardsTabId, { action: MSG_ACTION.CLICK_CARD, index: i })
-      .catch(() => null);
+      .catch(err => { ctx.dbg('warn', `Card click message error for "${title}": ${err?.message ?? err}`); return null; });
 
     if (!clickResult?.clicked) {
       ctx.session.captureNextTabResolve = null;
@@ -34,8 +34,12 @@ export async function run(ctx, mapped, startIndex) {
       continue;
     }
 
-    const searchTab = await Promise.race([captureTabPromise, sleep(10000).then(() => null)]);
-    ctx.session.captureNextTabResolve = null;
+    let searchTab;
+    try {
+      searchTab = await Promise.race([captureTabPromise, sleep(10000).then(() => null)]);
+    } finally {
+      ctx.session.captureNextTabResolve = null;
+    }
 
     if (!searchTab) {
       await ctx.dbg('warn', `No tab opened after clicking card "${title}"`);
