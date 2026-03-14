@@ -3,8 +3,9 @@
 
 import { lingerOnPage } from '../util/timing.js';
 import { MSG_ACTION } from '../util/config.js';
+import type { Context } from '../util/context.js';
 
-export async function run(ctx, tabId, query) {
+export async function run(ctx: Context, tabId: number, query: string): Promise<void> {
   await lingerOnPage('search tab');
 
   const result = await chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.PERFORM_SEARCH, query })

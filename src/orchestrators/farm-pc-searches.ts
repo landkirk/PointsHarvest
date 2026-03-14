@@ -4,21 +4,23 @@ import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { lingerOnPage } from '../util/timing.js';
 import { waitForTabLoad, openTab } from '../util/tabs.js';
+import type { Context } from '../util/context.js';
+import type { SearchCounter } from '../util/state.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as fetchCounters from '../steps/fetch-counters.js';
 
 const MAX_NO_PROGRESS = 3;
 
-function findPcCounter(counters) {
+function findPcCounter(counters: SearchCounter[] | undefined): SearchCounter | undefined {
   return counters?.find(c => c.type.toLowerCase() === 'pc search');
 }
 
-export async function run(ctx) {
+export async function run(ctx: Context): Promise<void> {
   // Open a breakdown tab if one isn't already available
   const ownBreakdownTab = !ctx.session.breakdownTabId;
   if (ownBreakdownTab) {
     const tab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
-    ctx.session.breakdownTabId = tab.id;
+    ctx.session.breakdownTabId = tab.id!;
   }
 
   try {
@@ -31,7 +33,7 @@ export async function run(ctx) {
   }
 }
 
-async function _farm(ctx) {
+async function _farm(ctx: Context): Promise<void> {
   const { searchCounters } = await fetchCounters.run(ctx);
   const counter = findPcCounter(searchCounters);
 
@@ -64,15 +66,15 @@ async function _farm(ctx) {
     await ctx.dbg('info', `PC search: "${query}"`);
 
     const tab = await openTab(ctx, 'https://www.bing.com', true);
-    await waitForTabLoad(tab.id, 30000);
+    await waitForTabLoad(tab.id!, 30000);
 
     if (!ctx.session.isActivelyRunning) {
-      chrome.tabs.remove(tab.id).catch(() => {});
+      chrome.tabs.remove(tab.id!).catch(() => {});
       return;
     }
 
-    await performSearch.run(ctx, tab.id, query);
-    chrome.tabs.remove(tab.id).catch(() => {});
+    await performSearch.run(ctx, tab.id!, query);
+    chrome.tabs.remove(tab.id!).catch(() => {});
 
     if (!ctx.session.isActivelyRunning) return;
 

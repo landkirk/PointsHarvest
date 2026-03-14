@@ -1,25 +1,37 @@
 import { MSG_ACTION } from './util/config.js';
+import type { AppState, SearchCounter } from './util/state.js';
+import type { DebugEntry } from './util/debug.js';
+import type { MappedActivity } from './orchestrators/start-run.js';
 
-const dot        = document.getElementById('dot');
-const statusEl   = document.getElementById('status');
-const bar        = document.getElementById('progress-bar');
-const labelEl    = document.getElementById('progress-label');
-const btnStart   = document.getElementById('btn-start');
-const btnStop    = document.getElementById('btn-stop');
-const btnDone    = document.getElementById('btn-done');
-const lastSearch = document.getElementById('last-search');
-const debugCheck = document.getElementById('debug-check');
-const debugPanel = document.getElementById('debug-panel');
-const btnPurge   = document.getElementById('btn-purge');
-const dbgCounters = document.getElementById('dbg-counters');
-const domStats   = document.getElementById('dom-stats');
-const dbgCards   = document.getElementById('dbg-cards');
-const dbgQueue   = document.getElementById('dbg-queue');
-const dbgLog     = document.getElementById('dbg-log');
+const dot         = document.getElementById('dot')!;
+const statusEl    = document.getElementById('status')!;
+const bar         = document.getElementById('progress-bar') as HTMLElement;
+const labelEl     = document.getElementById('progress-label')!;
+const btnStart    = document.getElementById('btn-start') as HTMLButtonElement;
+const btnStop     = document.getElementById('btn-stop') as HTMLElement;
+const btnDone     = document.getElementById('btn-done') as HTMLElement;
+const lastSearch  = document.getElementById('last-search')!;
+const debugCheck  = document.getElementById('debug-check') as HTMLInputElement;
+const debugPanel  = document.getElementById('debug-panel')!;
+const btnPurge    = document.getElementById('btn-purge')!;
+const dbgCounters = document.getElementById('dbg-counters')!;
+const domStats    = document.getElementById('dom-stats')!;
+const dbgCards    = document.getElementById('dbg-cards')!;
+const dbgQueue    = document.getElementById('dbg-queue')!;
+const dbgLog      = document.getElementById('dbg-log')!;
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
-function render({ isRunning, isLingering, status, completedSearches, totalSearches, lastLabel }) {
+interface RenderState {
+  isRunning?:        boolean;
+  isLingering?:      boolean;
+  status?:           string;
+  completedSearches?: number;
+  totalSearches?:    number;
+  lastLabel?:        string;
+}
+
+function render({ isRunning, isLingering, status, completedSearches, totalSearches, lastLabel }: RenderState): void {
   const completed = completedSearches || 0;
   const total     = totalSearches || 0;
   const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -35,7 +47,7 @@ function render({ isRunning, isLingering, status, completedSearches, totalSearch
   else if (isRunning)  dot.classList.add('running');
   else if (isDone)     dot.classList.add('done');
 
-  btnStart.disabled     = isRunning;
+  btnStart.disabled     = !!isRunning;
   btnStop.style.display = isRunning ? 'block' : 'none';
   btnDone.style.display = isLingering ? 'block' : 'none';
 }
@@ -43,14 +55,14 @@ function render({ isRunning, isLingering, status, completedSearches, totalSearch
 // Load state on open. If storage says running, ping to confirm the service worker
 // is actually alive and running — if it was restarted, isActivelyRunning is false
 // and we reset rather than showing a permanently-stuck running state.
-chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
+chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
   if (!state) return;
   if (!state.isRunning) {
     render(state);
     if (debugCheck.checked) renderDebug(state);
     return;
   }
-  chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response) => {
+  chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response: { running: boolean }) => {
     if (!response?.running) {
       chrome.storage.local.set({ isRunning: false, status: 'Stopped' });
       state = { ...state, isRunning: false, status: 'Stopped' };
@@ -63,30 +75,30 @@ chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     render({
-      isRunning: true,
-      status: `Running (${msg.completed} / ${msg.total})`,
+      isRunning:         true,
+      status:            `Running (${msg.completed} / ${msg.total})`,
       completedSearches: msg.completed,
-      totalSearches: msg.total,
-      lastLabel: msg.label,
+      totalSearches:     msg.total,
+      lastLabel:         msg.label,
     });
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
       if (state) { render(state); if (debugCheck.checked) renderDebug(state); }
     });
   }
   if (msg.action === MSG_ACTION.DEBUG_READY && debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
       if (state) {
         renderSearchCounters(state.searchCounters);
         renderDomStats(state.domDebug, state.dailySetDebug);
-        renderCards(state.mappedActivities, state.domDebug, state.dailySetDebug);
+        renderCards(state.mappedActivities as MappedActivity[], state.domDebug, state.dailySetDebug);
         renderQueue(state.searchQueue);
       }
     });
   }
   if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
-    appendLogEntry(msg.entry);
+    appendLogEntry(msg.entry as DebugEntry);
   }
   if (msg.action === MSG_ACTION.LINGER_WAITING) {
     render({ isRunning: true, isLingering: true, status: 'Action required — complete the activity in the tab' });
@@ -122,29 +134,29 @@ btnPurge.addEventListener('click', () => {
 debugCheck.addEventListener('change', () => {
   debugPanel.classList.toggle('open', debugCheck.checked);
   if (debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
       if (state) renderDebug(state);
     });
   }
 });
 
-function clearDebug() {
+function clearDebug(): void {
   dbgCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
-  domStats.innerHTML = '';
-  dbgCards.innerHTML = '<div class="dbg-empty">Waiting for extraction…</div>';
-  dbgQueue.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
-  dbgLog.innerHTML    = '<div class="dbg-empty">No events yet.</div>';
+  domStats.innerHTML    = '';
+  dbgCards.innerHTML    = '<div class="dbg-empty">Waiting for extraction…</div>';
+  dbgQueue.innerHTML    = '<div class="dbg-empty">Not yet built.</div>';
+  dbgLog.innerHTML      = '<div class="dbg-empty">No events yet.</div>';
 }
 
-function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, searchQueue, debugLog }) {
+function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, searchQueue, debugLog }: AppState): void {
   renderSearchCounters(searchCounters);
   renderDomStats(domDebug, dailySetDebug);
-  renderCards(mappedActivities, domDebug, dailySetDebug);
+  renderCards(mappedActivities as MappedActivity[], domDebug, dailySetDebug);
   renderQueue(searchQueue);
   renderLog(debugLog);
 }
 
-function renderSearchCounters(searchCounters) {
+function renderSearchCounters(searchCounters: SearchCounter[]): void {
   if (!searchCounters || searchCounters.length === 0) {
     dbgCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
     return;
@@ -154,14 +166,15 @@ function renderSearchCounters(searchCounters) {
   `).join('');
 }
 
-function renderDomStats(domDebug, dailySetDebug) {
+function renderDomStats(domDebug: unknown, dailySetDebug: unknown): void {
   if (!domDebug && !dailySetDebug) { domStats.innerHTML = ''; return; }
-  const ds = dailySetDebug;
+  const d  = domDebug  as any;
+  const ds = dailySetDebug as any;
   domStats.innerHTML = `
-    ${domDebug ? `
-      <span title="Total cards scanned">${domDebug.totalCards} cards</span>
-      <span title="'Search on Bing' cards found">${domDebug.actionElementsFound} matches</span>
-      <span title="Cards skipped because they were locked">${domDebug.skippedLocked} locked</span>
+    ${d ? `
+      <span title="Total cards scanned">${d.totalCards} cards</span>
+      <span title="'Search on Bing' cards found">${d.actionElementsFound} matches</span>
+      <span title="Cards skipped because they were locked">${d.skippedLocked} locked</span>
     ` : ''}
     ${ds ? `
       <span title="Daily set section found on page">Daily set: ${ds.sectionFound ? `${ds.actionable}/${ds.totalTiles} actionable` : 'not found'}</span>
@@ -169,12 +182,13 @@ function renderDomStats(domDebug, dailySetDebug) {
   `;
 }
 
-
-function renderCards(mappedActivities, domDebug, dailySetDebug) {
-  const el = dbgCards;
-  const skipped = (domDebug?.cards ?? []).filter(c => c.skipped);
-  const items = mappedActivities ?? [];
-  const dsTiles = dailySetDebug?.tiles ?? [];
+function renderCards(mappedActivities: MappedActivity[], domDebug: unknown, dailySetDebug: unknown): void {
+  const el      = dbgCards;
+  const d       = domDebug as any;
+  const ds      = dailySetDebug as any;
+  const skipped = (d?.cards ?? []).filter((c: any) => c.skipped);
+  const items   = mappedActivities ?? [];
+  const dsTiles = ds?.tiles ?? [];
 
   if (!domDebug && !dailySetDebug && items.length === 0) {
     el.innerHTML = '<div class="dbg-empty">Run the extension to see extraction results.</div>';
@@ -192,10 +206,10 @@ function renderCards(mappedActivities, domDebug, dailySetDebug) {
       <div class="card-desc">${esc(a.description || '')}</div>
       ${a.unmatched
         ? '<div class="card-skip">No query could be generated — skipped</div>'
-        : `<div class="card-query">→ ${esc(a.query)}</div>`
+        : `<div class="card-query">→ ${esc(a.query!)}</div>`
       }
     </div>
-  `).join('') + skipped.map(c => `
+  `).join('') + skipped.map((c: any) => `
     <div class="dbg-card">
       <div class="card-title skipped">${esc(c.cardSnippet || '(no title)')}</div>
       <div class="card-skip">Skipped: ${esc(c.skipped)}</div>
@@ -204,7 +218,7 @@ function renderCards(mappedActivities, domDebug, dailySetDebug) {
 
   const dsHtml = dsTiles.length === 0 ? '' : `
     <div class="dbg-section-label">Daily set</div>
-    ${dsTiles.map(t => `
+    ${dsTiles.map((t: any) => `
       <div class="dbg-card">
         <div class="card-title${t.skipped ? ' skipped' : ''}">${esc(t.snippet || t.biId || '(no title)')}</div>
         ${t.skipped
@@ -218,46 +232,43 @@ function renderCards(mappedActivities, domDebug, dailySetDebug) {
   el.innerHTML = searchHtml + dsHtml;
 }
 
-function renderQueue(searchQueue) {
-  const el = dbgQueue;
+function renderQueue(searchQueue: string[]): void {
   if (!searchQueue || searchQueue.length === 0) {
-    el.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
+    dbgQueue.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
     return;
   }
-  el.innerHTML = searchQueue.map((q, i) => `
+  dbgQueue.innerHTML = searchQueue.map((q, i) => `
     <div class="dbg-queue-item">
       <span class="idx">${i + 1}.</span>${esc(q)}
     </div>
   `).join('');
 }
 
-function renderLog(debugLog) {
-  const el = dbgLog;
+function renderLog(debugLog: DebugEntry[]): void {
   if (!debugLog || debugLog.length === 0) {
-    el.innerHTML = '<div class="dbg-empty">No events yet.</div>';
+    dbgLog.innerHTML = '<div class="dbg-empty">No events yet.</div>';
     return;
   }
-  el.innerHTML = debugLog.map(e => `
+  dbgLog.innerHTML = debugLog.map(e => `
     <div class="log-entry ${esc(e.type)}">
       <span class="log-time">${esc(e.time)}</span>
       <span class="log-msg">${esc(e.message)}</span>
     </div>
   `).join('');
-  el.scrollTop = el.scrollHeight;
+  dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
-function appendLogEntry(entry) {
-  const el = dbgLog;
-  const empty = el.querySelector('.dbg-empty');
+function appendLogEntry(entry: DebugEntry): void {
+  const empty = dbgLog.querySelector('.dbg-empty');
   if (empty) empty.remove();
   const div = document.createElement('div');
   div.className = `log-entry ${entry.type}`;
   div.innerHTML = `<span class="log-time">${esc(entry.time)}</span><span class="log-msg">${esc(entry.message)}</span>`;
-  el.appendChild(div);
-  el.scrollTop = el.scrollHeight;
+  dbgLog.appendChild(div);
+  dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
-function esc(str) {
+function esc(str: unknown): string {
   return String(str ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

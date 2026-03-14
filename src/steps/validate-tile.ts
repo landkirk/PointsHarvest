@@ -1,14 +1,13 @@
 import { MSG_ACTION, CARD_STATE } from '../util/config.js';
+import type { Context } from '../util/context.js';
 
-/**
- * Checks the current rewards page DOM to confirm a specific tile is marked complete.
- * Works for any tile type (search card, daily set, linger activity).
- *
- * @param {object} ctx
- * @param {{ href: string, ariaLabel?: string, biId?: string }} tile
- * @returns {Promise<boolean|null>} true=complete, false=not yet, null=indeterminate
- */
-export async function run(ctx, tile) {
+export interface Tile {
+  href:       string;
+  ariaLabel?: string;
+  biId?:      string;
+}
+
+export async function run(ctx: Context, tile: Tile): Promise<boolean | null> {
   if (!ctx.session.rewardsTabId || !tile?.href) return null;
 
   const response = await chrome.tabs.sendMessage(ctx.session.rewardsTabId, {

@@ -3,6 +3,9 @@
 
 import { closeRewardsTab, openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
+import type { Context } from '../util/context.js';
+import type { ActivitiesResult } from '../util/state.js';
+import type { MappedActivity } from '../orchestrators/start-run.js';
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
 // descriptions and returns the remainder as a usable search query.
@@ -10,7 +13,13 @@ import { REWARDS_URL } from '../util/config.js';
 // Descriptions shorter than this are usually too generic after boilerplate is stripped
 const MIN_QUERY_LENGTH = 8;
 
-function generateSearchQuery(title, description) {
+interface RawActivity {
+  title:       string;
+  description: string;
+  href:        string;
+}
+
+function generateSearchQuery(title: string, description: string): string {
   const BOILERPLATE = [
     /^search on bing (?:to |for )?/i,
     /^search bing (?:to |for )?/i,
@@ -29,8 +38,8 @@ function generateSearchQuery(title, description) {
 }
 
 // Maps each activity to a query (may be null if none could be generated).
-export function buildSearchList(activities) {
-  return activities.map(({ title, description, href }) => {
+export function buildSearchList(activities: unknown[]): MappedActivity[] {
+  return (activities as RawActivity[]).map(({ title, description, href }) => {
     const query = generateSearchQuery(title, description);
     return query
       ? { title, description, href, query, unmatched: false }
@@ -38,9 +47,9 @@ export function buildSearchList(activities) {
   });
 }
 
-export async function run(ctx) {
-  let resolveLocal;
-  const result = new Promise(resolve => { resolveLocal = resolve; });
+export async function run(ctx: Context): Promise<ActivitiesResult> {
+  let resolveLocal!: (result: ActivitiesResult) => void;
+  const result = new Promise<ActivitiesResult>(resolve => { resolveLocal = resolve; });
 
   const timeout = setTimeout(() => {
     ctx.session.resolveActivities = null;
@@ -49,7 +58,7 @@ export async function run(ctx) {
     resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
   }, 20000);
 
-  let rewardsTab;
+  let rewardsTab: chrome.tabs.Tab;
   try {
     rewardsTab = await openTab(ctx, REWARDS_URL, false);
   } catch {
@@ -60,10 +69,10 @@ export async function run(ctx) {
     return result;
   }
 
-  ctx.session.rewardsTabId = rewardsTab.id;
+  ctx.session.rewardsTabId = rewardsTab.id!;
 
   // Rewards tab stays open after resolving — background will click cards and then close it.
-  ctx.session.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true } = {}) => {
+  ctx.session.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true }: Partial<ActivitiesResult> = {}) => {
     clearTimeout(timeout);
     resolveLocal({ activities, domDebug, dailySets, dailySetDebug, loggedIn });
   };
