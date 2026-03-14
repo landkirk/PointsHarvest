@@ -58,33 +58,34 @@ The extension tracks the last run date and progress:
 ```
 manifest.json         Extension config (MV3)
 package.json          npm scripts and dev dependencies
-tsconfig.json         TypeScript config — compiles src/ → dist/
+tsconfig.json         TypeScript config (full — used by IDE and type checking)
+tsconfig.build.json   TypeScript config for emit — excludes content scripts (bundled by esbuild)
 src/                  Source files (edit these)
   popup.html          Extension popup UI
-  popup.js            Popup logic
-  background.js       Service worker — tab event listeners, message routing
+  popup.ts            Popup logic
+  background.ts       Service worker — tab event listeners, message routing
   orchestrators/
-    start-run.js           Top-level run coordinator (fire-and-forget from background)
-    stop-run.js            Cancels an active run and closes all opened tabs
-    complete-explore-on-bing.js  Iterates mapped cards, clicks each, runs searches
-    complete-daily-sets.js       Opens each daily set tile; lingers for interactive ones
-    farm-pc-searches.js          Farms remaining PC search points after cards are done
+    start-run.ts           Top-level run coordinator (fire-and-forget from background)
+    stop-run.ts            Cancels an active run and closes all opened tabs
+    complete-explore-on-bing.ts  Iterates mapped cards, clicks each, runs searches
+    complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
+    farm-pc-searches.ts          Farms remaining PC search points after cards are done
   steps/
-    fetch-activities.js    Open rewards tab, wait for content script, extract cards
-    fetch-counters.js      Poll breakdown tab for search point counters
-    perform-search.js      Dwell and execute a single search in a tab
-    linger-on-tab.js       Pause automation and wait for user to complete a tile
-    validate-tile.js       Confirm a tile is marked complete on the rewards page
+    fetch-activities.ts    Open rewards tab, wait for content script, extract cards
+    fetch-counters.ts      Poll breakdown tab for search point counters
+    perform-search.ts      Dwell and execute a single search in a tab
+    linger-on-tab.ts       Pause automation and wait for user to complete a tile
+    validate-tile.ts       Confirm a tile is marked complete on the rewards page
   util/
-    config.js         Static data: search pools, URL/count constants
-    context.js        createContext() — bundles session/setState/dbg for orchestrators
-    debug.js          Logging helpers
-    state.js          In-memory session + chrome.storage.local persistent state
-    tabs.js           Tab utilities (waitForTabLoad, closeRewardsTab)
-    timing.js         randMs, sleep, lingerOnPage
+    config.ts         Static data: search pools, URL/count constants
+    context.ts        createContext() — bundles session/setState/dbg for orchestrators
+    debug.ts          Logging helpers and debug type definitions
+    state.ts          In-memory session + chrome.storage.local persistent state
+    tabs.ts           Tab utilities (waitForTabLoad, closeRewardsTab)
+    timing.ts         randMs, sleep, lingerOnPage
   content/
-    rewards-content.js  Content script injected into rewards.bing.com
-    search-content.js   Content script injected into www.bing.com
+    rewards-content.ts  Content script injected into rewards.bing.com
+    search-content.ts   Content script injected into www.bing.com
 dist/                 Compiled output — loaded by Chrome at runtime
 ```
 
@@ -163,7 +164,7 @@ The debug panel also includes a **Purge all state** button that clears all store
 - Daily set tiles that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
 - Uses triangular distribution for randomized timing to appear more human-like
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message
-- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `src/steps/perform-search.js` if you notice missed points
-- After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/config.js`
+- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `src/steps/perform-search.ts` if you notice missed points
+- After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/config.ts`
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - Service worker state is preserved across restarts, allowing mid-run resumption
