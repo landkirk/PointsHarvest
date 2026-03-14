@@ -4,33 +4,17 @@
 
 // Actionable cards are <a class="ds-card-sec"> elements; locked cards are <div class="locked-card">.
 // "Search on Bing" activities are identified via aria-label on the card element.
+
+import { MSG_ACTION, CARD_STATE } from '../util/config.js';
+import type { CardState, MsgAction } from '../util/config.js';
+import type { DomDebug, DailySetDebug, DailySetDebugTile } from '../util/debug.js';
+
 const SEARCH_ON_BING_RE = /search on bing/i;
 const MAX_WAIT_MS    = 15000;
 const POLL_INTERVAL_MS = 500;
 
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls: HTMLAnchorElement[] = [];
-
-// Content scripts run as classic scripts (not ES modules), so they cannot import from config.js.
-// REWARDS_MSG_ACTION and CARD_STATE are duplicated here intentionally — the canonical definitions live in util/config.js.
-const REWARDS_MSG_ACTION = {
-  START_EXTRACT:    'startExtract',
-  ACTIVITIES_FOUND: 'activitiesFound',
-  CLICK_CARD:       'clickCard',
-  VALIDATE_TILE:    'validateTile',
-  GET_COUNTERS:     'getCounters',
-} as const;
-
-// Duplicated from util/config.js — see note above.
-const CARD_STATE = {
-  ACTIONABLE: 'actionable',
-  COMPLETED:  'completed',
-  LOCKED:     'locked',
-  UNKNOWN:    'unknown',
-  NOT_FOUND:  'not-found',
-} as const;
-
-type CardStateValue = typeof CARD_STATE[keyof typeof CARD_STATE];
 
 interface Activity {
   title:       string;
@@ -52,13 +36,6 @@ interface DebugCard {
   href?:        string | null;
 }
 
-interface DebugTile {
-  skipped:  string | null;
-  snippet:  string;
-  biId:     string;
-  href?:    string;
-}
-
 interface DebugCounter {
   skipped:  string | null;
   type:     string;
@@ -69,7 +46,7 @@ interface DebugCounter {
 
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
-function determineCardState(card: Element): CardStateValue {
+function determineCardState(card: Element): CardState {
   if (card.closest('.locked-card'))                               return CARD_STATE.LOCKED;
   if (card.getAttribute('aria-disabled') === 'true')              return CARD_STATE.LOCKED;
   if (card.querySelector('[aria-label="Points you have earned"]')) return CARD_STATE.COMPLETED;
@@ -79,21 +56,14 @@ function determineCardState(card: Element): CardStateValue {
 }
 
 // Returns { dailySets, dailySetDebug }
-interface DailySetDebugResult {
-  sectionFound: boolean;
-  totalTiles?:  number;
-  actionable?:  number;
-  tiles?:       DebugTile[];
-}
-
-function extractDailySets(): { dailySets: DailySetTile[]; dailySetDebug: DailySetDebugResult } {
+function extractDailySets(): { dailySets: DailySetTile[]; dailySetDebug: DailySetDebug } {
   const container = document.querySelector('#daily-sets');
   if (!container) return { dailySets: [], dailySetDebug: { sectionFound: false } };
 
   const tiles = Array.from(container.querySelectorAll('a.ds-card-sec'));
 
   const actionable: DailySetTile[] = [];
-  const debugTiles: DebugTile[] = [];
+  const debugTiles: DailySetDebugTile[] = [];
 
   for (const tile of tiles) {
     const tileState = determineCardState(tile);
@@ -166,16 +136,7 @@ function extractSearchCounters(): { searchCounters: object[]; searchCounterDebug
 }
 
 // Returns { activities, domDebug, cardEls }
-interface DomDebugResult {
-  totalCards:          number;
-  actionElementsFound: number;
-  skippedLocked:       number;
-  skippedCompleted:    number;
-  skippedUnknown:      number;
-  cards:               DebugCard[];
-}
-
-function extractActivities(): { activities: Activity[]; domDebug: DomDebugResult; cardEls: HTMLAnchorElement[] } {
+function extractActivities(): { activities: Activity[]; domDebug: DomDebug; cardEls: HTMLAnchorElement[] } {
   // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
   const allCards = [
     ...document.querySelectorAll('.locked-card'),
@@ -214,7 +175,7 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebugResult
     cardEls.push(card as HTMLAnchorElement);
   }
 
-  const domDebug = {
+  const domDebug: DomDebug = {
     totalCards:          allCards.length,
     actionElementsFound: cardEls.length,
     skippedLocked:       debugCards.filter(d => d.skipped === CARD_STATE.LOCKED).length,
@@ -261,7 +222,7 @@ function waitAndExtract(): void {
 
     const loginStatus = isLoggedIn(bodyText);
     if (loginStatus === false) {
-      chrome.runtime.sendMessage({ action: REWARDS_MSG_ACTION.ACTIVITIES_FOUND, activities: [], domDebug: null, loggedIn: false });
+      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities: [], domDebug: null, loggedIn: false });
       return;
     }
     if (loginStatus === null) {
@@ -273,7 +234,7 @@ function waitAndExtract(): void {
 
     if (activities.length > 0 || dailySets.length > 0 || domDebug.totalCards > 0 || dailySetDebug.sectionFound || Date.now() - start >= MAX_WAIT_MS) {
       extractedCardEls = cardEls;
-      chrome.runtime.sendMessage({ action: REWARDS_MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
+      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
     } else {
       setTimeout(poll, POLL_INTERVAL_MS);
     }
@@ -282,14 +243,14 @@ function waitAndExtract(): void {
   poll();
 }
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void => {
-  if (msg.action === REWARDS_MSG_ACTION.START_EXTRACT) {
+chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; href?: string }, _sender, sendResponse): true | void => {
+  if (msg.action === MSG_ACTION.START_EXTRACT) {
     waitAndExtract();
     return;
   }
 
-  if (msg.action === REWARDS_MSG_ACTION.CLICK_CARD) {
-    const card = extractedCardEls[msg.index as number];
+  if (msg.action === MSG_ACTION.CLICK_CARD) {
+    const card = extractedCardEls[msg.index!];
     if (!card) {
       sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
       return true;
@@ -303,13 +264,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void =
     return true;
   }
 
-  if (msg.action === REWARDS_MSG_ACTION.GET_COUNTERS) {
+  if (msg.action === MSG_ACTION.GET_COUNTERS) {
     const { searchCounters, searchCounterDebug } = extractSearchCounters();
     sendResponse({ searchCounters, searchCounterDebug });
     return true;
   }
 
-  if (msg.action === REWARDS_MSG_ACTION.VALIDATE_TILE) {
+  if (msg.action === MSG_ACTION.VALIDATE_TILE) {
     const tiles = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.ds-card-sec'));
     const match = tiles.find(el => el.href === msg.href);
     sendResponse({ state: match ? determineCardState(match) : CARD_STATE.NOT_FOUND });
