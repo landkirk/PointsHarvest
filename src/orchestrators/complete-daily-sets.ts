@@ -5,16 +5,12 @@ import { waitForTabLoad, openTab } from '../util/tabs.js';
 import { lingerOnPage } from '../util/timing.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/state.js';
+import type { DailySetDebug } from '../util/debug.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
 import * as validateTile from '../steps/validate-tile.js';
 import type { Tile } from '../steps/validate-tile.js';
 
 export type DailySetTile = Tile;
-
-interface DailySetDebug {
-  actionable:    number;
-  sectionFound:  boolean;
-}
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 

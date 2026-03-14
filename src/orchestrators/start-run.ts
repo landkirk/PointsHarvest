@@ -73,7 +73,7 @@ async function _executeRun(ctx: Context, { today, lastRunDate, currentIndex, alr
   }
 
   await ctx.setState({ extractedActivities: activities, domDebug });
-  await ctx.dbg('info', `DOM scan: ${(domDebug as any)?.actionElementsFound ?? '?'} actionable, ${(domDebug as any)?.skippedLocked ?? 0} locked, ${(domDebug as any)?.skippedCompleted ?? 0} completed, ${(domDebug as any)?.skippedUnknown ?? 0} unknown (skipped)`);
+  await ctx.dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
 
   if (activities.length === 0 && (activitiesResult.dailySets?.length ?? 0) === 0) {
     try {

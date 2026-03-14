@@ -1,5 +1,6 @@
 import { MSG_ACTION } from './util/config.js';
 import type { AppState, SearchCounter } from './util/state.js';
+import type { DomDebug, DailySetDebug } from './util/debug.js';
 import type { DebugEntry } from './util/debug.js';
 import type { MappedActivity } from './orchestrators/start-run.js';
 
@@ -166,29 +167,25 @@ function renderSearchCounters(searchCounters: SearchCounter[]): void {
   `).join('');
 }
 
-function renderDomStats(domDebug: unknown, dailySetDebug: unknown): void {
+function renderDomStats(domDebug: DomDebug | null, dailySetDebug: DailySetDebug | null): void {
   if (!domDebug && !dailySetDebug) { domStats.innerHTML = ''; return; }
-  const d  = domDebug  as any;
-  const ds = dailySetDebug as any;
   domStats.innerHTML = `
-    ${d ? `
-      <span title="Total cards scanned">${d.totalCards} cards</span>
-      <span title="'Search on Bing' cards found">${d.actionElementsFound} matches</span>
-      <span title="Cards skipped because they were locked">${d.skippedLocked} locked</span>
+    ${domDebug ? `
+      <span title="Total cards scanned">${domDebug.totalCards} cards</span>
+      <span title="'Search on Bing' cards found">${domDebug.actionElementsFound} matches</span>
+      <span title="Cards skipped because they were locked">${domDebug.skippedLocked} locked</span>
     ` : ''}
-    ${ds ? `
-      <span title="Daily set section found on page">Daily set: ${ds.sectionFound ? `${ds.actionable}/${ds.totalTiles} actionable` : 'not found'}</span>
+    ${dailySetDebug ? `
+      <span title="Daily set section found on page">Daily set: ${dailySetDebug.sectionFound ? `${dailySetDebug.actionable}/${dailySetDebug.totalTiles} actionable` : 'not found'}</span>
     ` : ''}
   `;
 }
 
-function renderCards(mappedActivities: MappedActivity[], domDebug: unknown, dailySetDebug: unknown): void {
+function renderCards(mappedActivities: MappedActivity[], domDebug: DomDebug | null, dailySetDebug: DailySetDebug | null): void {
   const el      = dbgCards;
-  const d       = domDebug as any;
-  const ds      = dailySetDebug as any;
-  const skipped = (d?.cards ?? []).filter((c: any) => c.skipped);
+  const skipped = (domDebug?.cards ?? []).filter(c => c.skipped);
   const items   = mappedActivities ?? [];
-  const dsTiles = ds?.tiles ?? [];
+  const dsTiles = dailySetDebug?.tiles ?? [];
 
   if (!domDebug && !dailySetDebug && items.length === 0) {
     el.innerHTML = '<div class="dbg-empty">Run the extension to see extraction results.</div>';
@@ -209,7 +206,7 @@ function renderCards(mappedActivities: MappedActivity[], domDebug: unknown, dail
         : `<div class="card-query">→ ${esc(a.query!)}</div>`
       }
     </div>
-  `).join('') + skipped.map((c: any) => `
+  `).join('') + skipped.map(c => `
     <div class="dbg-card">
       <div class="card-title skipped">${esc(c.cardSnippet || '(no title)')}</div>
       <div class="card-skip">Skipped: ${esc(c.skipped)}</div>
@@ -218,7 +215,7 @@ function renderCards(mappedActivities: MappedActivity[], domDebug: unknown, dail
 
   const dsHtml = dsTiles.length === 0 ? '' : `
     <div class="dbg-section-label">Daily set</div>
-    ${dsTiles.map((t: any) => `
+    ${dsTiles.map(t => `
       <div class="dbg-card">
         <div class="card-title${t.skipped ? ' skipped' : ''}">${esc(t.snippet || t.biId || '(no title)')}</div>
         ${t.skipped

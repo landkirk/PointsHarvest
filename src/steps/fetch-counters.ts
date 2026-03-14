@@ -6,13 +6,14 @@ import { sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/config.js';
 import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/state.js';
+import type { SearchCounterDebug } from '../util/debug.js';
 
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLLS        = 20;
 
 interface CounterResult {
   searchCounters:     SearchCounter[];
-  searchCounterDebug: unknown | null;
+  searchCounterDebug: SearchCounterDebug | null;
 }
 
 export async function run(ctx: Context): Promise<CounterResult> {

@@ -1,4 +1,4 @@
-import type { DebugEntry } from './debug.js';
+import type { DebugEntry, DomDebug, DailySetDebug, SearchCounterDebug } from './debug.js';
 
 // ── Ephemeral session ──────────────────────────────────────────────────────
 // In-memory only. Resets whenever the service worker restarts.
@@ -18,9 +18,9 @@ export interface Session {
 
 export interface ActivitiesResult {
   activities:      unknown[];
-  domDebug:        unknown | null;
+  domDebug:        DomDebug | null;
   dailySets?:      unknown[];
-  dailySetDebug?:  unknown | null;
+  dailySetDebug?:  DailySetDebug | null;
   loggedIn:        boolean;
 }
 
@@ -63,10 +63,10 @@ export interface AppState {
   lastRunDate:         string | null;
   lastLabel:           string;
   debugLog:            DebugEntry[];
-  domDebug:            unknown | null;
-  dailySetDebug:       unknown | null;
+  domDebug:            DomDebug | null;
+  dailySetDebug:       DailySetDebug | null;
   searchCounters:      SearchCounter[];
-  searchCounterDebug:  unknown | null;
+  searchCounterDebug:  SearchCounterDebug | null;
   extractedActivities: unknown[];
   mappedActivities:    unknown[];
   searchQueue:         string[];
