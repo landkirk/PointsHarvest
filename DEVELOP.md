@@ -15,18 +15,27 @@
 manifest.json         Extension config (Manifest V3)
 src/
   popup.html          Extension popup UI
-  background.js       Service worker — entry point, listeners, main flow
-  state.js            Shared in-memory state and closeRewardsTab helper
   popup.js            Popup logic and state management
+  background.js       Service worker — tab event listeners, message routing
+  orchestrators/
+    start-run.js           Top-level run coordinator (fire-and-forget from background)
+    stop-run.js            Cancels active run, invokes pending resolvers, closes tabs
+    complete-explore-on-bing.js  Iterates mapped cards, clicks each, runs searches
+    complete-daily-sets.js       Opens each daily set tile; lingers for interactive ones
+    farm-pc-searches.js          Farms remaining PC search points after cards are done
   steps/
-    fetch-activities.js    Open rewards tab, extract cards, map to queries
-    run-searches.js        Click each card and run the search loop
+    fetch-activities.js    Open rewards tab, wait for content script, map cards to queries
+    fetch-counters.js      Poll breakdown tab for search point counters
     perform-search.js      Dwell and execute a single search in a tab
-    complete-daily-sets.js Open each daily set tile; linger for interactive ones
     linger-on-tab.js       Pause automation and wait for user to complete a tile
+    validate-tile.js       Confirm a tile is marked complete on the rewards page
   util/
-    config.js         Static data: search pools, constants
-    debug.js          Logging and timing helpers
+    config.js         Static data: search pools, URL/count constants
+    context.js        createContext() — bundles session/setState/dbg for orchestrators
+    debug.js          Logging helpers (dbg, resetLog)
+    state.js          In-memory session + chrome.storage.local persistent state
+    tabs.js           Tab utilities (waitForTabLoad, closeRewardsTab)
+    timing.js         randMs, sleep, lingerOnPage
   content/
     rewards-content.js  Content script injected into rewards.bing.com
     search-content.js   Content script injected into www.bing.com
@@ -36,68 +45,85 @@ src/
 ## Key Components
 
 ### background.js
-- Main orchestration logic
-- Handles tab event listeners (load detection, tab capture, tab removal)
-- Coordinates the fetch → map → run pipeline
-- Tracks state in chrome.storage.local
-- Implements randomized initial delay (triangular distribution)
+- Tab event listeners only: load detection, tab capture, tab removal
+- Message routing: `START` / `STOP` / `GET_STATE` / `PING` / `PURGE` / `USER_ACTION_COMPLETE`
+- Delegates all run logic to `orchestrators/start-run.js` and `orchestrators/stop-run.js`
 
-### src/steps/fetch-activities.js
-- Opens rewards.bing.com in a background tab
-- Waits up to 20s for content script to report extracted activities
-- Maps each activity → search query via boilerplate stripping (`generateSearchQuery`)
+### orchestrators/start-run.js
+- Loads state, resets session/log/storage, creates a context object
+- Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
+- `_executeRun` opens rewards dashboard + breakdown tab in parallel, then chains the three sub-orchestrators
 
-### src/content/rewards-content.js
-- Injected into rewards.bing.com
-- Polls the SPA until activity cards render (max 15s)
-- Extracts "Search on Bing" cards (skips locked/completed; treats in-progress as actionable) and daily set tiles
-- Retains card DOM elements for on-demand clicking
-- Detects login status
-- Handles `startExtract` and `clickCard` messages from background
+### orchestrators/stop-run.js
+- Sets `isActivelyRunning = false` and persists stopped status
+- Invokes any pending resolver functions (unblocking awaiting code), then calls `resetSession()`
+- Removes all tabs tracked in `openedTabIds`
 
-### src/steps/run-searches.js
-- Iterates the mapped activity list
-- Sends `clickCard` to content script for each card, captures the new tab
-- Waits for tab to load, calls `performSearchInTab`, closes tab
-- Sends progress updates to popup
+### orchestrators/complete-explore-on-bing.js
+- Iterates the mapped activity list from a given `startIndex`
+- Sends `clickCard` to content script, captures the new tab, waits for load
+- Calls `steps/perform-search`, validates tile, sends progress updates to popup
 
-### src/steps/perform-search.js
-- Pre-search dwell (1–3s), then sends `performSearch` to search-content.js
-- Post-search dwell (3–5s) before returning
-
-### src/steps/complete-daily-sets.js
+### orchestrators/complete-daily-sets.js
 - Iterates daily set tiles extracted from the rewards page
-- Opens each tile's URL in a background tab; waits up to 15s for load
-- If the page title matches `quiz|poll|test|puzzle`, calls `lingerOnTab()` to pause for user interaction
-- Otherwise dwells 1.5–4s and closes the tab
-- Random delay 1.5–4s between tiles
+- Opens each tile URL in a tab; waits up to 15s for load
+- If tile text matches `quiz|poll|test|puzzle`, calls `steps/linger-on-tab` to pause for user interaction; otherwise dwells and closes
+- Calls `steps/validate-tile` after each tile
 
-### src/steps/linger-on-tab.js
-- Activates the daily set tab so the user can see and complete it
-- Sets `state.lingerResolve` so the popup's **Done** button (or tab close) resumes the run
+### orchestrators/farm-pc-searches.js
+- Opens a breakdown tab if one isn't already open, then polls for the PC Search counter
+- Runs Bing searches in a loop until the cap is reached or no progress after `MAX_NO_PROGRESS` (3) consecutive searches
+- Throws on no-progress so callers can catch and log without aborting the whole run
 
-### popup.js
-- Real-time UI updates via chrome.runtime.onMessage
-- Debug panel with DOM extraction, search queue, and event log
-- State management (start/stop/purge)
+### steps/fetch-activities.js
+- Opens rewards.bing.com in a background tab
+- Waits up to 20s for content script to report extracted activities and daily sets
+- `buildSearchList()` maps each activity → search query via boilerplate stripping (`generateSearchQuery`)
+
+### steps/fetch-counters.js
+- Sends `GET_COUNTERS` to the breakdown tab and polls up to 20 times (1s interval)
+- Returns `{ searchCounters, searchCounterDebug }` — counters are typed `{ type, current, max }`
+
+### steps/validate-tile.js
+- Sends `VALIDATE_TILE` to the rewards tab content script after completing an activity
+- Logs whether the tile is marked completed, not found, or still pending
+
+### steps/linger-on-tab.js
+- Activates the given tab so the user can complete a quiz/poll/etc.
+- Resolves when the user clicks **Done** in the popup (`USER_ACTION_COMPLETE` message) or closes the tab directly
+
+### steps/perform-search.js
+- Pre-search dwell (1–3s), sends `PERFORM_SEARCH` to search-content.js, post-search dwell (3–5s)
+
+### util/context.js
+- `createContext()` returns `{ session, setState, dbg }` — a lightweight bundle passed through all orchestrators and steps so they don't import globals directly
+
+### util/state.js
+- `session` — in-memory ephemeral state (resets on service worker restart); `resetSession()` restores defaults
+- `setState` / `loadState` / `resetState` — write-through cache backed by `chrome.storage.local`
 
 ### util/config.js
-- General search pool (25 queries, currently unused in main flow)
-- Search count range constants (currently unused in main flow)
-- URLs and constants
+- `PC_SEARCH_QUERIES` — pool of queries used by `farm-pc-searches.js`
+- URLs and message action constants (`MSG_ACTION`, `CARD_STATE`)
+
+### popup.js
+- Real-time UI updates via `chrome.runtime.onMessage`
+- Debug panel with DOM extraction stats, search queue, and event log
+- Start / Stop / Purge actions
 
 ## Making Changes
 
 ### Adjusting Timing
 
-All timing uses `randMs(min, max)` with triangular distribution:
+All timing uses `randMs(min, max)` with triangular distribution (defined in `util/timing.js`). Named presets are in `lingerOnPage`:
 
-- **Initial delay**: `randMs(0, 8000)` in `background.js` → `startRun()` — delay before first search
+- **Initial delay**: `randMs(0, 8000)` in `orchestrators/start-run.js` — delay before first search
 - **Pre-search dwell**: `randMs(1000, 3000)` in `steps/perform-search.js` — pause before typing the query
 - **Post-search dwell**: `randMs(3000, 5000)` in `steps/perform-search.js` — pause after search navigates
-- **Between searches**: `randMs(1800, 5000)` in `steps/run-searches.js` — delay between cards
-- **Daily set tile dwell**: `randMs(1500, 4000)` in `steps/complete-daily-sets.js` — pause on non-interactive tiles
-- **Between daily set tiles**: `randMs(1500, 4000)` in `steps/complete-daily-sets.js` — delay between tiles
+- **Between searches**: `lingerOnPage('between searches')` in `orchestrators/complete-explore-on-bing.js`
+- **Daily set tile dwell**: `lingerOnPage('daily set tile')` in `orchestrators/complete-daily-sets.js` — pause on non-interactive tiles
+- **Between daily set tiles**: `lingerOnPage('between daily set tiles')` in `orchestrators/complete-daily-sets.js`
+- **After PC search**: `lingerOnPage('after PC search')` in `orchestrators/farm-pc-searches.js`
 
 ### Modifying DOM Extraction
 
@@ -126,11 +152,10 @@ Edit `src/steps/fetch-activities.js` → `generateSearchQuery`:
 6. Monitor the debug panel for extraction results, search queue, and event log
 
 ### Testing Without Running Searches
-To test activity extraction without running searches, add a return statement in `background.js` → `startRun()` after the mapping step:
+To test activity extraction without running searches, add a return statement in `orchestrators/start-run.js` → `_executeRun` after the mapping step (after the `DEBUG_READY` message send):
 
 ```javascript
-await chrome.storage.local.set({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
-chrome.runtime.sendMessage({ action: 'debugReady' }).catch(() => {});
+chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
 return; // Stop here for testing
 ```
 
@@ -193,7 +218,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - Enable debug mode to see DOM extraction stats
 
 **Searches not credited**
-- Increase dwell time in `steps/perform-search.js`: `randMs(2000, 5000)`
+- Increase post-search dwell time in `steps/perform-search.js`: `randMs(2000, 5000)`
 - Check if you're logged into the correct Microsoft account
 - Bing may have rate limiting — increase delays between searches
 
@@ -217,9 +242,10 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Message Passing
 - `popup.js` ↔ `background.js`: bidirectional via `chrome.runtime.sendMessage`
-- `background.js` ↔ `rewards-content.js`: bidirectional (`startExtract`, `clickCard` commands; `activitiesFound` response)
-- `background.js` → `search-content.js`: one-way `performSearch` command
-- Real-time progress updates pushed to popup during run
+- `background.js` ↔ `rewards-content.js`: bidirectional (`START_EXTRACT`, `CLICK_CARD`, `VALIDATE_TILE` commands; `ACTIVITIES_FOUND` response)
+- `background.js` ↔ `breakdown tab`: `GET_COUNTERS` request/response via `fetch-counters.js`
+- `background.js` → `search-content.js`: one-way `PERFORM_SEARCH` command
+- Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `DEBUG_READY`, `COMPLETE`) pushed to popup during run
 
 ### Randomization Strategy
 - Triangular distribution (`randMs`) biases toward middle of range — more human-like
