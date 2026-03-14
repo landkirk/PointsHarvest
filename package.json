@@ -3,11 +3,15 @@
   "version": "1.3.0",
   "private": true,
   "scripts": {
-    "build": "tsc && cp src/popup.html dist/popup.html",
-    "watch": "tsc --watch"
+    "build": "tsc --noEmit && tsc -p tsconfig.build.json && npm run build:content && cp src/popup.html dist/popup.html",
+    "build:content": "esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022",
+    "watch": "concurrently --names tsc,esbuild --prefix-colors blue,green \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"npm run watch:content\"",
+    "watch:content": "esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --watch"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.324",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.27.4",
     "typescript": "^5.8.2"
   }
 }
