@@ -1,7 +1,7 @@
 import { MSG_ACTION } from './config.js';
 import { setState } from './state.js';
 
-export type DebugType = 'info' | 'warn' | 'error';
+export type DebugType = 'info' | 'warn' | 'error' | 'success';
 
 export interface DebugEntry {
   time: string;

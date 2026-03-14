@@ -4,11 +4,18 @@
 
 import { sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/config.js';
+import type { Context } from '../util/context.js';
+import type { SearchCounter } from '../util/state.js';
 
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLLS        = 20;
 
-export async function run(ctx) {
+interface CounterResult {
+  searchCounters:     SearchCounter[];
+  searchCounterDebug: unknown | null;
+}
+
+export async function run(ctx: Context): Promise<CounterResult> {
   if (!ctx.session.breakdownTabId) {
     await ctx.dbg('warn', 'fetchSearchCounters: no breakdown tab open');
     return { searchCounters: [], searchCounterDebug: null };
@@ -19,11 +26,11 @@ export async function run(ctx) {
       .catch(() => null);
 
     if (result?.searchCounters?.length > 0) {
-      const valid = result.searchCounters.filter(c => !Number.isNaN(c.current) && !Number.isNaN(c.max));
+      const valid: SearchCounter[] = result.searchCounters.filter((c: SearchCounter) => !Number.isNaN(c.current) && !Number.isNaN(c.max));
       if (valid.length < result.searchCounters.length) {
         await ctx.dbg('warn', `Dropped ${result.searchCounters.length - valid.length} counter(s) with NaN values`);
       }
-      const counters = { ...result, searchCounters: valid };
+      const counters: CounterResult = { ...result, searchCounters: valid };
       await ctx.setState({ searchCounters: valid, searchCounterDebug: result.searchCounterDebug });
       await ctx.dbg('info', `Search counters: ${valid.map(c => `${c.type}: ${c.current}/${c.max}`).join(', ')}`);
       return counters;
