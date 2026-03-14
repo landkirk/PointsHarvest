@@ -1,5 +1,5 @@
 import { session } from './state.js';
-import { sleep } from './debug.js';
+import { sleep } from './timing.js';
 
 /** Close the rewards dashboard and breakdown tabs and clear their session references. */
 export function closeRewardsTab() {
