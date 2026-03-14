@@ -5,6 +5,7 @@ import { session, resetSession, loadState, setState, resetState } from './util/s
 import { closeRewardsTab } from './util/tabs.js';
 import { fetchAvailableActivities, buildSearchList } from './steps/fetch-activities.js';
 import { fetchSearchCounters } from './steps/fetch-counters.js';
+import { farmPcSearches } from './steps/farm-pc-searches.js';
 import { runAllSearches } from './steps/run-searches.js';
 
 // ── Run helpers ────────────────────────────────────────────────────────────
@@ -149,6 +150,11 @@ async function startRun() {
 
   if (activities.length === 0 && dailySets.length === 0) {
     await fetchSearchCounters();
+    try {
+      await farmPcSearches();
+    } catch (err) {
+      await dbg('error', `PC search farming failed: ${err.message}`);
+    }
     await abortRun('No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
     return;
   }
