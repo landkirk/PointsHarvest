@@ -1,7 +1,6 @@
 import { MSG_ACTION } from '../util/config.js';
-import { session, setState } from '../util/state.js';
 
-// lingerOnTab(tabId)
+// lingerOnTab(ctx, tabId)
 //
 // Waits for the user to complete a required action in the given tab.
 // The promise resolves when the user either:
@@ -10,16 +9,16 @@ import { session, setState } from '../util/state.js';
 //
 // Tile objects can opt into this behavior by setting requiresUserAction: true.
 // The caller is responsible for opening the tab and passing its tabId here.
-export async function lingerOnTab(tabId) {
+export async function run(ctx, tabId) {
   try {
     await chrome.tabs.update(tabId, { active: true });
   } catch {
     return; // tab already closed before we started waiting
   }
-  session.lingerTabId = tabId;
-  await setState({ isLingering: true });
+  ctx.session.lingerTabId = tabId;
+  await ctx.setState({ isLingering: true });
   chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
-  await new Promise(resolve => { session.lingerResolve = resolve; });
-  session.lingerTabId = null;
-  await setState({ isLingering: false });
+  await new Promise(resolve => { ctx.session.lingerResolve = resolve; });
+  ctx.session.lingerTabId = null;
+  await ctx.setState({ isLingering: false });
 }

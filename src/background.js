@@ -1,24 +1,10 @@
-import { REWARDS_URL, REWARDS_BREAKDOWN_URL, MSG_ACTION } from './util/config.js';
-import { dbg, resetLog } from './util/debug.js';
-import { randMs, sleep } from './util/timing.js';
-import { session, resetSession, loadState, setState, resetState } from './util/state.js';
-import { closeRewardsTab } from './util/tabs.js';
-import { fetchAvailableActivities, buildSearchList } from './steps/fetch-activities.js';
-import { fetchSearchCounters } from './steps/fetch-counters.js';
-import { farmPcSearches } from './steps/farm-pc-searches.js';
-import { runAllSearches } from './steps/run-searches.js';
+import { REWARDS_URL, MSG_ACTION } from './util/config.js';
+import { session, loadState, resetState } from './util/state.js';
+import { dbg } from './util/debug.js';
+import * as startRun from './orchestrators/start-run.js';
+import * as stopRun from './orchestrators/stop-run.js';
 
-// ── Run helpers ────────────────────────────────────────────────────────────
-
-async function abortRun(status, errorMsg) {
-  session.isActivelyRunning = false;
-  closeRewardsTab();
-  await setState({ isRunning: false, status });
-  await dbg('error', errorMsg);
-  chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
-}
-
-// ── Top-level listeners ────────────────────────────────────────────────────
+// ── Tab event listeners ────────────────────────────────────────────────────
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Signal search tab loaded
@@ -42,7 +28,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       }
     }
   }
-
 });
 
 // Capture the tab opened by a card click.
@@ -64,6 +49,8 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   }
 });
 
+// ── Message routing ────────────────────────────────────────────────────────
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.ACTIVITIES_FOUND) {
     if (session.resolveActivities) {
@@ -79,11 +66,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return;
   }
   if (msg.action === MSG_ACTION.START) {
-    startRun().then(() => sendResponse({ ok: true }));
+    startRun.run().then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.action === MSG_ACTION.STOP) {
-    stopRun().then(() => sendResponse({ ok: true }));
+    stopRun.run().then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.action === MSG_ACTION.GET_STATE) {
@@ -109,102 +96,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   }
 });
 
+// ── Lifecycle ──────────────────────────────────────────────────────────────
+
 chrome.runtime.onInstalled.addListener(() => {
   resetState();
 });
-
-// ── Main flow ──────────────────────────────────────────────────────────────
-
-async function startRun() {
-  const today = new Date().toDateString();
-  const { lastRunDate, currentIndex, completedSearches } = await loadState();
-  const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
-
-  resetSession();
-  resetLog();
-  await resetState({ isRunning: true, status: 'Fetching rewards activities...', lastRunDate: today });
-
-  session.isActivelyRunning = true;
-  await dbg('info', 'Run started');
-
-  // Step 1: open rewards dashboard and breakdown tab in parallel
-  await dbg('info', `Opening ${REWARDS_URL}`);
-  const activitiesPromise = fetchAvailableActivities();
-  const breakdownTab = await chrome.tabs.create({ url: REWARDS_BREAKDOWN_URL, active: false }).catch(() => null);
-  if (breakdownTab) {
-    session.breakdownTabId = breakdownTab.id;
-    session.openedTabIds.add(breakdownTab.id);
-  }
-  const { activities, domDebug, dailySets, dailySetDebug, loggedIn } = await activitiesPromise;
-
-  if (!session.isActivelyRunning) { await dbg('warn', 'Stopped during activity fetch'); return; }
-
-  if (!loggedIn) {
-    await abortRun('Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards');
-    return;
-  }
-
-  await setState({ extractedActivities: activities, domDebug, dailySetDebug });
-  await dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
-  await dbg('info', `Daily sets: ${dailySetDebug?.actionable ?? 0} actionable (section ${dailySetDebug?.sectionFound ? 'found' : 'not found'})`);
-
-  if (activities.length === 0 && dailySets.length === 0) {
-    await fetchSearchCounters();
-    try {
-      await farmPcSearches();
-    } catch (err) {
-      await dbg('error', `PC search farming failed: ${err.message}`);
-    }
-    await abortRun('No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
-    return;
-  }
-
-  await dbg('success', `Found ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}`);
-
-  // Step 2: map activities → queries
-  const mapped = buildSearchList(activities);
-  await setState({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query) });
-  chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
-
-  const unmapped = mapped.filter(m => m.unmatched).length;
-  await dbg('info', `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
-
-  // Step 3: resume or start fresh
-  const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
-  await setState({
-    totalSearches: mapped.length,
-    currentIndex: startIndex,
-    completedSearches: startIndex,
-    status: `Running (0 / ${mapped.length})`,
-  });
-
-  // Initial random delay before the first search (0–8s)
-  const initialDelay = randMs(0, 8000);
-  await dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
-  await sleep(initialDelay);
-
-  if (!session.isActivelyRunning) {
-    closeRewardsTab();
-    return;
-  }
-
-  runAllSearches(mapped, startIndex, dailySets);
-}
-
-async function stopRun() {
-  session.isActivelyRunning = false;
-  await setState({ isRunning: false, status: 'Stopped' });
-  await dbg('warn', 'Run stopped by user');
-  if (session.pendingResolve) { session.pendingResolve(); session.pendingResolve = null; }
-  if (session.resolveActivities) { session.resolveActivities({}); session.resolveActivities = null; }
-  if (session.captureNextTabResolve) { session.captureNextTabResolve(null); session.captureNextTabResolve = null; }
-  if (session.lingerResolve) { session.lingerResolve(); session.lingerResolve = null; }
-  session.lingerTabId = null;
-  session.breakdownTabId = null;
-  for (const tabId of session.openedTabIds) {
-    chrome.tabs.remove(tabId).catch(() => {});
-  }
-  session.openedTabIds.clear();
-  session.pendingTabId = null;
-  session.rewardsTabId = null;
-}

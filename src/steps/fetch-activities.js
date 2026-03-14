@@ -1,9 +1,7 @@
 // Opens the rewards dashboard, waits for the content script to extract activity
 // cards, and maps each activity to a usable search query.
 
-import { session } from '../util/state.js';
 import { closeRewardsTab } from '../util/tabs.js';
-import { dbg } from '../util/debug.js';
 import { REWARDS_URL } from '../util/config.js';
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
@@ -37,31 +35,31 @@ export function buildSearchList(activities) {
   });
 }
 
-export async function fetchAvailableActivities() {
+export async function run(ctx) {
   let resolveLocal;
   const result = new Promise(resolve => { resolveLocal = resolve; });
 
   const timeout = setTimeout(() => {
-    session.resolveActivities = null;
+    ctx.session.resolveActivities = null;
     closeRewardsTab();
-    dbg('warn', 'Rewards page timed out — no activities');
+    ctx.dbg('warn', 'Rewards page timed out — no activities');
     resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
   }, 20000);
 
   const rewardsTab = await chrome.tabs.create({ url: REWARDS_URL, active: false }).catch(() => null);
   if (!rewardsTab) {
     clearTimeout(timeout);
-    session.resolveActivities = null;
-    dbg('error', 'Failed to open rewards tab');
+    ctx.session.resolveActivities = null;
+    ctx.dbg('error', 'Failed to open rewards tab');
     resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
     return result;
   }
 
-  session.openedTabIds.add(rewardsTab.id);
-  session.rewardsTabId = rewardsTab.id;
+  ctx.session.openedTabIds.add(rewardsTab.id);
+  ctx.session.rewardsTabId = rewardsTab.id;
 
   // Rewards tab stays open after resolving — background will click cards and then close it.
-  session.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true } = {}) => {
+  ctx.session.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true } = {}) => {
     clearTimeout(timeout);
     resolveLocal({ activities, domDebug, dailySets, dailySetDebug, loggedIn });
   };
