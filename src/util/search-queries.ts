@@ -1,4 +1,4 @@
-export const PC_SEARCH_QUERIES = [
+export const PC_SEARCH_QUERIES: string[] = [
   'weather forecast today',
   'best hiking trails near me',
   'how to make sourdough bread',

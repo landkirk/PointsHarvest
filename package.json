@@ -3,7 +3,7 @@
   "version": "1.3.0",
   "private": true,
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp src/popup.html dist/popup.html",
     "watch": "tsc --watch"
   },
   "devDependencies": {

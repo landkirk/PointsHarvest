@@ -12,7 +12,7 @@
     "type": "module"
   },
   "action": {
-    "default_popup": "src/popup.html"
+    "default_popup": "dist/popup.html"
   },
   "content_scripts": [
     {
