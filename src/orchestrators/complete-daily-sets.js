@@ -1,7 +1,7 @@
 // Opens each daily set tile's href URL in a background tab, dwells briefly, then closes.
 // Tiles matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
-import { waitForTabLoad } from '../util/tabs.js';
+import { waitForTabLoad, openTab } from '../util/tabs.js';
 import { lingerOnPage } from '../util/timing.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
 import * as validateTile from '../steps/validate-tile.js';
@@ -26,13 +26,13 @@ export async function run(ctx, { dailySets = [], dailySetDebug = null } = {}) {
     const label = (ariaLabel || biId || href).slice(0, 60);
     await ctx.dbg('info', `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
-    const tab = await chrome.tabs.create({ url: href, active: true }).catch(() => null);
-    if (!tab) {
+    let tab;
+    try {
+      tab = await openTab(ctx, href, true);
+    } catch {
       await ctx.dbg('warn', `Failed to open tab for daily set tile ${i + 1}`);
       continue;
     }
-
-    ctx.session.openedTabIds.add(tab.id);
 
     await waitForTabLoad(tab.id, 15000);
 

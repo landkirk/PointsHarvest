@@ -1,8 +1,9 @@
 // Farms daily PC search points by running searches until the cap is reached.
 
-import { PC_SEARCH_QUERIES, REWARDS_BREAKDOWN_URL } from '../util/config.js';
+import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
+import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { lingerOnPage } from '../util/timing.js';
-import { waitForTabLoad } from '../util/tabs.js';
+import { waitForTabLoad, openTab } from '../util/tabs.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as fetchCounters from '../steps/fetch-counters.js';
 
@@ -16,13 +17,8 @@ export async function run(ctx) {
   // Open a breakdown tab if one isn't already available
   const ownBreakdownTab = !ctx.session.breakdownTabId;
   if (ownBreakdownTab) {
-    const tab = await chrome.tabs.create({ url: REWARDS_BREAKDOWN_URL, active: false }).catch(() => null);
-    if (!tab) {
-      await ctx.dbg('warn', 'farmPcSearches: failed to open breakdown tab');
-      return;
-    }
+    const tab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
     ctx.session.breakdownTabId = tab.id;
-    ctx.session.openedTabIds.add(tab.id);
   }
 
   try {
@@ -68,13 +64,7 @@ async function _farm(ctx) {
 
     await ctx.dbg('info', `PC search: "${query}"`);
 
-    const tab = await chrome.tabs.create({ url: 'https://www.bing.com', active: true }).catch(() => null);
-    if (!tab) {
-      await ctx.dbg('warn', 'farmPcSearches: failed to open tab');
-      break;
-    }
-
-    ctx.session.openedTabIds.add(tab.id);
+    const tab = await openTab(ctx, 'https://www.bing.com', true);
     await waitForTabLoad(tab.id, 30000);
 
     if (!ctx.session.isActivelyRunning) {

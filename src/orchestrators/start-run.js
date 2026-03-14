@@ -2,7 +2,7 @@ import { REWARDS_URL, REWARDS_BREAKDOWN_URL, MSG_ACTION } from '../util/config.j
 import { randMs, sleep } from '../util/timing.js';
 import { resetLog } from '../util/debug.js';
 import { resetSession, loadState, resetState } from '../util/state.js';
-import { closeRewardsTab } from '../util/tabs.js';
+import { closeRewardsTab, openTab } from '../util/tabs.js';
 import { createContext } from '../util/context.js';
 import { run as fetchActivities, buildSearchList } from '../steps/fetch-activities.js';
 
@@ -39,10 +39,11 @@ async function _executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone 
   // Open rewards dashboard and breakdown tab in parallel
   await ctx.dbg('info', `Opening ${REWARDS_URL}`);
   const activitiesPromise = fetchActivities(ctx);
-  const breakdownTab = await chrome.tabs.create({ url: REWARDS_BREAKDOWN_URL, active: false }).catch(() => null);
-  if (breakdownTab) {
+  try {
+    const breakdownTab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
     ctx.session.breakdownTabId = breakdownTab.id;
-    ctx.session.openedTabIds.add(breakdownTab.id);
+  } catch {
+    await ctx.dbg('warn', 'Failed to open breakdown tab — PC search counter tracking may open its own');
   }
   const activitiesResult = await activitiesPromise;
   const { activities, domDebug, loggedIn } = activitiesResult;
@@ -91,8 +92,16 @@ async function _executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone 
   if (!ctx.session.isActivelyRunning) { closeRewardsTab(); return; }
 
   // ── Chain orchestrators ──────────────────────────────────────────────────
-  await completeExploreOnBing.run(ctx, mapped, startIndex);
-  await completeDailySets.run(ctx, activitiesResult);
+  try {
+    await completeExploreOnBing.run(ctx, mapped, startIndex);
+  } catch (err) {
+    await ctx.dbg('error', `Explore on Bing failed: ${err.message}`);
+  }
+  try {
+    await completeDailySets.run(ctx, activitiesResult);
+  } catch (err) {
+    await ctx.dbg('error', `Daily sets failed: ${err.message}`);
+  }
   try {
     await farmPcSearches.run(ctx);
   } catch (err) {

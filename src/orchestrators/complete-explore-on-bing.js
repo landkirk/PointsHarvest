@@ -19,7 +19,7 @@ export async function run(ctx, mapped, startIndex) {
     }
 
     const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-    await ctx.setState({ currentIndex: i, status: `Searching: "${label}"` });
+    await ctx.setState({ status: `Searching: "${label}"` });
     await ctx.dbg('info', `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
     // Set up capture before sending click — tab may open before sendMessage resolves
@@ -59,6 +59,7 @@ export async function run(ctx, mapped, startIndex) {
 
     const completed = i + 1;
     await ctx.setState({
+      currentIndex: i,
       completedSearches: completed,
       lastLabel: query,
       status: `Running (${completed} / ${mapped.length})`,

@@ -19,9 +19,14 @@ export async function run(ctx) {
       .catch(() => null);
 
     if (result?.searchCounters?.length > 0) {
-      await ctx.setState({ searchCounters: result.searchCounters, searchCounterDebug: result.searchCounterDebug });
-      await ctx.dbg('info', `Search counters: ${result.searchCounters.map(c => `${c.type}: ${c.current}/${c.max}`).join(', ')}`);
-      return result;
+      const valid = result.searchCounters.filter(c => !Number.isNaN(c.current) && !Number.isNaN(c.max));
+      if (valid.length < result.searchCounters.length) {
+        await ctx.dbg('warn', `Dropped ${result.searchCounters.length - valid.length} counter(s) with NaN values`);
+      }
+      const counters = { ...result, searchCounters: valid };
+      await ctx.setState({ searchCounters: valid, searchCounterDebug: result.searchCounterDebug });
+      await ctx.dbg('info', `Search counters: ${valid.map(c => `${c.type}: ${c.current}/${c.max}`).join(', ')}`);
+      return counters;
     }
 
     if (i < MAX_POLLS - 1) await sleep(POLL_INTERVAL_MS);
