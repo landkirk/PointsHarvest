@@ -34,9 +34,10 @@ This extension:
 ### Option 2: From Source
 
 1. Clone or download this repo
-2. Open Chrome and go to `chrome://extensions`
-3. Enable **Developer mode** (toggle in the top right)
-4. Click **Load unpacked** and select this folder
+2. Run `npm install` then `npm run build`
+3. Open Chrome and go to `chrome://extensions`
+4. Enable **Developer mode** (toggle in the top right)
+5. Click **Load unpacked** and select the repo root folder
 
 You must be signed into your Microsoft account in Chrome for rewards to accrue.
 
@@ -56,7 +57,9 @@ The extension tracks the last run date and progress:
 
 ```
 manifest.json         Extension config (MV3)
-src/
+package.json          npm scripts and dev dependencies
+tsconfig.json         TypeScript config — compiles src/ → dist/
+src/                  Source files (edit these)
   popup.html          Extension popup UI
   popup.js            Popup logic
   background.js       Service worker — tab event listeners, message routing
@@ -82,6 +85,7 @@ src/
   content/
     rewards-content.js  Content script injected into rewards.bing.com
     search-content.js   Content script injected into www.bing.com
+dist/                 Compiled output — loaded by Chrome at runtime
 ```
 
 ### Flow
