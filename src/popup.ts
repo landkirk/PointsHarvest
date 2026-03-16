@@ -178,7 +178,7 @@ function renderDomStats(domDebug: DomDebug | null, dailySetDebug: DailySetDebug 
       <span title="Cards skipped because they were locked">${domDebug.skippedLocked} locked</span>
     ` : ''}
     ${dailySetDebug ? `
-      <span title="Daily set section found on page">Daily set: ${dailySetDebug.sectionFound ? `${dailySetDebug.actionable}/${dailySetDebug.totalTiles} actionable` : 'not found'}</span>
+      <span title="Daily set section found on page">Daily set: ${dailySetDebug.sectionFound ? `${dailySetDebug.actionable}/${dailySetDebug.totalActivities} actionable` : 'not found'}</span>
     ` : ''}
   `;
 }
@@ -187,14 +187,14 @@ function renderCards(mappedActivities: MappedActivity[], domDebug: DomDebug | nu
   const el      = dbgCards;
   const skipped = (domDebug?.cards ?? []).filter(c => c.skipped);
   const items   = mappedActivities ?? [];
-  const dsTiles = dailySetDebug?.tiles ?? [];
+  const dsActivities = dailySetDebug?.activities ?? [];
 
   if (!domDebug && !dailySetDebug && items.length === 0) {
     el.innerHTML = '<div class="dbg-empty">Run the extension to see extraction results.</div>';
     return;
   }
 
-  if (items.length === 0 && skipped.length === 0 && dsTiles.length === 0) {
+  if (items.length === 0 && skipped.length === 0 && dsActivities.length === 0) {
     el.innerHTML = '<div class="dbg-empty">No activity cards found.</div>';
     return;
   }
@@ -215,9 +215,9 @@ function renderCards(mappedActivities: MappedActivity[], domDebug: DomDebug | nu
     </div>
   `).join('');
 
-  const dsHtml = dsTiles.length === 0 ? '' : `
+  const dsHtml = dsActivities.length === 0 ? '' : `
     <div class="dbg-section-label">Daily set</div>
-    ${dsTiles.map(t => `
+    ${dsActivities.map(t => `
       <div class="dbg-card">
         <div class="card-title${t.skipped ? ' skipped' : ''}">${esc(t.snippet || t.biId || '(no title)')}</div>
         ${t.skipped

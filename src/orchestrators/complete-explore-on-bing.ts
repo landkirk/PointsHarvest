@@ -8,7 +8,7 @@ import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { run as fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
 import { buildSearchList } from '../util/activity.js';
 import * as performSearch from '../steps/perform-search.js';
-import * as validateTile from '../steps/validate-tile.js';
+import * as validateActivity from '../steps/validate-activity.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   private captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
@@ -103,7 +103,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           status:            `Running (${completed} / ${mapped.length})`,
         });
         await ctx.dbg('success', `Search ${completed}/${mapped.length} complete`);
-        await validateTile.run(ctx, { href: mapped[i].href, ariaLabel: title }, rewardsTabId);
+        await validateActivity.run(ctx, mapped[i], rewardsTabId);
 
         ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completed, total: mapped.length, label: query });
 
