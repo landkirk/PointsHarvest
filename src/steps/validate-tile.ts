@@ -1,4 +1,5 @@
-import { MSG_ACTION, CARD_STATE } from '../util/config.js';
+import { CARD_STATE } from '../util/activity.js';
+import { MSG_ACTION } from '../util/messaging.js';
 import type { Context } from '../util/context.js';
 
 export interface Tile {

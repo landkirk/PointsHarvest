@@ -3,7 +3,7 @@
 // Chrome's background-tab timer throttling.
 
 import { sleep } from '../util/timing.js';
-import { MSG_ACTION } from '../util/config.js';
+import { MSG_ACTION } from '../util/messaging.js';
 import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/state.js';
 import type { SearchCounterDebug } from '../util/debug.js';

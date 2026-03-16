@@ -1,4 +1,4 @@
-import { MSG_ACTION } from '../util/config.js';
+import { MSG_ACTION } from '../util/messaging.js';
 import type { Context } from '../util/context.js';
 
 // Waits for the user to complete a required action in the given tab.
