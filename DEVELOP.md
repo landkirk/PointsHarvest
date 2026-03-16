@@ -60,7 +60,7 @@ src/                    Source files (edit these)
     fetch-counters.ts       Poll breakdown tab for search point counters
     perform-search.ts       Dwell and execute a single search in a tab
     linger-on-tab.ts        Pause automation and wait for user to complete a tile
-    validate-tile.ts        Confirm a tile is marked complete on the rewards page
+    validate-activity.ts    Confirm an activity is marked complete on the rewards page
   util/
     config.ts           URLs, MSG_ACTION constants, CARD_STATE constants, PC search query pool
     context.ts          createContext() — bundles session/setState/dbg for orchestrators
@@ -95,13 +95,13 @@ dist/                   Compiled output (generated — do not edit)
 ### orchestrators/complete-explore-on-bing.ts
 - Iterates the mapped activity list from a given `startIndex`
 - Sends `clickCard` to content script, captures the new tab, waits for load
-- Calls `steps/perform-search`, validates tile, sends progress updates to popup
+- Calls `steps/perform-search`, validates the activity, sends progress updates to popup
 
 ### orchestrators/complete-daily-sets.ts
-- Iterates daily set tiles extracted from the rewards page
-- Opens each tile URL in a tab; waits up to 15s for load
-- If tile text matches `quiz|poll|test|puzzle`, calls `steps/linger-on-tab` to pause for user interaction; otherwise dwells and closes
-- Calls `steps/validate-tile` after each tile
+- Iterates daily set activities extracted from the rewards page
+- Opens each activity URL in a tab; waits up to 15s for load
+- If the activity title matches `quiz|poll|test|puzzle`, calls `steps/linger-on-tab` to pause for user interaction; otherwise dwells and closes
+- Calls `steps/validate-activity` after each activity
 
 ### orchestrators/farm-pc-searches.ts
 - Opens a breakdown tab if one isn't already open, then polls for the PC Search counter
@@ -117,9 +117,9 @@ dist/                   Compiled output (generated — do not edit)
 - Sends `GET_COUNTERS` to the breakdown tab and polls up to 20 times (1s interval)
 - Returns `{ searchCounters, searchCounterDebug }` — counters are typed `{ type, current, max }`
 
-### steps/validate-tile.ts
-- Sends `VALIDATE_TILE` to the rewards tab content script after completing an activity
-- Logs whether the tile is marked completed, not found, or still pending
+### steps/validate-activity.ts
+- Sends `VALIDATE_ACTIVITY` to the rewards tab content script after completing an activity
+- Logs whether the activity is marked completed, not found, or still pending
 
 ### steps/linger-on-tab.ts
 - Activates the given tab so the user can complete a quiz/poll/etc.
@@ -150,8 +150,8 @@ dist/                   Compiled output (generated — do not edit)
 
 ### content/rewards-content.ts
 - Bundled by esbuild — can freely import from `util/`
-- Polls the rewards SPA until activity cards render (max 15s), extracts "Search on Bing" activities and daily set tiles, sends them to background
-- Handles `CLICK_CARD`, `VALIDATE_TILE`, and `GET_COUNTERS` messages on demand
+- Polls the rewards SPA until activity cards render (max 15s), extracts "Search on Bing" activities and daily set activities, sends them to background
+- Handles `CLICK_CARD`, `VALIDATE_ACTIVITY`, and `GET_COUNTERS` messages on demand
 
 ### content/search-content.ts
 - Bundled by esbuild — can freely import from `util/`
@@ -285,7 +285,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Message Passing
 - `popup.ts` ↔ `background.ts`: bidirectional via `chrome.runtime.sendMessage`
-- `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD`, `VALIDATE_TILE` commands; `ACTIVITIES_FOUND` response)
+- `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD`, `VALIDATE_ACTIVITY` commands; `ACTIVITIES_FOUND` response)
 - `background.ts` ↔ breakdown tab: `GET_COUNTERS` request/response via `fetch-counters.ts`
 - `background.ts` → `search-content.ts`: one-way `PERFORM_SEARCH` command
 - Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `DEBUG_READY`, `COMPLETE`) pushed to popup during run

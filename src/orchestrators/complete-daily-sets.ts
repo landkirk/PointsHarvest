@@ -1,16 +1,14 @@
-// Opens each daily set tile's href URL in a background tab, dwells briefly, then closes.
-// Tiles matching quiz/poll/test/puzzle keywords linger until the user signals completion.
+// Opens each daily set activity's href URL in a background tab, dwells briefly, then closes.
+// Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import type { DailySetDebug } from '../util/debug.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
-import * as validateTile from '../steps/validate-tile.js';
-import type { Tile } from '../steps/validate-tile.js';
+import * as validateActivity from '../steps/validate-activity.js';
 import { run as fetchActivities } from '../steps/fetch-activities.js';
 
-export type DailySetTile = Tile;
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
@@ -32,24 +30,24 @@ class CompleteDailySets extends OrchestratorBase {
 
     try {
       if (dailySets.length === 0) {
-        await ctx.dbg('info', 'No actionable daily set tiles — skipping');
+        await ctx.dbg('info', 'No actionable daily set activities — skipping');
         return;
       }
 
-      await ctx.dbg('info', `Starting daily sets: ${dailySets.length} tile(s)`);
+      await ctx.dbg('info', `Starting daily sets: ${dailySets.length} activity/activities`);
 
       for (let i = 0; i < dailySets.length; i++) {
         if (!ctx.session.isActivelyRunning || this.stopped) return;
 
-        const { href, ariaLabel, biId } = dailySets[i];
-        const label = (ariaLabel || biId || href || '').slice(0, 60);
+        const { href, title } = dailySets[i];
+        const label = (title || href || '').slice(0, 60);
         await ctx.dbg('info', `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
         let tab: chrome.tabs.Tab;
         try {
           tab = await this.openManagedTab(href, true);
         } catch {
-          await ctx.dbg('warn', `Failed to open tab for daily set tile ${i + 1}`);
+          await ctx.dbg('warn', `Failed to open tab for daily set activity ${i + 1}`);
           continue;
         }
         await this.waitForTabLoad(tab.id!, 15000);
@@ -59,30 +57,29 @@ class CompleteDailySets extends OrchestratorBase {
           return;
         }
 
-        const tileText = ariaLabel || biId;
-        if (USER_ACTION_RE.test(tileText ?? '')) {
+        if (USER_ACTION_RE.test(title)) {
           await ctx.dbg('info', 'User action required — waiting for completion');
           await lingerOnTab.run(ctx, tab.id!, {
             onResolve: r => { this.lingerResolve = r; },
             onTabId:   id => { this.lingerTabId = id; },
           });
-          await validateTile.run(ctx, dailySets[i], rewardsTabId);
+          await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         } else {
-          await lingerOnPage('daily set tile');
+          await lingerOnPage('daily set activity');
           this.closeTab(tab.id!);
-          await validateTile.run(ctx, dailySets[i], rewardsTabId);
+          await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         }
 
-        await ctx.dbg('success', `Daily set tile ${i + 1}/${dailySets.length} complete`);
+        await ctx.dbg('success', `Daily set activity ${i + 1}/${dailySets.length} complete`);
         ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completed: i + 1, total: dailySets.length });
 
         if (i < dailySets.length - 1) {
           if (!ctx.session.isActivelyRunning || this.stopped) return;
-          await lingerOnPage('between daily set tiles');
+          await lingerOnPage('between daily set activities');
         }
       }
 
-      await ctx.dbg('success', 'All daily set tiles complete');
+      await ctx.dbg('success', 'All daily set activities complete');
     } finally {
       this.closeTab(rewardsTabId);
       ctx.session.rewardsTabId = null;
