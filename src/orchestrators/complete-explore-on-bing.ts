@@ -9,24 +9,25 @@ import { run as fetchActivities, NotLoggedInError } from '../steps/fetch-activit
 import { buildSearchList } from '../util/activity.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as validateActivity from '../steps/validate-activity.js';
+import { getIsActivelyRunning } from './start-run.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   private captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
   private rewardsTabId: number | null = null;
 
   async run(ctx: Context, startIndex: number): Promise<void> {
-    const { activities, domDebug, loggedIn } = await fetchActivities(ctx);
+    const { activities, domDebug, loggedIn, rewardsTabId } = await fetchActivities(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
-    this.rewardsTabId = ctx.session.rewardsTabId!;
-    this.openedTabIds.add(this.rewardsTabId);
+    this.rewardsTabId = rewardsTabId;
+    if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
 
-    await ctx.setState({ extractedActivities: activities, domDebug });
+    await ctx.setState({ domDebug });
     await ctx.dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
     await ctx.dbg('info', `Found ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}`);
 
     const mapped = buildSearchList(activities);
-    await ctx.setState({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query as string) });
+    await ctx.setState({ mappedActivities: mapped });
     chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {});
 
     const unmapped = mapped.filter(m => m.unmatched).length;
@@ -39,11 +40,9 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
       status:            `Running (0 / ${mapped.length})`,
     });
 
-    const rewardsTabId = this.rewardsTabId!;
-
     try {
       for (let i = startIndex; i < mapped.length; i++) {
-        if (!ctx.session.isActivelyRunning || this.stopped) return;
+        if (!getIsActivelyRunning() || this.stopped) return;
 
         const { query, title } = mapped[i];
 
@@ -85,7 +84,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
         await this.waitForTabLoad(searchTab.id!, 30000);
 
-        if (!ctx.session.isActivelyRunning || this.stopped) {
+        if (!getIsActivelyRunning() || this.stopped) {
           this.closeTab(searchTab.id!);
           return;
         }
@@ -93,7 +92,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         await performSearch.run(ctx, searchTab.id!, query);
         this.closeTab(searchTab.id!);
 
-        if (!ctx.session.isActivelyRunning || this.stopped) return;
+        if (!getIsActivelyRunning() || this.stopped) return;
 
         const completed = i + 1;
         await ctx.setState({
@@ -103,19 +102,18 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           status:            `Running (${completed} / ${mapped.length})`,
         });
         await ctx.dbg('success', `Search ${completed}/${mapped.length} complete`);
-        await validateActivity.run(ctx, mapped[i], rewardsTabId);
+        await validateActivity.run(ctx, mapped[i], rewardsTabId!);
 
         ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completed, total: mapped.length, label: query });
 
         if (i < mapped.length - 1) {
           await lingerOnPage('between searches');
-          if (!ctx.session.isActivelyRunning || this.stopped) return;
+          if (!getIsActivelyRunning() || this.stopped) return;
         }
       }
     } finally {
       if (this.rewardsTabId) {
         this.closeTab(this.rewardsTabId);
-        ctx.session.rewardsTabId = null;
         this.rewardsTabId = null;
       }
     }

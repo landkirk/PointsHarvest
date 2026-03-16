@@ -1,7 +1,7 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { randMs, sleep, TIMING } from '../util/timing.js';
 import { resetLog } from '../util/debug.js';
-import { resetSession, loadState, resetState } from '../util/state.js';
+import { loadState, resetState } from '../util/state.js';
 import { createContext } from '../util/context.js';
 import { NotLoggedInError } from '../steps/fetch-activities.js';
 import type { Context } from '../util/context.js';
@@ -14,9 +14,18 @@ import { FarmPcSearches } from './farm-pc-searches.js';
 type ActiveOrchestrator = Pick<OrchestratorBase, 'stop' | 'onTabUpdated' | 'onTabCreated' | 'onTabRemoved' | 'onUserActionComplete'>;
 
 let activeOrchestrator: ActiveOrchestrator | null = null;
+let isActivelyRunning   = false;
 
 export function getActiveOrchestrator(): ActiveOrchestrator | null {
   return activeOrchestrator;
+}
+
+export function getIsActivelyRunning(): boolean {
+  return isActivelyRunning;
+}
+
+export function setIsActivelyRunning(value: boolean): void {
+  isActivelyRunning = value;
 }
 
 interface RunOptions {
@@ -37,12 +46,11 @@ class StartRun {
     const { lastRunDate, currentIndex, completedSearches } = await loadState();
     const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
-    resetSession();
     resetLog();
     await resetState({ isRunning: true, status: 'Starting...', lastRunDate: today });
 
+    setIsActivelyRunning(true);
     const ctx = createContext();
-    ctx.session.isActivelyRunning = true;
 
     this._executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone }) // fire and forget
       .catch(err => ctx.dbg('error', `Fatal run error: ${(err as Error).message}`));
@@ -51,7 +59,7 @@ class StartRun {
   private async _executeRun(ctx: Context, { today, lastRunDate, currentIndex, alreadyDone }: RunOptions): Promise<void> {
     await ctx.dbg('info', 'Run started');
 
-    if (!ctx.session.isActivelyRunning) return;
+    if (!isActivelyRunning) return;
 
     const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
 
@@ -59,7 +67,7 @@ class StartRun {
     await ctx.dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
     await sleep(initialDelay);
 
-    if (!ctx.session.isActivelyRunning) return;
+    if (!isActivelyRunning) return;
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
@@ -90,14 +98,14 @@ class StartRun {
   }
 
   private async _completeRun(ctx: Context): Promise<void> {
-    ctx.session.isActivelyRunning = false;
+    setIsActivelyRunning(false);
     await ctx.setState({ isRunning: false, status: 'Done for today!' });
     await ctx.dbg('success', 'All tasks complete');
     chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
   }
 
   private async _abortRun(ctx: Context, status: string, errorMsg: string): Promise<void> {
-    ctx.session.isActivelyRunning = false;
+    setIsActivelyRunning(false);
     await ctx.setState({ isRunning: false, status });
     await ctx.dbg('error', errorMsg);
     chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
