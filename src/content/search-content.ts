@@ -2,7 +2,7 @@
 // Waits for a 'performSearch' message from the background, then types the query
 // into the Bing search bar and submits the form.
 
-import { MSG_ACTION } from '../util/config.js';
+import { MSG_ACTION } from '../util/messaging.js';
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action !== MSG_ACTION.PERFORM_SEARCH) return;

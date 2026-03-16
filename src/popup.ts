@@ -1,4 +1,4 @@
-import { MSG_ACTION } from './util/config.js';
+import { MSG_ACTION } from './util/messaging.js';
 import type { AppState, SearchCounter } from './util/state.js';
 import type { DomDebug, DailySetDebug } from './util/debug.js';
 import type { DebugEntry } from './util/debug.js';
@@ -77,7 +77,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     render({
       isRunning:         true,
-      status:            `Running (${msg.completed} / ${msg.total})`,
+      status:            msg.status,
       completedSearches: msg.completed,
       totalSearches:     msg.total,
       lastLabel:         msg.label,
@@ -162,9 +162,11 @@ function renderSearchCounters(searchCounters: SearchCounter[]): void {
     dbgCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
     return;
   }
-  dbgCounters.innerHTML = searchCounters.map(c => `
-    <span title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>
-  `).join('');
+  dbgCounters.innerHTML = searchCounters.map(c => {
+    const isPC = c.type.toLowerCase() === 'pc search';
+    const cls  = isPC ? ' class="pc-active"' : '';
+    return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
+  }).join('');
 }
 
 function renderDomStats(domDebug: DomDebug | null, dailySetDebug: DailySetDebug | null): void {

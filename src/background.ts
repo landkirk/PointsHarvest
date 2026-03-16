@@ -1,8 +1,12 @@
-import { REWARDS_URL, MSG_ACTION } from './util/config.js';
+import { REWARDS_URL } from './util/config.js';
+import { MSG_ACTION } from './util/messaging.js';
 import { session, loadState, resetState } from './util/state.js';
 import { dbg } from './util/debug.js';
-import * as startRun from './orchestrators/start-run.js';
-import * as stopRun from './orchestrators/stop-run.js';
+import { StartRun } from './orchestrators/start-run.js';
+import { StopRun } from './orchestrators/stop-run.js';
+
+const startRun = new StartRun();
+const stopRun = new StopRun();
 
 // ── Tab event listeners ────────────────────────────────────────────────────
 

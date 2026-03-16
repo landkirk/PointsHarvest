@@ -1,4 +1,5 @@
-import { REWARDS_URL, REWARDS_BREAKDOWN_URL, MSG_ACTION } from '../util/config.js';
+import { REWARDS_URL, REWARDS_BREAKDOWN_URL } from '../util/config.js';
+import { MSG_ACTION } from '../util/messaging.js';
 import { randMs, sleep, TIMING } from '../util/timing.js';
 import { resetLog } from '../util/debug.js';
 import { resetSession, loadState, resetState } from '../util/state.js';
@@ -9,118 +10,137 @@ import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/state.js';
 import type { MappedActivity } from '../util/activity.js';
 
-import * as completeExploreOnBing from './complete-explore-on-bing.js';
-import * as completeDailySets from './complete-daily-sets.js';
-import * as farmPcSearches from './farm-pc-searches.js';
+import { CompleteExploreOnBing } from './complete-explore-on-bing.js';
+import { CompleteDailySets } from './complete-daily-sets.js';
+import { FarmPcSearches } from './farm-pc-searches.js';
 
 interface RunOptions {
-  today:          string;
-  lastRunDate:    string | null;
-  currentIndex:   number;
-  alreadyDone:    boolean;
+  today:        string;
+  lastRunDate:  string | null;
+  currentIndex: number;
+  alreadyDone:  boolean;
 }
 
-async function abortRun(ctx: Context, status: string, errorMsg: string): Promise<void> {
-  ctx.session.isActivelyRunning = false;
-  closeRewardsTab();
-  await ctx.setState({ isRunning: false, status });
-  await ctx.dbg('error', errorMsg);
-  chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
-}
 
-export async function run(): Promise<void> {
-  const today = new Date().toDateString();
-  const { lastRunDate, currentIndex, completedSearches } = await loadState();
-  const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
+class StartRun {
+  private readonly completeExploreOnBing = new CompleteExploreOnBing();
+  private readonly completeDailySets     = new CompleteDailySets();
+  private readonly farmPcSearches        = new FarmPcSearches();
 
-  resetSession();
-  resetLog();
-  await resetState({ isRunning: true, status: 'Fetching rewards activities...', lastRunDate: today });
+  async run(): Promise<void> {
+    const today = new Date().toDateString();
+    const { lastRunDate, currentIndex, completedSearches } = await loadState();
+    const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
-  const ctx = createContext();
-  ctx.session.isActivelyRunning = true;
+    resetSession();
+    resetLog();
+    await resetState({ isRunning: true, status: 'Fetching rewards activities...', lastRunDate: today });
 
-  _executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone }); // fire and forget
-}
+    const ctx = createContext();
+    ctx.session.isActivelyRunning = true;
 
-async function _executeRun(ctx: Context, { today, lastRunDate, currentIndex, alreadyDone }: RunOptions): Promise<void> {
-  await ctx.dbg('info', 'Run started');
-
-  // Open rewards dashboard and breakdown tab in parallel
-  await ctx.dbg('info', `Opening ${REWARDS_URL}`);
-  const activitiesPromise = fetchActivities(ctx);
-  try {
-    const breakdownTab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
-    ctx.session.breakdownTabId = breakdownTab.id!;
-  } catch {
-    await ctx.dbg('warn', 'Failed to open breakdown tab — PC search counter tracking may open its own');
-  }
-  const activitiesResult: ActivitiesResult = await activitiesPromise;
-  const { activities, domDebug, loggedIn } = activitiesResult;
-
-  if (!ctx.session.isActivelyRunning) { await ctx.dbg('warn', 'Stopped during activity fetch'); return; }
-
-  if (!loggedIn) {
-    await abortRun(ctx, 'Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards');
-    return;
+    this._executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone }) // fire and forget
+      .catch(err => ctx.dbg('error', `Fatal run error: ${(err as Error).message}`));
   }
 
-  await ctx.setState({ extractedActivities: activities, domDebug });
-  await ctx.dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
+  private async _executeRun(ctx: Context, { today, lastRunDate, currentIndex, alreadyDone }: RunOptions): Promise<void> {
+    await ctx.dbg('info', 'Run started');
 
-  if (activities.length === 0 && (activitiesResult.dailySets?.length ?? 0) === 0) {
+    await ctx.dbg('info', `Opening ${REWARDS_URL}`);
+    const activitiesPromise = fetchActivities(ctx);
     try {
-      await farmPcSearches.run(ctx);
+      const breakdownTab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
+      ctx.session.breakdownTabId = breakdownTab.id!;
+    } catch {
+      await ctx.dbg('warn', 'Failed to open breakdown tab — PC search counter tracking may open its own');
+    }
+    const activitiesResult: ActivitiesResult = await activitiesPromise;
+    const { activities, domDebug, loggedIn } = activitiesResult;
+
+    if (!ctx.session.isActivelyRunning) { await ctx.dbg('warn', 'Stopped during activity fetch'); return; }
+
+    if (!loggedIn) {
+      await this._abortRun(ctx, 'Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards');
+      return;
+    }
+
+    await ctx.setState({ extractedActivities: activities, domDebug });
+    await ctx.dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
+
+    if (activities.length === 0 && (activitiesResult.dailySets?.length ?? 0) === 0) {
+      let pcFarmed = false;
+      try {
+        await this.farmPcSearches.run(ctx);
+        pcFarmed = true;
+      } catch (err) {
+        await ctx.dbg('error', `PC search farming failed: ${(err as Error).message}`);
+      }
+      if (pcFarmed) {
+        await this._completeRun(ctx);
+      } else {
+        await this._abortRun(ctx, 'No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
+      }
+      return;
+    }
+
+    await ctx.dbg('success', `Found ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}`);
+
+    const mapped: MappedActivity[] = buildSearchList(activities);
+    await ctx.setState({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query as string) });
+    chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
+
+    const unmapped = mapped.filter(m => m.unmatched).length;
+    await ctx.dbg('info', `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
+
+    const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
+    await ctx.setState({
+      totalSearches:     mapped.length,
+      currentIndex:      startIndex,
+      completedSearches: startIndex,
+      status:            `Running (0 / ${mapped.length})`,
+    });
+
+    const initialDelay = randMs(...TIMING.INITIAL_DELAY);
+    await ctx.dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
+    await sleep(initialDelay);
+
+    if (!ctx.session.isActivelyRunning) { closeRewardsTab(); return; }
+
+    // ── Chain orchestrators ──────────────────────────────────────────────────
+    try {
+      await this.completeExploreOnBing.run(ctx, mapped, startIndex);
+    } catch (err) {
+      await ctx.dbg('error', `Explore on Bing failed: ${(err as Error).message}`);
+    }
+    try {
+      await this.completeDailySets.run(ctx, activitiesResult);
+    } catch (err) {
+      await ctx.dbg('error', `Daily sets failed: ${(err as Error).message}`);
+    }
+    try {
+      await this.farmPcSearches.run(ctx);
     } catch (err) {
       await ctx.dbg('error', `PC search farming failed: ${(err as Error).message}`);
     }
-    await abortRun(ctx, 'No valid activity cards found — check Debug panel', 'Aborting: no valid activity cards detected on the rewards page');
-    return;
+
+    await this._completeRun(ctx);
   }
 
-  await ctx.dbg('success', `Found ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}`);
-
-  const mapped: MappedActivity[] = buildSearchList(activities);
-  await ctx.setState({ mappedActivities: mapped, searchQueue: mapped.filter(m => m.query).map(m => m.query as string) });
-  chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
-
-  const unmapped = mapped.filter(m => m.unmatched).length;
-  await ctx.dbg('info', `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
-
-  const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
-  await ctx.setState({
-    totalSearches:     mapped.length,
-    currentIndex:      startIndex,
-    completedSearches: startIndex,
-    status:            `Running (0 / ${mapped.length})`,
-  });
-
-  const initialDelay = randMs(...TIMING.INITIAL_DELAY);
-  await ctx.dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
-  await sleep(initialDelay);
-
-  if (!ctx.session.isActivelyRunning) { closeRewardsTab(); return; }
-
-  // ── Chain orchestrators ──────────────────────────────────────────────────
-  try {
-    await completeExploreOnBing.run(ctx, mapped, startIndex);
-  } catch (err) {
-    await ctx.dbg('error', `Explore on Bing failed: ${(err as Error).message}`);
-  }
-  try {
-    await completeDailySets.run(ctx, activitiesResult);
-  } catch (err) {
-    await ctx.dbg('error', `Daily sets failed: ${(err as Error).message}`);
-  }
-  try {
-    await farmPcSearches.run(ctx);
-  } catch (err) {
-    await ctx.dbg('error', `PC search farming failed: ${(err as Error).message}`);
+  private async _completeRun(ctx: Context): Promise<void> {
+    closeRewardsTab();
+    ctx.session.isActivelyRunning = false;
+    await ctx.setState({ isRunning: false, status: 'Done for today!' });
+    await ctx.dbg('success', 'All tasks complete');
+    chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
   }
 
-  closeRewardsTab();
-  ctx.session.isActivelyRunning = false;
-  await ctx.setState({ isRunning: false, status: 'Done for today!' });
-  await ctx.dbg('success', 'All tasks complete');
-  chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
+  private async _abortRun(ctx: Context, status: string, errorMsg: string): Promise<void> {
+    ctx.session.isActivelyRunning = false;
+    closeRewardsTab();
+    await ctx.setState({ isRunning: false, status });
+    await ctx.dbg('error', errorMsg);
+    chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
+  }
 }
+
+export { StartRun };

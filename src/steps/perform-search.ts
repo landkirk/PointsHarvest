@@ -2,7 +2,7 @@
 // The tab is already loaded at https://www.bing.com/?form=... when this is called.
 
 import { lingerOnPage } from '../util/timing.js';
-import { MSG_ACTION } from '../util/config.js';
+import { MSG_ACTION } from '../util/messaging.js';
 import type { Context } from '../util/context.js';
 
 export async function run(ctx: Context, tabId: number, query: string): Promise<void> {
