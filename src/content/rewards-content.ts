@@ -10,8 +10,8 @@ import { MSG_ACTION } from '../util/messaging.js';
 import type { CardState } from '../util/activity.js';
 import type { MsgAction } from '../util/messaging.js';
 import type { Activity } from '../util/activity.js';
-import type { DomDebug, DomDebugCard, DailySetDebug, DailySetDebugTile, SearchCounterDebugCard } from '../util/debug.js';
-import type { Tile } from '../steps/validate-tile.js';
+import type { DomDebug, DomDebugCard, DailySetDebug, DailySetDebugActivity, SearchCounterDebugCard } from '../util/debug.js';
+
 
 const SEARCH_ON_BING_RE = /search on bing/i;
 const MAX_WAIT_MS    = 15000;
@@ -32,38 +32,38 @@ function determineCardState(card: Element): CardState {
 }
 
 // Returns { dailySets, dailySetDebug }
-function extractDailySets(): { dailySets: Tile[]; dailySetDebug: DailySetDebug } {
+function extractDailySets(): { dailySets: Activity[]; dailySetDebug: DailySetDebug } {
   const container = document.querySelector('#daily-sets');
   if (!container) return { dailySets: [], dailySetDebug: { sectionFound: false } };
 
-  const tiles = Array.from(container.querySelectorAll('a.ds-card-sec'));
+  const els = Array.from(container.querySelectorAll('a.ds-card-sec'));
 
-  const actionable: Tile[] = [];
-  const debugTiles: DailySetDebugTile[] = [];
+  const actionable: Activity[] = [];
+  const debugActivities: DailySetDebugActivity[] = [];
 
-  for (const tile of tiles) {
-    const tileState = determineCardState(tile);
-    const ariaLabel = tile.getAttribute('aria-label') || '';
-    const href      = (tile as HTMLAnchorElement).href || '';
-    const biId      = tile.getAttribute('data-bi-id') || '';
+  for (const el of els) {
+    const state     = determineCardState(el);
+    const ariaLabel = el.getAttribute('aria-label') || '';
+    const href      = (el as HTMLAnchorElement).href || '';
+    const biId      = el.getAttribute('data-bi-id') || '';
     const snippet   = ariaLabel.slice(0, 80);
 
-    if (tileState !== CARD_STATE.ACTIONABLE || !href) {
-      debugTiles.push({ skipped: !href ? 'no-href' : tileState, snippet, biId });
+    if (state !== CARD_STATE.ACTIONABLE || !href) {
+      debugActivities.push({ skipped: !href ? 'no-href' : state, snippet, biId });
       continue;
     }
 
-    debugTiles.push({ href, snippet, biId, skipped: null });
-    actionable.push({ href, ariaLabel, biId });
+    debugActivities.push({ href, snippet, biId, skipped: null });
+    actionable.push({ href, title: ariaLabel || biId, description: '' });
   }
 
   return {
     dailySets: actionable,
     dailySetDebug: {
-      sectionFound: true,
-      totalTiles:   tiles.length,
-      actionable:   actionable.length,
-      tiles:        debugTiles,
+      sectionFound:     true,
+      totalActivities:  els.length,
+      actionable:       actionable.length,
+      activities:       debugActivities,
     },
   };
 }
@@ -247,9 +247,9 @@ chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; 
     return true;
   }
 
-  if (msg.action === MSG_ACTION.VALIDATE_TILE) {
-    const tiles = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.ds-card-sec'));
-    const match = tiles.find(el => el.href === msg.href);
+  if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
+    const els = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.ds-card-sec'));
+    const match = els.find(el => el.href === msg.href);
     sendResponse({ state: match ? determineCardState(match) : CARD_STATE.NOT_FOUND });
     return true;
   }

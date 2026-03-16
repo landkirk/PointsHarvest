@@ -1,20 +1,15 @@
 import { CARD_STATE } from '../util/activity.js';
 import { MSG_ACTION } from '../util/messaging.js';
+import type { Activity } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
-export interface Tile {
-  href:       string;
-  ariaLabel?: string;
-  biId?:      string;
-}
-
-export async function run(ctx: Context, tile: Tile, rewardsTabId: number): Promise<boolean | null> {
+export async function run(ctx: Context, activity: Activity, rewardsTabId: number): Promise<boolean | null> {
   const response = await chrome.tabs.sendMessage(rewardsTabId, {
-    action: MSG_ACTION.VALIDATE_TILE,
-    href: tile.href,
+    action: MSG_ACTION.VALIDATE_ACTIVITY,
+    href: activity.href,
   }).catch(() => null);
 
-  const label = (tile.ariaLabel || tile.biId || tile.href).slice(0, 60);
+  const label = (activity.title || activity.href).slice(0, 60);
 
   if (!response) {
     await ctx.dbg('warn', `Validation: no response — "${label}"`);

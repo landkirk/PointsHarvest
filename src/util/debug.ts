@@ -26,7 +26,7 @@ export interface DomDebug {
   cards:               DomDebugCard[];
 }
 
-export interface DailySetDebugTile {
+export interface DailySetDebugActivity {
   skipped:  string | null;
   snippet:  string;
   biId:     string;
@@ -34,10 +34,10 @@ export interface DailySetDebugTile {
 }
 
 export interface DailySetDebug {
-  sectionFound: boolean;
-  totalTiles?:  number;
-  actionable?:  number;
-  tiles?:       DailySetDebugTile[];
+  sectionFound:      boolean;
+  totalActivities?:  number;
+  actionable?:       number;
+  activities?:       DailySetDebugActivity[];
 }
 
 export interface SearchCounterDebugCard {

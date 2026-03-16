@@ -9,7 +9,7 @@ export type MsgAction =
   | 'startExtract'
   | 'activitiesFound'
   | 'clickCard'
-  | 'validateTile'
+  | 'validateActivity'
   | 'performSearch'
   | 'start'
   | 'stop'
@@ -29,7 +29,7 @@ export const MSG_ACTION: Record<string, MsgAction> = {
   START_EXTRACT:    'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
   CLICK_CARD:       'clickCard',
-  VALIDATE_TILE:    'validateTile',
+  VALIDATE_ACTIVITY: 'validateActivity',
   // Background ↔ search content script
   PERFORM_SEARCH:   'performSearch',
   // Popup → background

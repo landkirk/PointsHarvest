@@ -18,7 +18,7 @@ This extension:
 3. Maps each card to a search query by stripping the "Search on Bing to/for…" boilerplate from the description; falls back to the card title if the description is too short
 4. Clicks each card on the rewards page, which opens a Bing search tab, then performs the mapped query in that tab with randomized timing (1–3s dwell before search, 3–5s after, 1.8–5s between searches)
 5. Closes each search tab when done
-6. Opens each daily set tile in a background tab; for quizzes, polls, tests, and puzzles it activates the tab and waits for you to complete them manually (click **Done** when finished); for other tile types it dwells briefly and closes automatically
+6. Opens each daily set activity in a background tab; for quizzes, polls, tests, and puzzles it activates the tab and waits for you to complete them manually (click **Done** when finished); for other activity types it dwells briefly and closes automatically
 7. Closes the rewards tab after all cards and daily sets are processed
 
 ## Installation
@@ -75,7 +75,7 @@ src/                  Source files (edit these)
     fetch-counters.ts      Poll breakdown tab for search point counters
     perform-search.ts      Dwell and execute a single search in a tab
     linger-on-tab.ts       Pause automation and wait for user to complete a tile
-    validate-tile.ts       Confirm a tile is marked complete on the rewards page
+    validate-activity.ts   Confirm an activity is marked complete on the rewards page
   util/
     config.ts         Static data: search pools, URL/count constants
     context.ts        createContext() — bundles session/setState/dbg for orchestrators
@@ -101,7 +101,7 @@ fires _executeRun (fire-and-forget)
        ▼
 Open rewards.bing.com + breakdown tab in parallel
 rewards-content.js polls the SPA until cards render (max 15s),
-extracts "Search on Bing" activities + daily set tiles,
+extracts "Search on Bing" activities + daily set activities,
 sends them to background
        │
        ▼
@@ -119,13 +119,13 @@ For each activity card:
        │
        ▼
 orchestrators/complete-daily-sets.js —
-For each daily set tile:
-  open tile URL in background tab → wait for load (15s timeout)
+For each daily set activity:
+  open activity URL in background tab → wait for load (15s timeout)
   if title matches quiz/poll/test/puzzle:
     → activate tab → wait for user to complete it → user clicks Done
   else:
     → dwell 1.5–4s → close tab
-  → delay 1.5–4s → next tile
+  → delay 1.5–4s → next activity
        │
        ▼
 orchestrators/farm-pc-searches.js —
@@ -161,7 +161,7 @@ The debug panel also includes a **Purge all state** button that clears all store
 
 - The extension clicks activity cards on the rewards page to open search tabs — this is how Bing tracks the activity as completed
 - All search tabs close automatically after each search
-- Daily set tiles that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
+- Daily set activities that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
 - Uses triangular distribution for randomized timing to appear more human-like
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message
 - Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `src/steps/perform-search.ts` if you notice missed points
