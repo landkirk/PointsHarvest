@@ -1,35 +1,5 @@
 import type { DebugEntry, DomDebug, DailySetDebug, SearchCounterDebug } from './debug.js';
-import type { Activity, MappedActivity } from './activity.js';
-
-// ── Ephemeral session ──────────────────────────────────────────────────────
-// In-memory only. Resets whenever the service worker restarts.
-
-export interface Session {
-  resolveActivities:  ((result: ActivitiesResult) => void) | null;
-  isActivelyRunning:  boolean;
-  rewardsTabId:       number | null;
-}
-
-export interface ActivitiesResult {
-  activities:      Activity[];
-  domDebug:        DomDebug | null;
-  dailySets?:      Activity[];
-  dailySetDebug?:  DailySetDebug | null;
-  loggedIn:        boolean;
-}
-
-const INITIAL_SESSION: Session = {
-  resolveActivities:  null,
-  isActivelyRunning:  false,
-  rewardsTabId:       null,
-};
-
-export const session: Session = { ...INITIAL_SESSION };
-
-/** Reset all session fields to their initial values. Call at the start of each run. */
-export function resetSession(): void {
-  Object.assign(session, INITIAL_SESSION);
-}
+import type { MappedActivity } from './activity.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
@@ -54,9 +24,7 @@ export interface AppState {
   dailySetDebug:       DailySetDebug | null;
   searchCounters:      SearchCounter[];
   searchCounterDebug:  SearchCounterDebug | null;
-  extractedActivities: Activity[];
   mappedActivities:    MappedActivity[];
-  searchQueue:         string[];
 }
 
 export const INITIAL_STATE: AppState = {
@@ -73,9 +41,7 @@ export const INITIAL_STATE: AppState = {
   dailySetDebug:        null,
   searchCounters:       [],
   searchCounterDebug:   null,
-  extractedActivities:  [],
   mappedActivities:     [],
-  searchQueue:          [],
 };
 
 let cache: AppState | null = null;

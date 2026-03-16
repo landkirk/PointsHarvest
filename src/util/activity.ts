@@ -1,3 +1,13 @@
+import type { DomDebug, DailySetDebug } from './debug.js';
+
+export interface ActivitiesResult {
+  activities:      Activity[];
+  domDebug:        DomDebug | null;
+  dailySets?:      Activity[];
+  dailySetDebug?:  DailySetDebug | null;
+  loggedIn:        boolean;
+}
+
 export interface Activity {
   title:       string;
   description: string;

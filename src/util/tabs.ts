@@ -1,4 +1,3 @@
-import { session } from './state.js';
 import { sleep } from './timing.js';
 
 /** Open a new tab and return it. Throws if the tab could not be created. */
@@ -6,14 +5,6 @@ export async function openTab(url: string, active = false): Promise<chrome.tabs.
   const tab = await chrome.tabs.create({ url, active }).catch(() => null);
   if (!tab) throw new Error(`Failed to open tab: ${url}`);
   return tab;
-}
-
-/** Close the rewards dashboard tab and clear its session reference. */
-export function closeRewardsTab(): void {
-  if (session.rewardsTabId) {
-    chrome.tabs.remove(session.rewardsTabId).catch(() => {});
-    session.rewardsTabId = null;
-  }
 }
 
 export interface TabLoadState {
