@@ -54,7 +54,7 @@ export async function run(ctx: Context): Promise<ActivitiesResult> {
 
   let rewardsTab: chrome.tabs.Tab;
   try {
-    rewardsTab = await openTab(ctx, REWARDS_URL, false);
+    rewardsTab = await openTab(REWARDS_URL, false);
   } catch {
     clearTimeout(timeout);
     ctx.session.resolveActivities = null;

@@ -16,14 +16,14 @@ interface CounterResult {
   searchCounterDebug: SearchCounterDebug | null;
 }
 
-export async function run(ctx: Context): Promise<CounterResult> {
-  if (!ctx.session.breakdownTabId) {
+export async function run(ctx: Context, breakdownTabId: number | null): Promise<CounterResult> {
+  if (!breakdownTabId) {
     await ctx.dbg('warn', 'fetchSearchCounters: no breakdown tab open');
     return { searchCounters: [], searchCounterDebug: null };
   }
 
   for (let i = 0; i < MAX_POLLS; i++) {
-    const result = await chrome.tabs.sendMessage(ctx.session.breakdownTabId, { action: MSG_ACTION.GET_COUNTERS })
+    const result = await chrome.tabs.sendMessage(breakdownTabId, { action: MSG_ACTION.GET_COUNTERS })
       .catch(() => null);
 
     if (result?.searchCounters?.length > 0) {

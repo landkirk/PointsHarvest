@@ -1,19 +1,21 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { waitForTabLoad } from '../util/tabs.js';
-import { lingerOnPage, sleep } from '../util/timing.js';
+import { sleep, lingerOnPage } from '../util/timing.js';
+import { session } from '../util/state.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { Context } from '../util/context.js';
-import type { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import type { MappedActivity } from '../util/activity.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as validateTile from '../steps/validate-tile.js';
 
-class CompleteExploreOnBing implements OrchestratorBase<[MappedActivity[], number]> {
+class CompleteExploreOnBing extends OrchestratorBase<[MappedActivity[], number]> {
+  private captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
+
   async run(ctx: Context, mapped: MappedActivity[], startIndex: number): Promise<void> {
     for (let i = startIndex; i < mapped.length; i++) {
-      if (!ctx.session.isActivelyRunning) return;
+      if (!ctx.session.isActivelyRunning || this.stopped) return;
 
       const { query, title } = mapped[i];
 
@@ -27,13 +29,13 @@ class CompleteExploreOnBing implements OrchestratorBase<[MappedActivity[], numbe
       await ctx.dbg('info', `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
       // Set up capture before sending click — tab may open before sendMessage resolves
-      const captureTabPromise = new Promise<chrome.tabs.Tab>(resolve => { ctx.session.captureNextTabResolve = resolve; });
+      const captureTabPromise = new Promise<chrome.tabs.Tab | null>(resolve => { this.captureNextTabResolve = resolve; });
 
       const clickResult = await chrome.tabs.sendMessage(ctx.session.rewardsTabId!, { action: MSG_ACTION.CLICK_CARD, index: i })
         .catch((err: unknown) => { ctx.dbg('warn', `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
 
       if (!clickResult?.clicked) {
-        ctx.session.captureNextTabResolve = null;
+        this.captureNextTabResolve = null;
         await ctx.dbg('warn', `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
         continue;
       }
@@ -42,7 +44,7 @@ class CompleteExploreOnBing implements OrchestratorBase<[MappedActivity[], numbe
       try {
         searchTab = await Promise.race([captureTabPromise, sleep(10000).then(() => null)]);
       } finally {
-        ctx.session.captureNextTabResolve = null;
+        this.captureNextTabResolve = null;
       }
 
       if (!searchTab) {
@@ -50,20 +52,20 @@ class CompleteExploreOnBing implements OrchestratorBase<[MappedActivity[], numbe
         continue;
       }
 
-      ctx.session.openedTabIds.add(searchTab.id!);
+      this.openedTabIds.add(searchTab.id!);
       chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});
 
-      await waitForTabLoad(searchTab.id!, 30000);
+      await this.waitForTabLoad(searchTab.id!, 30000);
 
-      if (!ctx.session.isActivelyRunning) {
-        chrome.tabs.remove(searchTab.id!).catch(() => {});
+      if (!ctx.session.isActivelyRunning || this.stopped) {
+        this.closeTab(searchTab.id!);
         return;
       }
 
       await performSearch.run(ctx, searchTab.id!, query);
-      chrome.tabs.remove(searchTab.id!).catch(() => {});
+      this.closeTab(searchTab.id!);
 
-      if (!ctx.session.isActivelyRunning) return;
+      if (!ctx.session.isActivelyRunning || this.stopped) return;
 
       const completed = i + 1;
       await ctx.setState({
@@ -79,8 +81,23 @@ class CompleteExploreOnBing implements OrchestratorBase<[MappedActivity[], numbe
 
       if (i < mapped.length - 1) {
         await lingerOnPage('between searches');
-        if (!ctx.session.isActivelyRunning) return;
+        if (!ctx.session.isActivelyRunning || this.stopped) return;
       }
+    }
+  }
+
+  onTabCreated(tab: chrome.tabs.Tab): void {
+    if (this.captureNextTabResolve && tab.id !== session.rewardsTabId) {
+      const resolve = this.captureNextTabResolve;
+      this.captureNextTabResolve = null;
+      resolve(tab);
+    }
+  }
+
+  protected async _onStop(_ctx: Context): Promise<void> {
+    if (this.captureNextTabResolve) {
+      this.captureNextTabResolve(null);
+      this.captureNextTabResolve = null;
     }
   }
 }

@@ -1,37 +1,41 @@
 import { session } from './state.js';
 import { sleep } from './timing.js';
-import type { Context } from './context.js';
 
-/**
- * Open a new tab, add it to the session's openedTabIds set, and return it.
- * Throws if the tab could not be created.
- */
-export async function openTab(ctx: Context, url: string, active = false): Promise<chrome.tabs.Tab> {
+/** Open a new tab and return it. Throws if the tab could not be created. */
+export async function openTab(url: string, active = false): Promise<chrome.tabs.Tab> {
   const tab = await chrome.tabs.create({ url, active }).catch(() => null);
   if (!tab) throw new Error(`Failed to open tab: ${url}`);
-  ctx.session.openedTabIds.add(tab.id!);
   return tab;
 }
 
-/** Close the rewards dashboard and breakdown tabs and clear their session references. */
+/** Close the rewards dashboard tab and clear its session reference. */
 export function closeRewardsTab(): void {
   if (session.rewardsTabId) {
     chrome.tabs.remove(session.rewardsTabId).catch(() => {});
     session.rewardsTabId = null;
   }
-  if (session.breakdownTabId) {
-    chrome.tabs.remove(session.breakdownTabId).catch(() => {});
-    session.breakdownTabId = null;
-  }
 }
 
-/** Wait for a tab to reach 'complete' status (via chrome.tabs.onUpdated) or time out. */
-export async function waitForTabLoad(tabId: number, timeoutMs = 30000): Promise<void> {
-  session.pendingTabId = tabId;
+export interface TabLoadState {
+  pendingTabId:   number | null;
+  pendingResolve: (() => void) | null;
+}
+
+/** Wait for a tab to reach 'complete' status (via onTabUpdated) or time out. */
+export async function waitForTabLoad(tabId: number, state: TabLoadState, timeoutMs = 30000): Promise<void> {
+  state.pendingTabId = tabId;
   await Promise.race([
-    new Promise<void>(resolve => { session.pendingResolve = resolve; }),
+    new Promise<void>(resolve => { state.pendingResolve = resolve; }),
     sleep(timeoutMs),
   ]);
-  session.pendingResolve = null;
-  session.pendingTabId = null;
+  state.pendingResolve = null;
+  state.pendingTabId = null;
+}
+
+/** Close all tabs in the set and clear it. */
+export async function closeOwnedTabs(tabIds: Set<number>): Promise<void> {
+  for (const tabId of tabIds) {
+    chrome.tabs.remove(tabId).catch(() => {});
+  }
+  tabIds.clear();
 }
