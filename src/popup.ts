@@ -88,7 +88,7 @@ chrome.runtime.onMessage.addListener((msg) => {
       if (state) { render(state); if (debugCheck.checked) renderDebug(state); }
     });
   }
-  if (msg.action === MSG_ACTION.DEBUG_READY && debugCheck.checked) {
+  if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
       if (state) {
         renderSearchCounters(state.searchCounters);
