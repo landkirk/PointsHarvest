@@ -8,10 +8,8 @@ export interface Tile {
   biId?:      string;
 }
 
-export async function run(ctx: Context, tile: Tile): Promise<boolean | null> {
-  if (!ctx.session.rewardsTabId) return null;
-
-  const response = await chrome.tabs.sendMessage(ctx.session.rewardsTabId, {
+export async function run(ctx: Context, tile: Tile, rewardsTabId: number): Promise<boolean | null> {
+  const response = await chrome.tabs.sendMessage(rewardsTabId, {
     action: MSG_ACTION.VALIDATE_TILE,
     href: tile.href,
   }).catch(() => null);

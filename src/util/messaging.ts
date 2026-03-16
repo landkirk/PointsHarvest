@@ -18,7 +18,7 @@ export type MsgAction =
   | 'purgeState'
   | 'complete'
   | 'progress'
-  | 'debugReady'
+  | 'activitiesMapped'
   | 'debugEntry'
   | 'lingerWaiting'
   | 'userActionComplete'
@@ -41,7 +41,7 @@ export const MSG_ACTION: Record<string, MsgAction> = {
   // Background/steps → popup
   COMPLETE:             'complete',
   PROGRESS:             'progress',
-  DEBUG_READY:          'debugReady',
+  ACTIVITIES_MAPPED:    'activitiesMapped',
   DEBUG_ENTRY:          'debugEntry',
   LINGER_WAITING:       'lingerWaiting',
   // Popup → background
