@@ -1,43 +1,72 @@
 // Opens the rewards dashboard and waits for the content script to resolve activities.
 
-import { closeRewardsTab, openTab } from '../util/tabs.js';
+import { openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
+import { MSG_ACTION } from '../util/messaging.js';
 import type { Context } from '../util/context.js';
-import type { ActivitiesResult } from '../util/state.js';
+import type { ActivitiesResult } from '../util/activity.js';
+
+export type FetchActivitiesResult = ActivitiesResult & { rewardsTabId: number | null };
 
 export class NotLoggedInError extends Error {
   constructor() { super('Not logged in'); }
 }
 
-export async function run(ctx: Context): Promise<ActivitiesResult> {
-  let resolveLocal!: (result: ActivitiesResult) => void;
-  const result = new Promise<ActivitiesResult>(resolve => { resolveLocal = resolve; });
+const EMPTY_ACTIVITIES: ActivitiesResult = { activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true };
 
-  const timeout = setTimeout(() => {
-    ctx.session.resolveActivities = null;
-    closeRewardsTab();
-    ctx.dbg('warn', 'Rewards page timed out — no activities');
-    resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
-  }, 20000);
+export async function run(ctx: Context): Promise<FetchActivitiesResult> {
+  let resolveLocal!: (result: ActivitiesResult) => void;
+  const activitiesPromise = new Promise<ActivitiesResult>(resolve => { resolveLocal = resolve; });
 
   let rewardsTab: chrome.tabs.Tab;
   try {
     rewardsTab = await openTab(REWARDS_URL, false);
   } catch {
-    clearTimeout(timeout);
-    ctx.session.resolveActivities = null;
     ctx.dbg('error', 'Failed to open rewards tab');
-    resolveLocal({ activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true });
-    return result;
+    return { ...EMPTY_ACTIVITIES, rewardsTabId: null };
   }
 
-  ctx.session.rewardsTabId = rewardsTab.id!;
+  const rewardsTabId = rewardsTab.id!;
 
-  // Rewards tab stays open after resolving — the calling orchestrator owns it and will close it.
-  ctx.session.resolveActivities = ({ activities = [], domDebug = null, dailySets = [], dailySetDebug = null, loggedIn = true }: Partial<ActivitiesResult> = {}) => {
+  function cleanup(): void {
     clearTimeout(timeout);
-    resolveLocal({ activities, domDebug, dailySets, dailySetDebug, loggedIn });
+    chrome.tabs.onUpdated.removeListener(onTabUpdated);
+    chrome.runtime.onMessage.removeListener(onMessage);
+  }
+
+  const timeout = setTimeout(() => {
+    cleanup();
+    ctx.dbg('warn', 'Rewards page timed out — no activities');
+    resolveLocal(EMPTY_ACTIVITIES);
+  }, 20000);
+
+  const onTabUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void => {
+    if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
+    if (tab.url.startsWith(REWARDS_URL)) {
+      chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
+    } else {
+      ctx.dbg('error', `Not logged in — redirected to: ${tab.url}`);
+      cleanup();
+      resolveLocal({ ...EMPTY_ACTIVITIES, loggedIn: false });
+    }
   };
 
-  return result;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onMessage = (msg: any): void => {
+    if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
+    cleanup();
+    resolveLocal({
+      activities:    msg.activities,
+      domDebug:      msg.domDebug,
+      dailySets:     msg.dailySets     ?? [],
+      dailySetDebug: msg.dailySetDebug ?? null,
+      loggedIn:      msg.loggedIn      !== false,
+    });
+  };
+
+  chrome.tabs.onUpdated.addListener(onTabUpdated);
+  chrome.runtime.onMessage.addListener(onMessage);
+
+  const result = await activitiesPromise;
+  return { ...result, rewardsTabId };
 }

@@ -94,7 +94,7 @@ chrome.runtime.onMessage.addListener((msg) => {
         renderSearchCounters(state.searchCounters);
         renderDomStats(state.domDebug, state.dailySetDebug);
         renderCards(state.mappedActivities as MappedActivity[], state.domDebug, state.dailySetDebug);
-        renderQueue(state.searchQueue);
+        renderQueue(getSearchQueue(state.mappedActivities as MappedActivity[]));
       }
     });
   }
@@ -149,11 +149,15 @@ function clearDebug(): void {
   dbgLog.innerHTML      = '<div class="dbg-empty">No events yet.</div>';
 }
 
-function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, searchQueue, debugLog }: AppState): void {
+function getSearchQueue(activities: MappedActivity[]): string[] {
+  return activities.filter(m => m.query).map(m => m.query as string);
+}
+
+function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, debugLog }: AppState): void {
   renderSearchCounters(searchCounters);
   renderDomStats(domDebug, dailySetDebug);
   renderCards(mappedActivities as MappedActivity[], domDebug, dailySetDebug);
-  renderQueue(searchQueue);
+  renderQueue(getSearchQueue(mappedActivities as MappedActivity[]));
   renderLog(debugLog);
 }
 

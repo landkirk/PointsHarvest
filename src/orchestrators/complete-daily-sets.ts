@@ -8,6 +8,7 @@ import type { DailySetDebug } from '../util/debug.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
 import * as validateActivity from '../steps/validate-activity.js';
 import { run as fetchActivities } from '../steps/fetch-activities.js';
+import { getIsActivelyRunning } from './start-run.js';
 
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
@@ -17,11 +18,10 @@ class CompleteDailySets extends OrchestratorBase {
   private lingerResolve: (() => void) | null = null;
 
   async run(ctx: Context): Promise<void> {
-    const { dailySets = [], dailySetDebug = null, loggedIn } = await fetchActivities(ctx);
+    const { dailySets = [], dailySetDebug = null, loggedIn, rewardsTabId } = await fetchActivities(ctx);
     if (!loggedIn) { await ctx.dbg('warn', 'Daily sets: not logged in — skipping'); return; }
 
-    const rewardsTabId = ctx.session.rewardsTabId!;
-    this.openedTabIds.add(rewardsTabId);
+    if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
 
     const debug = dailySetDebug as DailySetDebug | null;
 
@@ -37,7 +37,7 @@ class CompleteDailySets extends OrchestratorBase {
       await ctx.dbg('info', `Starting daily sets: ${dailySets.length} activity/activities`);
 
       for (let i = 0; i < dailySets.length; i++) {
-        if (!ctx.session.isActivelyRunning || this.stopped) return;
+        if (!getIsActivelyRunning() || this.stopped) return;
 
         const { href, title } = dailySets[i];
         const label = (title || href || '').slice(0, 60);
@@ -52,7 +52,7 @@ class CompleteDailySets extends OrchestratorBase {
         }
         await this.waitForTabLoad(tab.id!, 15000);
 
-        if (!ctx.session.isActivelyRunning || this.stopped) {
+        if (!getIsActivelyRunning() || this.stopped) {
           this.closeTab(tab.id!);
           return;
         }
@@ -63,26 +63,25 @@ class CompleteDailySets extends OrchestratorBase {
             onResolve: r => { this.lingerResolve = r; },
             onTabId:   id => { this.lingerTabId = id; },
           });
-          await validateActivity.run(ctx, dailySets[i], rewardsTabId);
+          if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         } else {
           await lingerOnPage('daily set activity');
           this.closeTab(tab.id!);
-          await validateActivity.run(ctx, dailySets[i], rewardsTabId);
+          if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         }
 
         await ctx.dbg('success', `Daily set activity ${i + 1}/${dailySets.length} complete`);
         ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completed: i + 1, total: dailySets.length });
 
         if (i < dailySets.length - 1) {
-          if (!ctx.session.isActivelyRunning || this.stopped) return;
+          if (!getIsActivelyRunning() || this.stopped) return;
           await lingerOnPage('between daily set activities');
         }
       }
 
       await ctx.dbg('success', 'All daily set activities complete');
     } finally {
-      this.closeTab(rewardsTabId);
-      ctx.session.rewardsTabId = null;
+      if (rewardsTabId) this.closeTab(rewardsTabId);
     }
   }
 

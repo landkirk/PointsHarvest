@@ -9,6 +9,7 @@ import type { SearchCounter } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as fetchCounters from '../steps/fetch-counters.js';
+import { getIsActivelyRunning } from './start-run.js';
 
 const MAX_NO_PROGRESS = 3;
 
@@ -68,7 +69,7 @@ class FarmPcSearches extends OrchestratorBase {
     const shuffled = [...PC_SEARCH_QUERIES].sort(() => Math.random() - 0.5);
     let shuffleIndex = 0;
 
-    while (current < max && ctx.session.isActivelyRunning && !this.stopped) {
+    while (current < max && getIsActivelyRunning() && !this.stopped) {
       if (shuffleIndex >= shuffled.length) {
         await ctx.dbg('error', 'PC farm aborted: queries exhausted');
         break;
@@ -78,7 +79,7 @@ class FarmPcSearches extends OrchestratorBase {
       const tab = await this.openManagedTab('https://www.bing.com', true);
       await this.waitForTabLoad(tab.id!, 30000);
 
-      if (!ctx.session.isActivelyRunning || this.stopped) {
+      if (!getIsActivelyRunning() || this.stopped) {
         this.closeTab(tab.id!);
         return;
       }
@@ -86,7 +87,7 @@ class FarmPcSearches extends OrchestratorBase {
       await performSearch.run(ctx, tab.id!, query);
       this.closeTab(tab.id!);
 
-      if (!ctx.session.isActivelyRunning || this.stopped) return;
+      if (!getIsActivelyRunning() || this.stopped) return;
 
       await lingerOnPage('after PC search');
 
