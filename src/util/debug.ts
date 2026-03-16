@@ -1,4 +1,4 @@
-import { MSG_ACTION } from './config.js';
+import { MSG_ACTION } from './messaging.js';
 import { setState } from './state.js';
 
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
