@@ -6,16 +6,9 @@ import type { Tile } from '../steps/validate-tile.js';
 // In-memory only. Resets whenever the service worker restarts.
 
 export interface Session {
-  pendingTabId:            number | null;
-  pendingResolve:          (() => void) | null;
-  resolveActivities:       ((result: ActivitiesResult) => void) | null;
-  captureNextTabResolve:   ((tab: chrome.tabs.Tab) => void) | null;
-  openedTabIds:            Set<number>;
-  isActivelyRunning:       boolean;
-  rewardsTabId:            number | null;
-  breakdownTabId:          number | null;
-  lingerTabId:             number | null;
-  lingerResolve:           (() => void) | null;
+  resolveActivities:  ((result: ActivitiesResult) => void) | null;
+  isActivelyRunning:  boolean;
+  rewardsTabId:       number | null;
 }
 
 export interface ActivitiesResult {
@@ -27,23 +20,16 @@ export interface ActivitiesResult {
 }
 
 const INITIAL_SESSION: Session = {
-  pendingTabId:           null,
-  pendingResolve:         null,
-  resolveActivities:      null,
-  captureNextTabResolve:  null,
-  openedTabIds:           new Set(),
-  isActivelyRunning:      false,
-  rewardsTabId:           null,
-  breakdownTabId:         null,
-  lingerTabId:            null,
-  lingerResolve:          null,
+  resolveActivities:  null,
+  isActivelyRunning:  false,
+  rewardsTabId:       null,
 };
 
-export const session: Session = { ...INITIAL_SESSION, openedTabIds: new Set() };
+export const session: Session = { ...INITIAL_SESSION };
 
 /** Reset all session fields to their initial values. Call at the start of each run. */
 export function resetSession(): void {
-  Object.assign(session, INITIAL_SESSION, { openedTabIds: new Set() });
+  Object.assign(session, INITIAL_SESSION);
 }
 
 // ── Persistent store ───────────────────────────────────────────────────────

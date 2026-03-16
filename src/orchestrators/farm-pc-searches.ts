@@ -3,10 +3,10 @@
 import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { lingerOnPage } from '../util/timing.js';
-import { waitForTabLoad, openTab } from '../util/tabs.js';
+import { openTab } from '../util/tabs.js';
 import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/state.js';
-import type { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as fetchCounters from '../steps/fetch-counters.js';
 
@@ -16,26 +16,35 @@ function findPcCounter(counters: SearchCounter[] | undefined): SearchCounter | u
   return counters?.find(c => c.type.toLowerCase() === 'pc search');
 }
 
-class FarmPcSearches implements OrchestratorBase {
+class FarmPcSearches extends OrchestratorBase {
+  private breakdownTabId: number | null = null;
+
   async run(ctx: Context): Promise<void> {
-    const ownBreakdownTab = !ctx.session.breakdownTabId;
+    const ownBreakdownTab = !this.breakdownTabId;
     if (ownBreakdownTab) {
-      const tab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
-      ctx.session.breakdownTabId = tab.id!;
+      const tab = await openTab(REWARDS_BREAKDOWN_URL, false);
+      this.breakdownTabId = tab.id!;
     }
 
     try {
       await this._farm(ctx);
     } finally {
-      if (ownBreakdownTab && ctx.session.breakdownTabId) {
-        chrome.tabs.remove(ctx.session.breakdownTabId).catch(() => {});
-        ctx.session.breakdownTabId = null;
+      if (ownBreakdownTab && this.breakdownTabId) {
+        chrome.tabs.remove(this.breakdownTabId).catch(() => {});
+        this.breakdownTabId = null;
       }
     }
   }
 
+  protected async _onStop(_ctx: Context): Promise<void> {
+    if (this.breakdownTabId) {
+      chrome.tabs.remove(this.breakdownTabId).catch(() => {});
+      this.breakdownTabId = null;
+    }
+  }
+
   private async _farm(ctx: Context): Promise<void> {
-    const { searchCounters } = await fetchCounters.run(ctx);
+    const { searchCounters } = await fetchCounters.run(ctx, this.breakdownTabId);
     const counter = findPcCounter(searchCounters);
 
     if (!counter) {
@@ -59,29 +68,29 @@ class FarmPcSearches implements OrchestratorBase {
     const shuffled = [...PC_SEARCH_QUERIES].sort(() => Math.random() - 0.5);
     let shuffleIndex = 0;
 
-    while (current < max && ctx.session.isActivelyRunning) {
+    while (current < max && ctx.session.isActivelyRunning && !this.stopped) {
       if (shuffleIndex >= shuffled.length) {
         await ctx.dbg('error', 'PC farm aborted: queries exhausted');
         break;
       }
       const query = shuffled[shuffleIndex++];
 
-      const tab = await openTab(ctx, 'https://www.bing.com', true);
-      await waitForTabLoad(tab.id!, 30000);
+      const tab = await this.openManagedTab('https://www.bing.com', true);
+      await this.waitForTabLoad(tab.id!, 30000);
 
-      if (!ctx.session.isActivelyRunning) {
-        chrome.tabs.remove(tab.id!).catch(() => {});
+      if (!ctx.session.isActivelyRunning || this.stopped) {
+        this.closeTab(tab.id!);
         return;
       }
 
       await performSearch.run(ctx, tab.id!, query);
-      chrome.tabs.remove(tab.id!).catch(() => {});
+      this.closeTab(tab.id!);
 
-      if (!ctx.session.isActivelyRunning) return;
+      if (!ctx.session.isActivelyRunning || this.stopped) return;
 
       await lingerOnPage('after PC search');
 
-      const { searchCounters: updated } = await fetchCounters.run(ctx);
+      const { searchCounters: updated } = await fetchCounters.run(ctx, this.breakdownTabId);
       const updatedCounter = findPcCounter(updated);
       const newCurrent = updatedCounter?.current ?? current;
 

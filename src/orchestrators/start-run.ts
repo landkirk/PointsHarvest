@@ -1,18 +1,27 @@
-import { REWARDS_URL, REWARDS_BREAKDOWN_URL } from '../util/config.js';
+import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { randMs, sleep, TIMING } from '../util/timing.js';
 import { resetLog } from '../util/debug.js';
 import { resetSession, loadState, resetState } from '../util/state.js';
-import { closeRewardsTab, openTab } from '../util/tabs.js';
+import { closeRewardsTab } from '../util/tabs.js';
 import { createContext } from '../util/context.js';
 import { run as fetchActivities, buildSearchList } from '../steps/fetch-activities.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/state.js';
 import type { MappedActivity } from '../util/activity.js';
 
+import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { CompleteExploreOnBing } from './complete-explore-on-bing.js';
 import { CompleteDailySets } from './complete-daily-sets.js';
 import { FarmPcSearches } from './farm-pc-searches.js';
+
+type ActiveOrchestrator = Pick<OrchestratorBase, 'stop' | 'onTabUpdated' | 'onTabCreated' | 'onTabRemoved' | 'onUserActionComplete'>;
+
+let activeOrchestrator: ActiveOrchestrator | null = null;
+
+export function getActiveOrchestrator(): ActiveOrchestrator | null {
+  return activeOrchestrator;
+}
 
 interface RunOptions {
   today:        string;
@@ -48,16 +57,10 @@ class StartRun {
 
     await ctx.dbg('info', `Opening ${REWARDS_URL}`);
     const activitiesPromise = fetchActivities(ctx);
-    try {
-      const breakdownTab = await openTab(ctx, REWARDS_BREAKDOWN_URL, false);
-      ctx.session.breakdownTabId = breakdownTab.id!;
-    } catch {
-      await ctx.dbg('warn', 'Failed to open breakdown tab — PC search counter tracking may open its own');
-    }
     const activitiesResult: ActivitiesResult = await activitiesPromise;
     const { activities, domDebug, loggedIn } = activitiesResult;
 
-    if (!ctx.session.isActivelyRunning) { await ctx.dbg('warn', 'Stopped during activity fetch'); return; }
+    if (!ctx.session.isActivelyRunning) { closeRewardsTab(); await ctx.dbg('warn', 'Stopped during activity fetch'); return; }
 
     if (!loggedIn) {
       await this._abortRun(ctx, 'Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards');
@@ -69,12 +72,10 @@ class StartRun {
 
     if (activities.length === 0 && (activitiesResult.dailySets?.length ?? 0) === 0) {
       let pcFarmed = false;
-      try {
+      await this._runOrchestrator(ctx, 'PC search farming', this.farmPcSearches, async () => {
         await this.farmPcSearches.run(ctx);
         pcFarmed = true;
-      } catch (err) {
-        await ctx.dbg('error', `PC search farming failed: ${(err as Error).message}`);
-      }
+      });
       if (pcFarmed) {
         await this._completeRun(ctx);
       } else {
@@ -107,28 +108,27 @@ class StartRun {
     if (!ctx.session.isActivelyRunning) { closeRewardsTab(); return; }
 
     // ── Chain orchestrators ──────────────────────────────────────────────────
-    try {
-      await this.completeExploreOnBing.run(ctx, mapped, startIndex);
-    } catch (err) {
-      await ctx.dbg('error', `Explore on Bing failed: ${(err as Error).message}`);
-    }
-    try {
-      await this.completeDailySets.run(ctx, activitiesResult);
-    } catch (err) {
-      await ctx.dbg('error', `Daily sets failed: ${(err as Error).message}`);
-    }
-    try {
-      await this.farmPcSearches.run(ctx);
-    } catch (err) {
-      await ctx.dbg('error', `PC search farming failed: ${(err as Error).message}`);
-    }
+    await this._runOrchestrator(ctx, 'Explore on Bing',    this.completeExploreOnBing, () => this.completeExploreOnBing.run(ctx, mapped, startIndex));
+    await this._runOrchestrator(ctx, 'Daily sets',         this.completeDailySets,     () => this.completeDailySets.run(ctx, activitiesResult));
+    await this._runOrchestrator(ctx, 'PC search farming',  this.farmPcSearches,        () => this.farmPcSearches.run(ctx));
 
     await this._completeRun(ctx);
   }
 
+  private async _runOrchestrator(ctx: Context, label: string, orchestrator: ActiveOrchestrator, run: () => Promise<void>): Promise<void> {
+    activeOrchestrator = orchestrator;
+    try {
+      await run();
+    } catch (err) {
+      await ctx.dbg('error', `${label} failed: ${(err as Error).message}`);
+    } finally {
+      activeOrchestrator = null;
+    }
+  }
+
   private async _completeRun(ctx: Context): Promise<void> {
-    closeRewardsTab();
     ctx.session.isActivelyRunning = false;
+    closeRewardsTab();
     await ctx.setState({ isRunning: false, status: 'Done for today!' });
     await ctx.dbg('success', 'All tasks complete');
     chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
