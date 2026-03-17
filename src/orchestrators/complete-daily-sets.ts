@@ -2,9 +2,9 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
+import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import type { DailySetDebug } from '../util/debug.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
 import * as validateActivity from '../steps/validate-activity.js';
 import { run as fetchActivities } from '../steps/fetch-activities.js';
@@ -20,35 +20,33 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     const { dailySets = [], dailySetDebug = null, loggedIn, rewardsTabId } = await fetchActivities(ctx);
-    if (!loggedIn) { await ctx.dbg('warn', 'Daily sets: not logged in — skipping'); return; }
+    if (!loggedIn) { await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping'); return; }
 
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
 
-    const debug = dailySetDebug as DailySetDebug | null;
-
     await ctx.setState({ dailySetDebug });
-    await ctx.dbg('info', `Daily sets: ${debug?.actionable ?? 0} actionable (section ${debug?.sectionFound ? 'found' : 'not found'})`);
+    await ctx.dbg(DBG.INFO, `Daily sets: ${dailySetDebug?.actionableActivities ?? 0} actionable${dailySetDebug ? '' : ' (section not found)'}`);
 
     try {
       if (dailySets.length === 0) {
-        await ctx.dbg('info', 'No actionable daily set activities — skipping');
+        await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
         return;
       }
 
-      await ctx.dbg('info', `Starting daily sets: ${dailySets.length} activity/activities`);
+      await ctx.dbg(DBG.INFO, `Starting daily sets: ${dailySets.length} activity/activities`);
 
       for (let i = 0; i < dailySets.length; i++) {
         if (!getIsActivelyRunning() || this.stopped) return;
 
         const { href, title } = dailySets[i];
         const label = (title || href || '').slice(0, 60);
-        await ctx.dbg('info', `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
+        await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
         let tab: chrome.tabs.Tab;
         try {
           tab = await this.openManagedTab(href, true);
         } catch {
-          await ctx.dbg('warn', `Failed to open tab for daily set activity ${i + 1}`);
+          await ctx.dbg(DBG.WARN, `Failed to open tab for daily set activity ${i + 1}`);
           continue;
         }
         await this.waitForTabLoad(tab.id!, 15000);
@@ -59,7 +57,7 @@ class CompleteDailySets extends OrchestratorBase {
         }
 
         if (USER_ACTION_RE.test(title)) {
-          await ctx.dbg('info', 'User action required — waiting for completion');
+          await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
           await lingerOnTab.run(ctx, tab.id!, {
             onResolve: r => { this.lingerResolve = r; },
             onTabId:   id => { this.lingerTabId = id; },
@@ -71,7 +69,7 @@ class CompleteDailySets extends OrchestratorBase {
           if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         }
 
-        await ctx.dbg('success', `Daily set activity ${i + 1}/${dailySets.length} complete`);
+        await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
         ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completed: i + 1, total: dailySets.length });
 
         if (i < dailySets.length - 1) {
@@ -80,40 +78,34 @@ class CompleteDailySets extends OrchestratorBase {
         }
       }
 
-      await ctx.dbg('success', 'All daily set activities complete');
+      await ctx.dbg(DBG.SUCCESS, 'All daily set activities complete');
     } finally {
       if (rewardsTabId) this.closeTab(rewardsTabId);
     }
   }
 
-  onTabRemoved(tabId: number): void {
-    if (tabId === this.lingerTabId && this.lingerResolve) {
-      const resolve = this.lingerResolve;
-      this.lingerResolve = null;
+  private _resolveLinger(closeTab: boolean): void {
+    if (!this.lingerResolve) return;
+    const resolve = this.lingerResolve;
+    this.lingerResolve = null;
+    if (this.lingerTabId) {
+      if (closeTab) this.closeTab(this.lingerTabId);
+      else this.openedTabIds.delete(this.lingerTabId);
       this.lingerTabId = null;
-      this.openedTabIds.delete(tabId);
-      resolve();
     }
+    resolve();
+  }
+
+  onTabRemoved(tabId: number): void {
+    if (tabId === this.lingerTabId) this._resolveLinger(false);
   }
 
   onUserActionComplete(): void {
-    if (this.lingerResolve) {
-      const resolve = this.lingerResolve;
-      this.lingerResolve = null;
-      if (this.lingerTabId) {
-        this.closeTab(this.lingerTabId);
-        this.lingerTabId = null;
-      }
-      resolve();
-    }
+    this._resolveLinger(true);
   }
 
   protected async _onStop(_ctx: Context): Promise<void> {
-    if (this.lingerResolve) {
-      this.lingerResolve();
-      this.lingerResolve = null;
-      this.lingerTabId = null;
-    }
+    this._resolveLinger(false);
   }
 }
 
