@@ -62,10 +62,10 @@ src/                    Source files (edit these)
     linger-on-tab.ts        Pause automation and wait for user to complete a tile
     validate-activity.ts    Confirm an activity is marked complete on the rewards page
   util/
-    config.ts           URLs, MSG_ACTION constants, CARD_STATE constants, PC search query pool
-    context.ts          createContext() — bundles session/setState/dbg for orchestrators
+    config.ts           URLs and PC search query pool
+    context.ts          createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
     debug.ts            Logging helpers (dbg, resetLog) and debug type definitions
-    state.ts            In-memory session + chrome.storage.local persistent state
+    state.ts            chrome.storage.local persistent state + runtime state (activeOrchestrator, isActivelyRunning)
     tabs.ts             Tab utilities (openTab, waitForTabLoad, closeRewardsTab)
     timing.ts           randMs, sleep, lingerOnPage
   content/
@@ -85,10 +85,10 @@ dist/                   Compiled output (generated — do not edit)
 ### orchestrators/start-run.ts
 - Loads state, resets session/log/storage, creates a context object
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
-- `_executeRun` opens rewards dashboard + breakdown tab in parallel, then chains the three sub-orchestrators
+- `_executeRun` opens rewards dashboard + breakdown tab in parallel, then chains the three sub-orchestrators via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `state.ts` around each run
 
 ### orchestrators/stop-run.ts
-- Sets `isActivelyRunning = false` and persists stopped status
+- Calls `setIsActivelyRunning(false)` and persists stopped status
 - Invokes any pending resolver functions (unblocking awaiting code), then calls `resetSession()`
 - Removes all tabs tracked in `openedTabIds`
 
@@ -111,7 +111,7 @@ dist/                   Compiled output (generated — do not edit)
 ### steps/fetch-activities.ts
 - Opens rewards.bing.com in a background tab
 - Waits up to 20s for content script to report extracted activities and daily sets
-- `buildSearchList()` maps each activity → search query via boilerplate stripping (`generateSearchQuery`)
+- Returns raw activities; query mapping is done by `buildSearchList()` in `util/activity.ts`
 
 ### steps/fetch-counters.ts
 - Sends `GET_COUNTERS` to the breakdown tab and polls up to 20 times (1s interval)
@@ -126,26 +126,29 @@ dist/                   Compiled output (generated — do not edit)
 - Resolves when the user clicks **Done** in the popup (`USER_ACTION_COMPLETE` message) or closes the tab directly
 
 ### steps/perform-search.ts
-- Pre-search dwell (5–7s), sends `PERFORM_SEARCH` to search-content.ts, post-search dwell (5–7s)
+- Pre-search `lingerOnPage()` dwell, sends `PERFORM_SEARCH` to search-content.ts, post-search `lingerOnPage()` dwell
 
 ### util/context.ts
-- `createContext()` returns `{ session, setState, dbg }` — a lightweight bundle passed through all orchestrators and steps so they don't import globals directly
+- `createContext()` returns `{ setState, dbg, setHeaderMessage }` — a lightweight bundle passed through all orchestrators and steps so they don't import globals directly
+- The `dbg` wrapper automatically tags each log entry with the currently active orchestrator's name (read from `state.ts` at call time)
 
 ### util/state.ts
-- `session` — in-memory ephemeral state (resets on service worker restart); `resetSession()` restores defaults
 - `setState` / `loadState` / `resetState` — write-through cache backed by `chrome.storage.local`
+- `isActivelyRunning` / `activeOrchestrator` — runtime-only flags (not persisted); reset on service worker restart
+  - `getIsActivelyRunning` / `setIsActivelyRunning` — guards the run loop
+  - `getActiveOrchestrator` / `setActiveOrchestrator` — tracks which orchestrator is currently executing; used by `context.ts` to label log entries
 
 ### util/config.ts
 - `PC_SEARCH_QUERIES` — pool of queries used by `farm-pc-searches.ts`
-- URLs, `MSG_ACTION`, and `CARD_STATE` constants shared across background, orchestrators, steps, and content scripts
+- URL constants (`REWARDS_URL`, `REWARDS_BREAKDOWN_URL`) shared across modules
 
 ### util/debug.ts
-- `dbg(type, message)` — appends to the in-memory log, persists to storage, and sends a `DEBUG_ENTRY` message to the popup
+- `dbg(type, message, orchestrator?)` — appends to the in-memory log, persists to storage, and sends a `DEBUG_ENTRY` message to the popup; `orchestrator` is stored on the entry and shown in the event log
 - Also exports debug shape types: `DomDebug`, `DailySetDebug`, `SearchCounterDebug` and their sub-types
 
 ### popup.ts
 - Real-time UI updates via `chrome.runtime.onMessage`
-- Debug panel with DOM extraction stats, search queue, and event log
+- Debug panel with per-orchestrator sections: Explore on Bing (DOM stats + cards + search queue), Daily Sets (stats + cards), PC Search Farming (counters), and Event Log
 - Start / Stop / Purge actions
 
 ### content/rewards-content.ts
@@ -176,7 +179,7 @@ Edit `src/content/rewards-content.ts`:
 
 ### Modifying Query Generation
 
-Edit `src/steps/fetch-activities.ts` → `generateSearchQuery`:
+Edit `src/util/activity.ts` → `generateSearchQuery`:
 
 - `BOILERPLATE` — regex patterns stripped from activity descriptions
 - Minimum useful length threshold (`base.length < 8` falls back to title)
@@ -274,7 +277,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### State Management
 - Persistent state stored in `chrome.storage.local`
-- In-memory state (`isActivelyRunning`, `pendingTabId`, etc.) resets on service worker restart
+- Runtime state (`isActivelyRunning`, `activeOrchestrator`) lives in `util/state.ts` and resets on service worker restart
 - `lastRunDate` comparison enables daily reset without manual clearing
 
 ### Tab Management
