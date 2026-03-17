@@ -3,6 +3,7 @@
 
 import { sleep, lingerOnPage } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
+import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { run as fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
@@ -24,15 +25,15 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
 
     await ctx.setState({ domDebug });
-    await ctx.dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
-    await ctx.dbg('info', `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`);
+    await ctx.dbg(DBG.INFO, `DOM scan: ${domDebug?.actionableActivities ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed`);
+    await ctx.dbg(DBG.INFO, `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`);
 
     const mapped = buildSearchList(activities);
     await ctx.setState({ mappedActivities: mapped });
     chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {});
 
     const unmapped = mapped.filter(m => m.unmatched).length;
-    await ctx.dbg('info', `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
+    await ctx.dbg(DBG.INFO, `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
 
     await ctx.setState({
       totalSearches:     mapped.length,
@@ -48,23 +49,23 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         const { query, title } = mapped[i];
 
         if (!query) {
-          await ctx.dbg('warn', `Skipping card ${i + 1} — no query could be generated for "${title}"`);
+          await ctx.dbg(DBG.WARN, `Skipping card ${i + 1} — no query could be generated for "${title}"`);
           continue;
         }
 
         const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
         await ctx.setState({ status: `Searching: "${label}"` });
-        await ctx.dbg('info', `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
+        await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
         // Set up capture before sending click — tab may open before sendMessage resolves
         const captureTabPromise = new Promise<chrome.tabs.Tab | null>(resolve => { this.captureNextTabResolve = resolve; });
 
         const clickResult = await chrome.tabs.sendMessage(this.rewardsTabId!, { action: MSG_ACTION.CLICK_CARD, index: i })
-          .catch((err: unknown) => { ctx.dbg('warn', `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
+          .catch((err: unknown) => { ctx.dbg(DBG.WARN, `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
 
         if (!clickResult?.clicked) {
           this.captureNextTabResolve = null;
-          await ctx.dbg('warn', `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
+          await ctx.dbg(DBG.WARN, `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
           continue;
         }
 
@@ -76,7 +77,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         }
 
         if (!searchTab) {
-          await ctx.dbg('warn', `No tab opened after clicking card "${title}"`);
+          await ctx.dbg(DBG.WARN, `No tab opened after clicking card "${title}"`);
           continue;
         }
 
@@ -102,7 +103,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           lastLabel:         query,
           status:            `Running (${completed} / ${mapped.length})`,
         });
-        await ctx.dbg('success', `Search ${completed}/${mapped.length} complete`);
+        await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
         await validateActivity.run(ctx, mapped[i], rewardsTabId!);
 
         ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completed, total: mapped.length, label: query });

@@ -1,9 +1,11 @@
-import type { DebugEntry, DomDebug, DailySetDebug, SearchCounterDebug } from './debug.js';
+import type { DebugEntry, ActivityScan } from './debug.js';
 import type { MappedActivity } from './activity.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
+
+export const PC_SEARCH_TYPE = 'pc search';
 
 export interface SearchCounter {
   type:    string;
@@ -21,10 +23,9 @@ export interface AppState {
   lastRunDate:         string | null;
   lastLabel:           string;
   debugLog:            DebugEntry[];
-  domDebug:            DomDebug | null;
-  dailySetDebug:       DailySetDebug | null;
+  domDebug:            ActivityScan | null;
+  dailySetDebug:       ActivityScan | null;
   searchCounters:      SearchCounter[];
-  searchCounterDebug:  SearchCounterDebug | null;
   mappedActivities:    MappedActivity[];
 }
 
@@ -41,7 +42,6 @@ export const INITIAL_STATE: AppState = {
   domDebug:             null,
   dailySetDebug:        null,
   searchCounters:       [],
-  searchCounterDebug:   null,
   mappedActivities:     [],
 };
 
