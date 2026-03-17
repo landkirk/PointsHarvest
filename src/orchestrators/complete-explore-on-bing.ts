@@ -9,9 +9,10 @@ import { run as fetchActivities, NotLoggedInError } from '../steps/fetch-activit
 import { buildSearchList } from '../util/activity.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as validateActivity from '../steps/validate-activity.js';
-import { getIsActivelyRunning } from './start-run.js';
+import { getIsActivelyRunning } from '../util/state.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
+  readonly name = 'Explore on Bing';
   private captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
   private rewardsTabId: number | null = null;
 
@@ -24,7 +25,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
     await ctx.setState({ domDebug });
     await ctx.dbg('info', `DOM scan: ${domDebug?.actionElementsFound ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed, ${domDebug?.skippedUnknown ?? 0} unknown (skipped)`);
-    await ctx.dbg('info', `Found ${activities.length} activit${activities.length === 1 ? 'y' : 'ies'}`);
+    await ctx.dbg('info', `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`);
 
     const mapped = buildSearchList(activities);
     await ctx.setState({ mappedActivities: mapped });

@@ -9,7 +9,7 @@ import type { SearchCounter } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as fetchCounters from '../steps/fetch-counters.js';
-import { getIsActivelyRunning } from './start-run.js';
+import { getIsActivelyRunning } from '../util/state.js';
 
 const MAX_NO_PROGRESS = 3;
 
@@ -18,6 +18,7 @@ function findPcCounter(counters: SearchCounter[] | undefined): SearchCounter | u
 }
 
 class FarmPcSearches extends OrchestratorBase {
+  readonly name = 'PC search farming';
   private breakdownTabId: number | null = null;
 
   async run(ctx: Context): Promise<void> {

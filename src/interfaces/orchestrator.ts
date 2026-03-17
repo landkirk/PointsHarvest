@@ -2,6 +2,7 @@ import { waitForTabLoad, closeOwnedTabs, openTab, type TabLoadState } from '../u
 import type { Context } from '../util/context.js';
 
 export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
+  abstract readonly name: string;
   protected stopped = false;
   protected openedTabIds = new Set<number>();
   protected tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
