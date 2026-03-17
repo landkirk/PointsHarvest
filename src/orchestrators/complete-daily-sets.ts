@@ -8,12 +8,13 @@ import type { DailySetDebug } from '../util/debug.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
 import * as validateActivity from '../steps/validate-activity.js';
 import { run as fetchActivities } from '../steps/fetch-activities.js';
-import { getIsActivelyRunning } from './start-run.js';
+import { getIsActivelyRunning } from '../util/state.js';
 
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
 class CompleteDailySets extends OrchestratorBase {
+  readonly name = 'Daily sets';
   private lingerTabId:   number | null = null;
   private lingerResolve: (() => void) | null = null;
 

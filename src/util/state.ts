@@ -1,5 +1,6 @@
 import type { DebugEntry, DomDebug, DailySetDebug, SearchCounterDebug } from './debug.js';
 import type { MappedActivity } from './activity.js';
+import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
@@ -45,6 +46,20 @@ export const INITIAL_STATE: AppState = {
 };
 
 let cache: AppState | null = null;
+
+// ── In-memory runtime state (not persisted) ────────────────────────────────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyOrchestrator = OrchestratorBase<any[]>;
+
+let isActivelyRunning = false;
+let activeOrchestrator: AnyOrchestrator | null = null;
+
+export function getIsActivelyRunning(): boolean { return isActivelyRunning; }
+export function setIsActivelyRunning(value: boolean): void { isActivelyRunning = value; }
+
+export function getActiveOrchestrator(): AnyOrchestrator | null { return activeOrchestrator; }
+export function setActiveOrchestrator(instance: AnyOrchestrator | null): void { activeOrchestrator = instance; }
 
 /** Load from storage into cache. Returns the loaded state. */
 export async function loadState(): Promise<AppState> {

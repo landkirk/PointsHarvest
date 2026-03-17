@@ -1,6 +1,6 @@
 import { MSG_ACTION } from './util/messaging.js';
-import { loadState, resetState } from './util/state.js';
-import { StartRun, getActiveOrchestrator, getIsActivelyRunning } from './orchestrators/start-run.js';
+import { loadState, resetState, getActiveOrchestrator, getIsActivelyRunning } from './util/state.js';
+import { StartRun } from './orchestrators/start-run.js';
 import { StopRun } from './orchestrators/stop-run.js';
 
 const startRun = new StartRun();

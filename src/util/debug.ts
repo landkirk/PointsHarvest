@@ -4,9 +4,10 @@ import { setState } from './state.js';
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
 
 export interface DebugEntry {
-  time: string;
-  type: DebugType;
-  message: string;
+  time:         string;
+  type:         DebugType;
+  message:      string;
+  orchestrator?: string;
 }
 
 export interface DomDebugCard {
@@ -37,6 +38,8 @@ export interface DailySetDebug {
   sectionFound:      boolean;
   totalActivities?:  number;
   actionable?:       number;
+  skippedLocked?:    number;
+  skippedCompleted?: number;
   activities?:       DailySetDebugActivity[];
 }
 
@@ -65,8 +68,8 @@ export function resetLog(): void {
 }
 
 /** Appends a typed log entry, persists to storage, and notifies the popup. */
-export async function dbg(type: DebugType, message: string): Promise<void> {
-  const entry: DebugEntry = { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type, message };
+export async function dbg(type: DebugType, message: string, orchestrator?: string): Promise<void> {
+  const entry: DebugEntry = { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type, message, orchestrator };
   log.push(entry);
   if (log.length > MAX_LOG_ENTRIES) log.shift();
   await setState({ debugLog: log });

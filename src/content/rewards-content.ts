@@ -63,6 +63,8 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: DailySetDeb
       sectionFound:     true,
       totalActivities:  els.length,
       actionable:       actionable.length,
+      skippedLocked:    debugActivities.filter(a => a.skipped === CARD_STATE.LOCKED).length,
+      skippedCompleted: debugActivities.filter(a => a.skipped === CARD_STATE.COMPLETED).length,
       activities:       debugActivities,
     },
   };
@@ -153,7 +155,7 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebug; card
   }
 
   const domDebug: DomDebug = {
-    totalCards:          allCards.length,
+    totalCards:          debugCards.length,
     actionElementsFound: cardEls.length,
     skippedLocked:       debugCards.filter(d => d.skipped === CARD_STATE.LOCKED).length,
     skippedCompleted:    debugCards.filter(d => d.skipped === CARD_STATE.COMPLETED).length,

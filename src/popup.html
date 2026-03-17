@@ -155,7 +155,9 @@
     .dbg-card .card-title.skipped { color: #888; }
     .dbg-card .card-desc  { color: #aaa; font-size: 10px; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .dbg-card .card-query { color: #3b82f6; font-size: 10px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .dbg-card .card-skip     { color: #ef4444; font-size: 10px; margin-top: 1px; }
+    .dbg-card .card-skip              { color: #ef4444; font-size: 10px; margin-top: 1px; }
+    .dbg-card .card-skip--locked      { color: #f59e0b; }
+    .dbg-card .card-skip--completed   { color: #22c55e; }
     .dbg-card .card-kw       { color: #aaa; font-size: 10px; }
     .dbg-card .card-fallback { color: #f59e0b; font-size: 10px; margin-top: 2px; }
     .dbg-card .card-query-fb { color: #f59e0b; font-size: 10px; margin-top: 2px; }
@@ -170,9 +172,10 @@
     .dbg-queue-item .idx { color: #777; margin-right: 4px; }
 
     /* Log entries */
-    .log-entry { display: flex; gap: 6px; padding: 1px 0; }
-    .log-entry .log-time { color: #777; flex-shrink: 0; }
-    .log-entry .log-msg  { color: #bbb; }
+    .log-entry { display: flex; gap: 6px; padding: 1px 0; align-items: baseline; }
+    .log-entry .log-time  { color: #777; flex-shrink: 0; }
+    .log-entry .log-orch  { color: #4b5563; font-size: 10px; flex-shrink: 0; font-style: italic; }
+    .log-entry .log-msg   { color: #bbb; }
     .log-entry.success .log-msg { color: #22c55e; }
     .log-entry.warn    .log-msg { color: #f59e0b; }
     .log-entry.error   .log-msg { color: #ef4444; }
@@ -190,7 +193,7 @@
     }
     .dom-stats span { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; }
 
-    #dbg-counters span.pc-active {
+    #dbg-pc-counters span.pc-active {
       font-weight: 700;
       color: #22c55e;
       border: 1px solid #166534;
@@ -217,24 +220,29 @@
   <div id="debug-panel">
 
     <div class="dbg-section">
-      <h2>Search Counters</h2>
-      <div class="dom-stats" id="dbg-counters">
-        <div class="dbg-empty">No data yet.</div>
-      </div>
-    </div>
-
-    <div class="dbg-section">
-      <h2>DOM Extraction</h2>
-      <div class="dom-stats" id="dom-stats"></div>
-      <div class="dbg-list" id="dbg-cards">
+      <h2>Explore on Bing</h2>
+      <div class="dom-stats" id="dbg-explore-stats"></div>
+      <div class="dbg-list" id="dbg-explore-cards">
         <div class="dbg-empty">Run the extension to see extraction results.</div>
       </div>
+      <div class="dbg-section-label" style="margin-top:8px">Search Queue</div>
+      <div class="dbg-list" id="dbg-explore-queue">
+        <div class="dbg-empty">Not yet built.</div>
+      </div>
     </div>
 
     <div class="dbg-section">
-      <h2>Search Queue</h2>
-      <div class="dbg-list" id="dbg-queue">
-        <div class="dbg-empty">Not yet built.</div>
+      <h2>Daily Sets</h2>
+      <div class="dom-stats" id="dbg-daily-stats"></div>
+      <div class="dbg-list" id="dbg-daily-cards">
+        <div class="dbg-empty">Run the extension to see results.</div>
+      </div>
+    </div>
+
+    <div class="dbg-section">
+      <h2>PC Search Farming</h2>
+      <div class="dom-stats" id="dbg-pc-counters">
+        <div class="dbg-empty">No data yet.</div>
       </div>
     </div>
 
