@@ -3,10 +3,10 @@
   "version": "1.3.0",
   "private": true,
   "scripts": {
-    "build": "tsc --noEmit && tsc -p tsconfig.build.json && npm run build:content && cp src/popup.html dist/popup.html",
-    "build:content": "esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022",
+    "build": "tsc --noEmit && tsc -p tsconfig.build.json && npm run build:content",
+    "build:content": "esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 && esbuild src/popup.html --loader:.html=copy --outdir=dist",
     "watch": "concurrently --names tsc,esbuild --prefix-colors blue,green \"tsc -p tsconfig.build.json --watch --preserveWatchOutput\" \"npm run watch:content\"",
-    "watch:content": "esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --watch"
+    "watch:content": "concurrently \"esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --watch\" \"esbuild src/popup.html --loader:.html=copy --outdir=dist --watch\""
   },
   "devDependencies": {
     "@types/chrome": "^0.0.324",
