@@ -1,5 +1,10 @@
 import { waitForTabLoad, closeOwnedTabs, openTab, type TabLoadState } from '../util/tabs.js';
+import { getIsActivelyRunning } from '../util/state.js';
 import type { Context } from '../util/context.js';
+
+export class StoppedError extends Error {
+  constructor() { super('Run stopped'); }
+}
 
 export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   abstract readonly name: string;
@@ -8,6 +13,16 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   protected tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
 
   abstract run(ctx: Context, ...args: TArgs): Promise<void>;
+
+  /** Throws StoppedError if stop() has been called or the run is no longer active. */
+  protected checkStopped(): void {
+    if (this.stopped || !getIsActivelyRunning()) throw new StoppedError();
+  }
+
+  /** Closes tabId then throws StoppedError if stopped; no-op otherwise. */
+  protected checkStoppedOrCloseTab(tabId: number): void {
+    try { this.checkStopped(); } catch (e) { this.closeTab(tabId); throw e; }
+  }
 
   /** Sets the stopped flag, resolves pending tab load, runs subclass cleanup, and closes owned tabs. */
   async stop(ctx: Context): Promise<void> {

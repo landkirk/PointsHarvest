@@ -10,7 +10,6 @@ import { run as fetchActivities, NotLoggedInError } from '../steps/fetch-activit
 import { buildSearchList } from '../util/activity.js';
 import * as performSearch from '../steps/perform-search.js';
 import * as validateActivity from '../steps/validate-activity.js';
-import { getIsActivelyRunning } from '../util/state.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   readonly name = 'Explore on Bing';
@@ -18,6 +17,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   private rewardsTabId: number | null = null;
 
   async run(ctx: Context, startIndex: number): Promise<void> {
+    this.checkStopped();
     const { activities, domDebug, loggedIn, rewardsTabId } = await fetchActivities(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
@@ -44,7 +44,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
     try {
       for (let i = startIndex; i < mapped.length; i++) {
-        if (!getIsActivelyRunning() || this.stopped) return;
+        this.checkStopped();
 
         const { query, title } = mapped[i];
 
@@ -85,16 +85,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});
 
         await this.waitForTabLoad(searchTab.id!, 30000);
-
-        if (!getIsActivelyRunning() || this.stopped) {
-          this.closeTab(searchTab.id!);
-          return;
-        }
+        this.checkStoppedOrCloseTab(searchTab.id!);
 
         await performSearch.run(ctx, searchTab.id!, query);
         this.closeTab(searchTab.id!);
-
-        if (!getIsActivelyRunning() || this.stopped) return;
+        this.checkStopped();
 
         const completed = i + 1;
         await ctx.setState({
@@ -104,13 +99,14 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           status:            `Running (${completed} / ${mapped.length})`,
         });
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
+        this.checkStopped();
         await validateActivity.run(ctx, mapped[i], rewardsTabId!);
 
         ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completed, total: mapped.length, label: query });
 
         if (i < mapped.length - 1) {
           await lingerOnPage('between searches');
-          if (!getIsActivelyRunning() || this.stopped) return;
+          this.checkStopped();
         }
       }
     } finally {
