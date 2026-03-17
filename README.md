@@ -139,19 +139,21 @@ Progress updates sent to popup in real time throughout
 
 ### Query generation
 
-The content script extracts the card's title and description from the DOM. The background generates a search query by stripping common "Search on Bing to/for…" prefixes from the description. If the remaining text is under 8 characters, the card title is used instead. The result is truncated to 80 characters.
+The content script extracts the card's title and description from the DOM. `buildSearchList()` in `util/activity.ts` maps each activity to a search query by stripping common "Search on Bing to/for…" prefixes from the description. If the remaining text is under 8 characters, the card title is used instead. The result is truncated to 80 characters.
 
 If both the description and title produce nothing usable, the activity is skipped — visible in debug mode as a warning.
 
 ## Debug mode
 
-Enable the **Debug mode** checkbox in the popup to reveal a panel with three sections:
+Enable the **Debug mode** checkbox in the popup to reveal a panel with four sections:
 
-**DOM Extraction** — shows stats from the rewards page scan (total cards, actionable cards found, locked cards skipped) and a card-by-card breakdown: what title/description was extracted and what search query was generated. Skipped cards are shown with the reason.
+**Explore on Bing** — stats from the rewards page scan (total cards, actionable, locked, completed) and a card-by-card breakdown: what title/description was extracted and what search query was generated. Skipped cards are shown with the reason. Below the cards is the full ordered search queue for the session.
 
-**Search Queue** — the full ordered list of queries that will be (or were) run for this session.
+**Daily Sets** — stats (total, actionable, locked, completed) and a card-by-card list of daily set activities. Skipped cards show the reason; actionable cards show the target URL.
 
-**Event Log** — a timestamped live log of what the background is doing: when it starts, how many activities it found, each search as it runs, timing delays, and completion. Entries are color-coded (green for success, orange for warnings, red for errors).
+**PC Search Farming** — the current and max search counts from the Bing breakdown page, updated after the farming phase runs.
+
+**Event Log** — a timestamped live log of what the background is doing: when it starts, how many activities it found, each search as it runs, timing delays, and completion. Each entry is labeled with the orchestrator that produced it. Entries are color-coded (green for success, orange for warnings, red for errors).
 
 If the DOM extraction finds 0 activities (e.g. the rewards page structure changed), the extension aborts with an error — check the debug panel for details.
 
