@@ -56,18 +56,23 @@ src/                    Source files (edit these)
     complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
   steps/
-    fetch-activities.ts     Open rewards tab, wait for content script, map cards to queries
+    fetch-activities.ts     Open rewards tab, wait for content script, return raw activities
     fetch-counters.ts       Poll breakdown tab for search point counters
     perform-search.ts       Dwell and execute a single search in a tab
     linger-on-tab.ts        Pause automation and wait for user to complete a tile
     validate-activity.ts    Confirm an activity is marked complete on the rewards page
   util/
-    config.ts           URLs and PC search query pool
+    activity.ts         Activity/MappedActivity types, CardState enum, buildSearchList()
+    config.ts           URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
     context.ts          createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
     debug.ts            Logging helpers (dbg, resetLog) and debug type definitions
+    messaging.ts        MSG_ACTION constants and MsgAction type
+    search-queries.ts   PC_SEARCH_QUERIES pool used by farm-pc-searches
     state.ts            chrome.storage.local persistent state + runtime state (activeOrchestrator, isActivelyRunning)
-    tabs.ts             Tab utilities (openTab, waitForTabLoad, closeRewardsTab)
-    timing.ts           randMs, sleep, lingerOnPage
+    tabs.ts             Tab utilities (openTab, waitForTabLoad, closeOwnedTabs)
+    timing.ts           randMs, sleep, lingerOnPage, TIMING presets
+  interfaces/
+    orchestrator.ts     OrchestratorBase abstract class
   content/
     rewards-content.ts  Content script injected into rewards.bing.com (bundled by esbuild)
     search-content.ts   Content script injected into www.bing.com (bundled by esbuild)
@@ -115,7 +120,7 @@ dist/                   Compiled output (generated — do not edit)
 
 ### steps/fetch-counters.ts
 - Sends `GET_COUNTERS` to the breakdown tab and polls up to 20 times (1s interval)
-- Returns `{ searchCounters, searchCounterDebug }` — counters are typed `{ type, current, max }`
+- Returns `SearchCounter[]` — each counter is typed `{ type, current, max }`
 
 ### steps/validate-activity.ts
 - Sends `VALIDATE_ACTIVITY` to the rewards tab content script after completing an activity
@@ -139,12 +144,14 @@ dist/                   Compiled output (generated — do not edit)
   - `getActiveOrchestrator` / `setActiveOrchestrator` — tracks which orchestrator is currently executing; used by `context.ts` to label log entries
 
 ### util/config.ts
-- `PC_SEARCH_QUERIES` — pool of queries used by `farm-pc-searches.ts`
 - URL constants (`REWARDS_URL`, `REWARDS_BREAKDOWN_URL`) shared across modules
+
+### util/search-queries.ts
+- `PC_SEARCH_QUERIES` — pool of queries used by `farm-pc-searches.ts`
 
 ### util/debug.ts
 - `dbg(type, message, orchestrator?)` — appends to the in-memory log, persists to storage, and sends a `DEBUG_ENTRY` message to the popup; `orchestrator` is stored on the entry and shown in the event log
-- Also exports debug shape types: `DomDebug`, `DailySetDebug`, `SearchCounterDebug` and their sub-types
+- Exports types: `DebugEntry`, `ActivityScan`, `ActivityScanEntry`
 
 ### popup.ts
 - Real-time UI updates via `chrome.runtime.onMessage`
@@ -166,8 +173,8 @@ dist/                   Compiled output (generated — do not edit)
 
 All timing uses `randMs(min, max)` with triangular distribution (defined in `util/timing.ts`). Named presets live in `TIMING` in `util/timing.ts`:
 
-- **Initial delay**: `TIMING.INITIAL_DELAY` (`0–8s`) in `orchestrators/start-run.ts` — delay before first search
-- **Page dwell**: `TIMING.LINGER_ON_PAGE` (`5–7s`) used by `lingerOnPage()` everywhere — between searches, on tile pages, after PC searches
+- **Page dwell**: `TIMING.LINGER_ON_PAGE` (`5–7s`) used by `lingerOnPage()` everywhere — before searches, after searches, between searches, on tile pages, after PC searches
+- `TIMING.INITIAL_DELAY` (`0–8s`) is defined but currently unused
 
 ### Modifying DOM Extraction
 
@@ -197,10 +204,10 @@ Edit `src/util/activity.ts` → `generateSearchQuery`:
 7. Monitor the debug panel for extraction results, search queue, and event log
 
 ### Testing Without Running Searches
-To test activity extraction without running searches, add a return statement in `orchestrators/start-run.ts` → `_executeRun` after the mapping step (after the `DEBUG_READY` message send):
+To test activity extraction without running searches, add a return statement in `orchestrators/complete-explore-on-bing.ts` → `run` after the mapping step (after the `ACTIVITIES_MAPPED` message send):
 
 ```typescript
-chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_READY }).catch(() => {});
+chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {});
 return; // Stop here for testing
 ```
 
@@ -291,11 +298,11 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD`, `VALIDATE_ACTIVITY` commands; `ACTIVITIES_FOUND` response)
 - `background.ts` ↔ breakdown tab: `GET_COUNTERS` request/response via `fetch-counters.ts`
 - `background.ts` → `search-content.ts`: one-way `PERFORM_SEARCH` command
-- Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `DEBUG_READY`, `COMPLETE`) pushed to popup during run
+- Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `ACTIVITIES_MAPPED`, `DEBUG_ENTRY`, `COMPLETE`) pushed to popup during run
 
 ### Randomization Strategy
 - Triangular distribution (`randMs`) biases toward middle of range — more human-like
-- Random initial delay (0–8s) before the first search each run
+- `TIMING.INITIAL_DELAY` range (0–8s) is defined in `util/timing.ts` but not currently wired up
 
 ## Chrome Extension Manifest V3 Notes
 

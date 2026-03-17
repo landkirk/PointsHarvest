@@ -16,7 +16,7 @@ This extension:
 1. Opens your Rewards dashboard in a background tab and waits for activity cards to render
 2. Extracts available "Search on Bing" activity cards (skipping locked or already-completed ones; treats in-progress cards as actionable)
 3. Maps each card to a search query by stripping the "Search on Bing to/for…" boilerplate from the description; falls back to the card title if the description is too short
-4. Clicks each card on the rewards page, which opens a Bing search tab, then performs the mapped query in that tab with randomized timing (1–3s dwell before search, 3–5s after, 1.8–5s between searches)
+4. Clicks each card on the rewards page, which opens a Bing search tab, then performs the mapped query in that tab with randomized timing (5–7s dwell before search, 5–7s after, 5–7s between searches)
 5. Closes each search tab when done
 6. Opens each daily set activity in a background tab; for quizzes, polls, tests, and puzzles it activates the tab and waits for you to complete them manually (click **Done** when finished); for other activity types it dwells briefly and closes automatically
 7. Closes the rewards tab after all cards and daily sets are processed
@@ -77,12 +77,17 @@ src/                  Source files (edit these)
     linger-on-tab.ts       Pause automation and wait for user to complete a tile
     validate-activity.ts   Confirm an activity is marked complete on the rewards page
   util/
-    config.ts         Static data: search pools, URL/count constants
+    activity.ts       Activity/MappedActivity types, CardState enum, buildSearchList()
+    config.ts         URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
     context.ts        createContext() — bundles session/setState/dbg for orchestrators
     debug.ts          Logging helpers and debug type definitions
+    messaging.ts      MSG_ACTION constants and MsgAction type
+    search-queries.ts PC_SEARCH_QUERIES pool used by farm-pc-searches
     state.ts          In-memory session + chrome.storage.local persistent state
-    tabs.ts           Tab utilities (waitForTabLoad, closeRewardsTab)
-    timing.ts         randMs, sleep, lingerOnPage
+    tabs.ts           Tab utilities (openTab, waitForTabLoad, closeOwnedTabs)
+    timing.ts         randMs, sleep, lingerOnPage, TIMING presets
+  interfaces/
+    orchestrator.ts   OrchestratorBase abstract class
   content/
     rewards-content.ts  Content script injected into rewards.bing.com
     search-content.ts   Content script injected into www.bing.com
@@ -105,17 +110,17 @@ extracts "Search on Bing" activities + daily set activities,
 sends them to background
        │
        ▼
-steps/fetch-activities.js maps each activity description → search query
-by stripping "Search on Bing to/for..." boilerplate
-(falls back to card title if description is too short)
+complete-explore-on-bing.js maps each activity description → search query
+via buildSearchList() in util/activity.ts, stripping "Search on Bing to/for..."
+boilerplate (falls back to card title if description is too short)
        │
        ▼
 orchestrators/complete-explore-on-bing.js —
 For each activity card:
   send clickCard → content script clicks the card
   → new Bing search tab opens → wait for tab to load
-  → pre-search dwell 1–3s → perform query → post-search dwell 3–5s
-  → close tab → delay 1.8–5s → next card
+  → pre-search dwell 5–7s → perform query → post-search dwell 5–7s
+  → close tab → delay 5–7s → next card
        │
        ▼
 orchestrators/complete-daily-sets.js —
@@ -124,8 +129,8 @@ For each daily set activity:
   if title matches quiz/poll/test/puzzle:
     → activate tab → wait for user to complete it → user clicks Done
   else:
-    → dwell 1.5–4s → close tab
-  → delay 1.5–4s → next activity
+    → dwell 5–7s → close tab
+  → delay 5–7s → next activity
        │
        ▼
 orchestrators/farm-pc-searches.js —
@@ -166,7 +171,7 @@ The debug panel also includes a **Purge all state** button that clears all store
 - Daily set activities that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
 - Uses triangular distribution for randomized timing to appear more human-like
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message
-- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (3–5s) should be sufficient, but you can increase it in `randMs(3000, 5000)` inside `src/steps/perform-search.ts` if you notice missed points
-- After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/config.ts`
+- Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (5–7s) should be sufficient, but you can increase it by raising `TIMING.LINGER_ON_PAGE` in `src/util/timing.ts` if you notice missed points
+- After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/search-queries.ts`
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - Service worker state is preserved across restarts, allowing mid-run resumption
