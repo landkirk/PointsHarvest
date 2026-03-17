@@ -192,6 +192,13 @@
       gap: 8px;
     }
     .dom-stats span { background: #1a1a1a; padding: 2px 6px; border-radius: 3px; }
+    .dom-stats span[data-filter] { cursor: pointer; }
+    .dom-stats span[data-filter]:hover { background: #252525; color: #ddd; }
+    .dom-stats span.filter-active { background: #1e3a5f; color: #60a5fa; outline: 1px solid #2563eb; }
+
+    .dbg-list[data-active-filter="actionable"] .dbg-card:not([data-status="actionable"]) { display: none; }
+    .dbg-list[data-active-filter="locked"]     .dbg-card:not([data-status="locked"])     { display: none; }
+    .dbg-list[data-active-filter="completed"]  .dbg-card:not([data-status="completed"])  { display: none; }
 
     #dbg-pc-counters span.pc-active {
       font-weight: 700;
@@ -221,21 +228,15 @@
 
     <div class="dbg-section">
       <h2>Explore on Bing</h2>
-      <div class="dom-stats" id="dbg-explore-stats"></div>
-      <div class="dbg-list" id="dbg-explore-cards">
-        <div class="dbg-empty">Run the extension to see extraction results.</div>
-      </div>
-      <div class="dbg-section-label" style="margin-top:8px">Search Queue</div>
-      <div class="dbg-list" id="dbg-explore-queue">
-        <div class="dbg-empty">Not yet built.</div>
+      <div id="dbg-explore">
+        <div class="dbg-list"><div class="dbg-empty">Run the extension to see extraction results.</div></div>
       </div>
     </div>
 
     <div class="dbg-section">
       <h2>Daily Sets</h2>
-      <div class="dom-stats" id="dbg-daily-stats"></div>
-      <div class="dbg-list" id="dbg-daily-cards">
-        <div class="dbg-empty">Run the extension to see results.</div>
+      <div id="dbg-daily">
+        <div class="dbg-list"><div class="dbg-empty">Run the extension to see results.</div></div>
       </div>
     </div>
 

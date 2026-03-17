@@ -1,26 +1,41 @@
 import { MSG_ACTION } from './util/messaging.js';
+import { CardState } from './util/activity.js';
+import { PC_SEARCH_TYPE } from './util/state.js';
 import type { AppState, SearchCounter } from './util/state.js';
-import type { DomDebug, DailySetDebug, DebugEntry } from './util/debug.js';
+import type { ActivityScan, DebugEntry } from './util/debug.js';
 import type { MappedActivity } from './util/activity.js';
 
-const dot              = document.getElementById('dot')!;
-const statusEl         = document.getElementById('status')!;
-const bar              = document.getElementById('progress-bar') as HTMLElement;
-const labelEl          = document.getElementById('progress-label')!;
-const btnStart         = document.getElementById('btn-start') as HTMLButtonElement;
-const btnStop          = document.getElementById('btn-stop') as HTMLElement;
-const btnDone          = document.getElementById('btn-done') as HTMLElement;
-const lastSearch       = document.getElementById('last-search')!;
-const debugCheck       = document.getElementById('debug-check') as HTMLInputElement;
-const debugPanel       = document.getElementById('debug-panel')!;
-const btnPurge         = document.getElementById('btn-purge')!;
-const dbgExploreStats  = document.getElementById('dbg-explore-stats')!;
-const dbgExploreCards  = document.getElementById('dbg-explore-cards')!;
-const dbgExploreQueue  = document.getElementById('dbg-explore-queue')!;
-const dbgDailyStats    = document.getElementById('dbg-daily-stats')!;
-const dbgDailyCards    = document.getElementById('dbg-daily-cards')!;
-const dbgPcCounters    = document.getElementById('dbg-pc-counters')!;
-const dbgLog           = document.getElementById('dbg-log')!;
+// ── Generic activity debug view ─────────────────────────────────────────────
+
+interface ActivityDebugItem {
+  title:        string;
+  description?: string;
+  skipReason?:  CardState | null;
+  action?:      string;
+}
+
+interface ActivityDebugData {
+  stats?:       { total: number; actionable: number; locked: number; completed: number };
+  items:        ActivityDebugItem[];
+  emptyMessage: string;
+  queue?:       string[];
+}
+
+const dot          = document.getElementById('dot')!;
+const statusEl     = document.getElementById('status')!;
+const bar          = document.getElementById('progress-bar') as HTMLElement;
+const labelEl      = document.getElementById('progress-label')!;
+const btnStart     = document.getElementById('btn-start') as HTMLButtonElement;
+const btnStop      = document.getElementById('btn-stop') as HTMLElement;
+const btnDone      = document.getElementById('btn-done') as HTMLElement;
+const lastSearch   = document.getElementById('last-search')!;
+const debugCheck   = document.getElementById('debug-check') as HTMLInputElement;
+const debugPanel   = document.getElementById('debug-panel')!;
+const btnPurge     = document.getElementById('btn-purge')!;
+const dbgExplore   = document.getElementById('dbg-explore')!;
+const dbgDaily     = document.getElementById('dbg-daily')!;
+const dbgPcCounters = document.getElementById('dbg-pc-counters')!;
+const dbgLog       = document.getElementById('dbg-log')!;
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
@@ -92,8 +107,8 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
       if (state) {
-        renderExploreSection(state.domDebug, state.mappedActivities as MappedActivity[]);
-        renderDailySection(state.dailySetDebug);
+        renderActivitySection(dbgExplore, exploreToActivityData(state.domDebug, state.mappedActivities as MappedActivity[]));
+        renderActivitySection(dbgDaily, dailySetsToActivityData(state.dailySetDebug));
         renderPcCounters(state.searchCounters);
       }
     });
@@ -142,129 +157,143 @@ debugCheck.addEventListener('change', () => {
 });
 
 function clearDebug(): void {
-  dbgExploreStats.innerHTML = '';
-  dbgExploreCards.innerHTML = '<div class="dbg-empty">Run the extension to see extraction results.</div>';
-  dbgExploreQueue.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
-  dbgDailyStats.innerHTML   = '';
-  dbgDailyCards.innerHTML   = '<div class="dbg-empty">Run the extension to see results.</div>';
-  dbgPcCounters.innerHTML   = '<div class="dbg-empty">No data yet.</div>';
-  dbgLog.innerHTML          = '<div class="dbg-empty">No events yet.</div>';
+  renderActivitySection(dbgExplore, { items: [], emptyMessage: 'Run the extension to see extraction results.' });
+  renderActivitySection(dbgDaily,   { items: [], emptyMessage: 'Run the extension to see results.' });
+  dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
+  dbgLog.innerHTML        = '<div class="dbg-empty">No events yet.</div>';
 }
 
 function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, debugLog }: AppState): void {
-  renderExploreSection(domDebug, mappedActivities as MappedActivity[]);
-  renderDailySection(dailySetDebug);
+  renderActivitySection(dbgExplore, exploreToActivityData(domDebug, mappedActivities as MappedActivity[]));
+  renderActivitySection(dbgDaily,   dailySetsToActivityData(dailySetDebug));
   renderPcCounters(searchCounters);
   renderLog(debugLog);
 }
 
-// ── Explore on Bing ────────────────────────────────────────────────────────
+// ── Generic activity section renderer ──────────────────────────────────────
 
-function renderExploreSection(domDebug: DomDebug | null, mappedActivities: MappedActivity[]): void {
-  renderExploreStats(domDebug);
-  renderExploreCards(domDebug, mappedActivities);
-  renderSearchQueue(mappedActivities);
-}
+function renderActivitySection(container: HTMLElement, data: ActivityDebugData): void {
+  let html = '';
 
-function renderStats(el: HTMLElement, total: number, actionable: number, locked: number, completed: number): void {
-  el.innerHTML = `
-    <span title="Total cards scanned">${total} cards</span>
-    <span title="Actionable cards found">${actionable} actionable</span>
-    <span title="Locked cards">${locked} locked</span>
-    <span title="Completed cards">${completed} completed</span>
-  `;
-}
-
-function renderExploreStats(domDebug: DomDebug | null): void {
-  if (!domDebug) { dbgExploreStats.innerHTML = ''; return; }
-  renderStats(dbgExploreStats, domDebug.totalCards, domDebug.actionElementsFound, domDebug.skippedLocked, domDebug.skippedCompleted);
-}
-
-function renderExploreCards(domDebug: DomDebug | null, mappedActivities: MappedActivity[]): void {
-  const skipped = (domDebug?.cards ?? []).filter(c => c.skipped);
-  const items   = mappedActivities ?? [];
-
-  if (!domDebug && items.length === 0) {
-    dbgExploreCards.innerHTML = '<div class="dbg-empty">Run the extension to see extraction results.</div>';
-    return;
-  }
-  if (items.length === 0 && skipped.length === 0) {
-    dbgExploreCards.innerHTML = '<div class="dbg-empty">No activity cards found.</div>';
-    return;
+  if (data.stats) {
+    const { total, actionable, locked, completed } = data.stats;
+    html += `
+      <div class="dom-stats">
+        <span data-filter="all"                      title="Show all">${total} cards</span>
+        <span data-filter="${CardState.Actionable}" title="Show actionable only">${actionable} actionable</span>
+        <span data-filter="${CardState.Locked}"     title="Show locked only">${locked} locked</span>
+        <span data-filter="${CardState.Completed}"  title="Show completed only">${completed} completed</span>
+      </div>`;
   }
 
-  dbgExploreCards.innerHTML = items.map(a => `
-    <div class="dbg-card">
-      <div class="card-title${a.unmatched ? ' skipped' : ''}">${esc(a.title || '(no title)')}</div>
-      <div class="card-desc">${esc(a.description || '')}</div>
-      ${a.unmatched
-        ? '<div class="card-skip">No query could be generated — skipped</div>'
-        : `<div class="card-query">→ ${esc(a.query!)}</div>`
-      }
-    </div>
-  `).join('') + skipped.map(c => `
-    <div class="dbg-card">
-      <div class="card-title skipped">${esc(c.cardSnippet || '(no title)')}</div>
-      <div class="card-skip card-skip--${esc(c.skipped ?? '')}">Skipped: ${esc(c.skipped ?? '')}</div>
-    </div>
-  `).join('');
-}
-
-function renderSearchQueue(mappedActivities: MappedActivity[]): void {
-  const queue = (mappedActivities ?? []).filter(m => m.query).map(m => m.query as string);
-  if (queue.length === 0) {
-    dbgExploreQueue.innerHTML = '<div class="dbg-empty">Not yet built.</div>';
-    return;
-  }
-  dbgExploreQueue.innerHTML = queue.map((q, i) => `
-    <div class="dbg-queue-item">
-      <span class="idx">${i + 1}.</span>${esc(q)}
-    </div>
-  `).join('');
-}
-
-// ── Daily Sets ─────────────────────────────────────────────────────────────
-
-function renderDailySection(dailySetDebug: DailySetDebug | null): void {
-  if (!dailySetDebug) {
-    dbgDailyStats.innerHTML = '';
-    dbgDailyCards.innerHTML = '<div class="dbg-empty">Run the extension to see results.</div>';
-    return;
-  }
-
-  if (!dailySetDebug.sectionFound) {
-    dbgDailyStats.innerHTML = '<span>Section not found</span>';
+  if (data.items.length === 0) {
+    html += `<div class="dbg-list"><div class="dbg-empty">${esc(data.emptyMessage)}</div></div>`;
   } else {
-    const acts = dailySetDebug.activities ?? [];
-    renderStats(dbgDailyStats, acts.length, dailySetDebug.actionable ?? 0, dailySetDebug.skippedLocked ?? 0, dailySetDebug.skippedCompleted ?? 0);
+    html += '<div class="dbg-list">' + data.items.map(item => `
+      <div class="dbg-card" data-status="${esc(item.skipReason ?? CardState.Actionable)}">
+        <div class="card-title${item.skipReason ? ' skipped' : ''}">${esc(item.title)}</div>
+        ${item.description ? `<div class="card-desc">${esc(item.description)}</div>` : ''}
+        ${item.skipReason
+          ? `<div class="card-skip card-skip--${esc(item.skipReason)}">Skipped: ${esc(item.skipReason)}</div>`
+          : item.action
+            ? `<div class="card-query" title="${esc(item.action)}">→ ${esc(item.action)}</div>`
+            : ''
+        }
+      </div>
+    `).join('') + '</div>';
   }
 
-  const activities = dailySetDebug.activities ?? [];
-  if (activities.length === 0) {
-    dbgDailyCards.innerHTML = '<div class="dbg-empty">No daily set activities found.</div>';
-    return;
+  if (data.queue !== undefined) {
+    html += '<div class="dbg-section-label" style="margin-top:8px">Search Queue</div>';
+    if (data.queue.length === 0) {
+      html += '<div class="dbg-list"><div class="dbg-empty">Not yet built.</div></div>';
+    } else {
+      html += '<div class="dbg-list">' + data.queue.map((q, i) => `
+        <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
+      `).join('') + '</div>';
+    }
   }
 
-  dbgDailyCards.innerHTML = activities.map(t => `
-    <div class="dbg-card">
-      <div class="card-title${t.skipped ? ' skipped' : ''}">${esc(t.snippet || t.biId || '(no title)')}</div>
-      ${t.skipped
-        ? `<div class="card-skip card-skip--${esc(t.skipped)}">Skipped: ${esc(t.skipped)}</div>`
-        : `<div class="card-query" title="${esc(t.href ?? '')}">→ ${esc(t.href ?? '')}</div>`
-      }
-    </div>
-  `).join('');
+  container.innerHTML = html;
+
+  // Attach filter delegation once per container (survives re-renders).
+  if (!container.dataset.filterInit) {
+    container.dataset.filterInit = '1';
+    container.addEventListener('click', (e) => {
+      const span = (e.target as Element).closest<HTMLElement>('[data-filter]');
+      if (!span) return;
+      const filter = span.dataset.filter!;
+      const list = container.querySelector<HTMLElement>('.dbg-list');
+      if (!list) return;
+
+      const next = (filter === 'all' || list.dataset.activeFilter === filter) ? '' : filter;
+      list.dataset.activeFilter = next;
+      container.querySelectorAll<HTMLElement>('[data-filter]').forEach(s => {
+        s.classList.toggle('filter-active', !!next && s.dataset.filter === next);
+      });
+    });
+  }
+}
+
+// ── Adapters: map state to ActivityDebugData ────────────────────────────────
+
+function buildScanStats(scan: ActivityScan): { total: number; actionable: number; locked: number; completed: number } {
+  return {
+    total:      scan.actionableActivities + scan.activities.length,
+    actionable: scan.actionableActivities,
+    locked:     scan.skippedLocked,
+    completed:  scan.skippedCompleted,
+  };
+}
+
+function exploreToActivityData(scan: ActivityScan | null, mappedActivities: MappedActivity[]): ActivityDebugData {
+  if (!scan && mappedActivities.length === 0) {
+    return { items: [], emptyMessage: 'Run the extension to see extraction results.', queue: undefined };
+  }
+
+  const items: ActivityDebugItem[] = [
+    ...mappedActivities.map(a => ({
+      title:       a.title || '(no title)',
+      description: a.description || undefined,
+      skipReason:  a.unmatched ? CardState.Unknown : null,
+      action:      a.unmatched ? undefined : a.query ?? undefined,
+    })),
+    ...(scan?.activities ?? []).map(c => ({
+      title:      c.snippet,
+      skipReason: c.skipReason,
+    })),
+  ];
+
+  const stats = scan ? buildScanStats(scan) : undefined;
+
+  const queue = mappedActivities.filter(m => m.query).map(m => m.query as string);
+
+  return { stats, items, emptyMessage: 'No activity cards found.', queue };
+}
+
+function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
+  if (!scan) {
+    return { items: [], emptyMessage: 'Run the extension to see results.' };
+  }
+
+  const items: ActivityDebugItem[] = scan.activities.map(t => ({
+    title:      t.snippet || '(no title)',
+    skipReason: t.skipReason,
+    action:     t.skipReason ? undefined : t.href ?? undefined,
+  }));
+
+  return { stats: buildScanStats(scan), items, emptyMessage: 'No daily set activities found.' };
 }
 
 // ── PC Search Farming ──────────────────────────────────────────────────────
 
 function renderPcCounters(searchCounters: SearchCounter[]): void {
-  if (!searchCounters || searchCounters.length === 0) {
+  if (searchCounters.length === 0) {
     dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
     return;
   }
   dbgPcCounters.innerHTML = searchCounters.map(c => {
-    const isPC = c.type.toLowerCase() === 'pc search';
+    const isPC = c.type.toLowerCase() === PC_SEARCH_TYPE;
     const cls  = isPC ? ' class="pc-active"' : '';
     return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
   }).join('');

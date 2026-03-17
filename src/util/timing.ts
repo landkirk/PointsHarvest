@@ -1,4 +1,4 @@
-import { dbg } from './debug.js';
+import { dbg, DBG } from './debug.js';
 
 // Named timing ranges — change here to affect all call sites.
 export const TIMING: Record<string, [number, number]> = {
@@ -18,6 +18,6 @@ export function sleep(ms: number): Promise<void> {
 /** Dwell on a page for a random 5–7s and log it. */
 export async function lingerOnPage(label = 'page'): Promise<void> {
   const ms = randMs(...TIMING.LINGER_ON_PAGE);
-  await dbg('info', `Lingering on ${label} for ${(ms / 1000).toFixed(1)}s`);
+  await dbg(DBG.INFO, `Lingering on ${label} for ${(ms / 1000).toFixed(1)}s`);
   await sleep(ms);
 }

@@ -1,11 +1,11 @@
-import type { DomDebug, DailySetDebug } from './debug.js';
+import type { ActivityScan } from './debug.js';
 
 export interface ActivitiesResult {
-  activities:      Activity[];
-  domDebug:        DomDebug | null;
-  dailySets?:      Activity[];
-  dailySetDebug?:  DailySetDebug | null;
-  loggedIn:        boolean;
+  activities:   Activity[];
+  domDebug:     ActivityScan | null;
+  dailySets?:   Activity[];
+  dailySetDebug?: ActivityScan | null;
+  loggedIn:     boolean;
 }
 
 export interface Activity {
@@ -19,15 +19,14 @@ export interface MappedActivity extends Activity {
   unmatched: boolean;
 }
 
-export type CardState = 'actionable' | 'completed' | 'locked' | 'unknown' | 'not-found';
-
-export const CARD_STATE: Record<string, CardState> = {
-  ACTIONABLE: 'actionable',
-  COMPLETED:  'completed',
-  LOCKED:     'locked',
-  UNKNOWN:    'unknown',
-  NOT_FOUND:  'not-found',
-};
+export const enum CardState {
+  Actionable = 'actionable',
+  Completed  = 'completed',
+  Locked     = 'locked',
+  Unknown    = 'unknown',
+  NotFound   = 'not-found',
+  NoHref     = 'no-href',
+}
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
 // descriptions and returns the remainder as a usable search query.

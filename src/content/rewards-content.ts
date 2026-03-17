@@ -5,15 +5,27 @@
 // Actionable cards are <a class="ds-card-sec"> elements; locked cards are <div class="locked-card">.
 // "Search on Bing" activities are identified via aria-label on the card element.
 
-import { CARD_STATE } from '../util/activity.js';
+import { CardState } from '../util/activity.js';
 import { MSG_ACTION } from '../util/messaging.js';
-import type { CardState } from '../util/activity.js';
 import type { MsgAction } from '../util/messaging.js';
 import type { Activity } from '../util/activity.js';
-import type { DomDebug, DomDebugCard, DailySetDebug, DailySetDebugActivity, SearchCounterDebugCard } from '../util/debug.js';
+import type { ActivityScan, ActivityScanEntry } from '../util/debug.js'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 
 const SEARCH_ON_BING_RE = /search on bing/i;
+
+function countSkipped(entries: ActivityScanEntry[], reason: CardState): number {
+  return entries.filter(a => a.skipReason === reason).length;
+}
+
+function buildActivityScan(entries: ActivityScanEntry[], actionableCount: number): ActivityScan {
+  return {
+    actionableActivities: actionableCount,
+    skippedLocked:        countSkipped(entries, CardState.Locked),
+    skippedCompleted:     countSkipped(entries, CardState.Completed),
+    activities:           entries,
+  };
+}
 const MAX_WAIT_MS    = 15000;
 const POLL_INTERVAL_MS = 500;
 
@@ -23,98 +35,70 @@ let extractedCardEls: HTMLAnchorElement[] = [];
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
 function determineCardState(card: Element): CardState {
-  if (card.closest('.locked-card'))                               return CARD_STATE.LOCKED;
-  if (card.getAttribute('aria-disabled') === 'true')              return CARD_STATE.LOCKED;
-  if (card.querySelector('[aria-label="Points you have earned"]')) return CARD_STATE.COMPLETED;
-  if (card.querySelector('[aria-label="Points in progress"]'))     return CARD_STATE.ACTIONABLE;
-  if (card.querySelector('[aria-label="Points you will earn"]'))   return CARD_STATE.ACTIONABLE;
-  return CARD_STATE.UNKNOWN;
+  if (card.closest('.locked-card'))                               return CardState.Locked;
+  if (card.getAttribute('aria-disabled') === 'true')              return CardState.Locked;
+  if (card.querySelector('[aria-label="Points you have earned"]')) return CardState.Completed;
+  if (card.querySelector('[aria-label="Points in progress"]'))     return CardState.Actionable;
+  if (card.querySelector('[aria-label="Points you will earn"]'))   return CardState.Actionable;
+  return CardState.Unknown;
 }
 
 // Returns { dailySets, dailySetDebug }
-function extractDailySets(): { dailySets: Activity[]; dailySetDebug: DailySetDebug } {
+function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivityScan | null } {
   const container = document.querySelector('#daily-sets');
-  if (!container) return { dailySets: [], dailySetDebug: { sectionFound: false } };
+  if (!container) return { dailySets: [], dailySetDebug: null };
 
   const els = Array.from(container.querySelectorAll('a.ds-card-sec'));
 
   const actionable: Activity[] = [];
-  const debugActivities: DailySetDebugActivity[] = [];
+  const activities: ActivityScanEntry[] = [];
 
   for (const el of els) {
     const state     = determineCardState(el);
     const ariaLabel = el.getAttribute('aria-label') || '';
     const href      = (el as HTMLAnchorElement).href || '';
-    const biId      = el.getAttribute('data-bi-id') || '';
     const snippet   = ariaLabel.slice(0, 80);
 
-    if (state !== CARD_STATE.ACTIONABLE || !href) {
-      debugActivities.push({ skipped: !href ? 'no-href' : state, snippet, biId });
+    if (state !== CardState.Actionable || !href) {
+      activities.push({ skipReason: !href ? CardState.NoHref : state, snippet });
       continue;
     }
 
-    debugActivities.push({ href, snippet, biId, skipped: null });
-    actionable.push({ href, title: ariaLabel || biId, description: '' });
+    activities.push({ href, snippet, skipReason: null });
+    actionable.push({ href, title: ariaLabel, description: '' });
   }
 
   return {
     dailySets: actionable,
-    dailySetDebug: {
-      sectionFound:     true,
-      totalActivities:  els.length,
-      actionable:       actionable.length,
-      skippedLocked:    debugActivities.filter(a => a.skipped === CARD_STATE.LOCKED).length,
-      skippedCompleted: debugActivities.filter(a => a.skipped === CARD_STATE.COMPLETED).length,
-      activities:       debugActivities,
-    },
+    dailySetDebug: buildActivityScan(activities, actionable.length),
   };
 }
 
 // Returns { searchCounters, searchCounterDebug }
-function extractSearchCounters(): { searchCounters: object[]; searchCounterDebug: object } {
-  const cards = Array.from(document.querySelectorAll('.pointsBreakdownCard'));
-  if (!cards.length) return { searchCounters: [], searchCounterDebug: { sectionFound: false } };
-
+function extractSearchCounters(): { searchCounters: { type: string; current: number; max: number }[] } {
+  const cards    = Array.from(document.querySelectorAll('.pointsBreakdownCard'));
   const counters: { type: string; current: number; max: number }[] = [];
-  const debugCards: SearchCounterDebugCard[] = [];
 
   for (const card of cards) {
-    const typeEl   = card.querySelector('.title-detail p');
-    const type     = typeEl?.textContent?.trim() || '';
-    const pointsEl = card.querySelector('p.pointsDetail');
-    const rawText  = pointsEl?.textContent?.trim() || '';
+    const type    = card.querySelector('.title-detail p')?.textContent?.trim() || '';
+    const rawText = card.querySelector('p.pointsDetail')?.textContent?.trim() || '';
 
     // rawText example: "5 / 150"
     const parts   = rawText.split('/');
-    if (parts.length < 2) {
-      debugCards.push({ skipped: 'parse-failed', type, rawText });
-      continue;
-    }
+    if (parts.length < 2) continue;
+
     const current = parseInt(parts[0].trim());
     const max     = parseInt(parts[1].trim());
+    if (!type || isNaN(current) || isNaN(max)) continue;
 
-    if (!type || isNaN(current) || isNaN(max)) {
-      debugCards.push({ skipped: 'parse-failed', type, rawText });
-      continue;
-    }
-
-    debugCards.push({ type, current, max, skipped: null });
     counters.push({ type, current, max });
   }
 
-  return {
-    searchCounters: counters,
-    searchCounterDebug: {
-      sectionFound: true,
-      total:        cards.length,
-      extracted:    counters.length,
-      cards:        debugCards,
-    },
-  };
+  return { searchCounters: counters };
 }
 
 // Returns { activities, domDebug, cardEls }
-function extractActivities(): { activities: Activity[]; domDebug: DomDebug; cardEls: HTMLAnchorElement[] } {
+function extractActivities(): { activities: Activity[]; domDebug: ActivityScan; cardEls: HTMLAnchorElement[] } {
   // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
   const allCards = [
     ...document.querySelectorAll('.locked-card'),
@@ -123,7 +107,7 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebug; card
 
   const activities: Activity[] = [];
   const cardEls: HTMLAnchorElement[] = [];
-  const debugCards: DomDebugCard[] = [];
+  const skipped: ActivityScanEntry[] = [];
 
   for (const card of allCards) {
     const ariaLabel = card.getAttribute('aria-label') || '';
@@ -131,10 +115,10 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebug; card
 
     if (!SEARCH_ON_BING_RE.test(ariaLabel) && !SEARCH_ON_BING_RE.test(cardText)) continue;
 
-    const descText = (ariaLabel || cardText.trim()).slice(0, 120);
-    const state    = determineCardState(card);
-    if (state !== CARD_STATE.ACTIONABLE) {
-      debugCards.push({ skipped: state, cardSnippet: descText });
+    const snippet = (ariaLabel || cardText.trim()).slice(0, 120);
+    const state   = determineCardState(card);
+    if (state !== CardState.Actionable) {
+      skipped.push({ skipReason: state, snippet });
       continue;
     }
 
@@ -148,20 +132,12 @@ function extractActivities(): { activities: Activity[]; domDebug: DomDebug; card
       : parts.slice(1).join(', ');
     const href = (card as HTMLAnchorElement).href || '';
 
-    debugCards.push({ title, description, href: href || null, skipped: null });
     if (!href) continue;
     activities.push({ title, description, href });
     cardEls.push(card as HTMLAnchorElement);
   }
 
-  const domDebug: DomDebug = {
-    totalCards:          debugCards.length,
-    actionElementsFound: cardEls.length,
-    skippedLocked:       debugCards.filter(d => d.skipped === CARD_STATE.LOCKED).length,
-    skippedCompleted:    debugCards.filter(d => d.skipped === CARD_STATE.COMPLETED).length,
-    skippedUnknown:      debugCards.filter(d => d.skipped === CARD_STATE.UNKNOWN).length,
-    cards:               debugCards,
-  };
+  const domDebug = buildActivityScan(skipped, cardEls.length);
 
   return { activities, domDebug, cardEls };
 }
@@ -211,7 +187,7 @@ function waitAndExtract(): void {
     const { activities, domDebug, cardEls } = extractActivities();
     const { dailySets, dailySetDebug }       = extractDailySets();
 
-    if (activities.length > 0 || dailySets.length > 0 || domDebug.totalCards > 0 || dailySetDebug.sectionFound || Date.now() - start >= MAX_WAIT_MS) {
+    if (activities.length > 0 || dailySets.length > 0 || domDebug.actionableActivities > 0 || dailySetDebug !== null || Date.now() - start >= MAX_WAIT_MS) {
       extractedCardEls = cardEls;
       chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
     } else {
@@ -244,15 +220,15 @@ chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; 
   }
 
   if (msg.action === MSG_ACTION.GET_COUNTERS) {
-    const { searchCounters, searchCounterDebug } = extractSearchCounters();
-    sendResponse({ searchCounters, searchCounterDebug });
+    const { searchCounters } = extractSearchCounters();
+    sendResponse({ searchCounters });
     return true;
   }
 
   if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
     const els = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.ds-card-sec'));
     const match = els.find(el => el.href === msg.href);
-    sendResponse({ state: match ? determineCardState(match) : CARD_STATE.NOT_FOUND });
+    sendResponse({ state: match ? determineCardState(match) : CardState.NotFound });
     return true;
   }
 });

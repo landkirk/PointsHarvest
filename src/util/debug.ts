@@ -1,7 +1,15 @@
 import { MSG_ACTION } from './messaging.js';
 import { setState } from './state.js';
+import type { CardState } from './activity.js';
 
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
+
+export const DBG = {
+  INFO:    'info',
+  WARN:    'warn',
+  ERROR:   'error',
+  SUCCESS: 'success',
+} as const satisfies Record<string, DebugType>;
 
 export interface DebugEntry {
   time:         string;
@@ -10,52 +18,17 @@ export interface DebugEntry {
   orchestrator?: string;
 }
 
-export interface DomDebugCard {
-  skipped:      string | null;
-  cardSnippet?: string;
-  title?:       string;
-  description?: string;
-  href?:        string | null;
+export interface ActivityScanEntry {
+  skipReason: CardState | null;
+  snippet:    string;
+  href?:      string;
 }
 
-export interface DomDebug {
-  totalCards:          number;
-  actionElementsFound: number;
-  skippedLocked:       number;
-  skippedCompleted:    number;
-  skippedUnknown:      number;
-  cards:               DomDebugCard[];
-}
-
-export interface DailySetDebugActivity {
-  skipped:  string | null;
-  snippet:  string;
-  biId:     string;
-  href?:    string;
-}
-
-export interface DailySetDebug {
-  sectionFound:      boolean;
-  totalActivities?:  number;
-  actionable?:       number;
-  skippedLocked?:    number;
-  skippedCompleted?: number;
-  activities?:       DailySetDebugActivity[];
-}
-
-export interface SearchCounterDebugCard {
-  skipped:   string | null;
-  type:      string;
-  rawText?:  string;
-  current?:  number;
-  max?:      number;
-}
-
-export interface SearchCounterDebug {
-  sectionFound: boolean;
-  total?:       number;
-  extracted?:   number;
-  cards?:       SearchCounterDebugCard[];
+export interface ActivityScan {
+  actionableActivities: number;
+  skippedLocked:        number;
+  skippedCompleted:     number;
+  activities:           ActivityScanEntry[];
 }
 
 const MAX_LOG_ENTRIES = 100;
