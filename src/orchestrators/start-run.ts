@@ -1,5 +1,4 @@
 import { MSG_ACTION } from '../util/messaging.js';
-import { randMs, sleep, TIMING } from '../util/timing.js';
 import { resetLog } from '../util/debug.js';
 import { loadState, resetState, getIsActivelyRunning, setIsActivelyRunning, setActiveOrchestrator } from '../util/state.js';
 import { createContext } from '../util/context.js';
@@ -45,10 +44,6 @@ class StartRun {
     if (!getIsActivelyRunning()) return;
 
     const startIndex = (lastRunDate === today && currentIndex > 0 && !alreadyDone) ? currentIndex : 0;
-
-    const initialDelay = randMs(...TIMING.INITIAL_DELAY);
-    await ctx.dbg('info', `Initial delay: ${(initialDelay / 1000).toFixed(1)}s`);
-    await sleep(initialDelay);
 
     if (!getIsActivelyRunning()) return;
 
