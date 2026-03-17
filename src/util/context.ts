@@ -1,4 +1,4 @@
-import { setState } from './state.js';
+import { setState, getActiveOrchestrator } from './state.js';
 import { dbg } from './debug.js';
 import { MSG_ACTION } from './messaging.js';
 import type { AppState } from './state.js';
@@ -14,7 +14,9 @@ export interface Context {
 export function createContext(): Context {
   return {
     setState,
-    dbg,
+    dbg(type: DebugType, message: string): Promise<void> {
+      return dbg(type, message, getActiveOrchestrator()?.name);
+    },
     setHeaderMessage(payload: ProgressPayload): void {
       chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload }).catch(() => {});
     },
