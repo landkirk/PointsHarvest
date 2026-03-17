@@ -6,7 +6,7 @@ import { lingerOnPage } from '../util/timing.js';
 import { openTab } from '../util/tabs.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
-import { PC_SEARCH_TYPE, getIsActivelyRunning } from '../util/state.js';
+import { PC_SEARCH_TYPE } from '../util/state.js';
 import type { SearchCounter } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import * as performSearch from '../steps/perform-search.js';
@@ -29,6 +29,8 @@ class FarmPcSearches extends OrchestratorBase {
       this.breakdownTabId = tab.id!;
     }
 
+    this.checkStopped();
+
     try {
       await this._farm(ctx);
     } finally {
@@ -47,6 +49,7 @@ class FarmPcSearches extends OrchestratorBase {
   }
 
   private async _farm(ctx: Context): Promise<void> {
+    this.checkStopped();
     const searchCounters = await fetchCounters.run(ctx, this.breakdownTabId);
     const counter = findPcCounter(searchCounters);
 
@@ -71,7 +74,9 @@ class FarmPcSearches extends OrchestratorBase {
     const shuffled = [...PC_SEARCH_QUERIES].sort(() => Math.random() - 0.5);
     let shuffleIndex = 0;
 
-    while (current < max && getIsActivelyRunning() && !this.stopped) {
+    while (current < max) {
+      this.checkStopped();
+
       if (shuffleIndex >= shuffled.length) {
         await ctx.dbg(DBG.ERROR, 'PC farm aborted: queries exhausted');
         break;
@@ -80,18 +85,14 @@ class FarmPcSearches extends OrchestratorBase {
 
       const tab = await this.openManagedTab('https://www.bing.com', true);
       await this.waitForTabLoad(tab.id!, 30000);
-
-      if (!getIsActivelyRunning() || this.stopped) {
-        this.closeTab(tab.id!);
-        return;
-      }
+      this.checkStoppedOrCloseTab(tab.id!);
 
       await performSearch.run(ctx, tab.id!, query);
       this.closeTab(tab.id!);
-
-      if (!getIsActivelyRunning() || this.stopped) return;
+      this.checkStopped();
 
       await lingerOnPage('after PC search');
+      this.checkStopped();
 
       const updated = await fetchCounters.run(ctx, this.breakdownTabId);
       const updatedCounter = findPcCounter(updated);
