@@ -8,7 +8,6 @@ import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import * as lingerOnTab from '../steps/linger-on-tab.js';
 import * as validateActivity from '../steps/validate-activity.js';
 import { run as fetchActivities } from '../steps/fetch-activities.js';
-import { getIsActivelyRunning } from '../util/state.js';
 
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
@@ -19,6 +18,7 @@ class CompleteDailySets extends OrchestratorBase {
   private lingerResolve: (() => void) | null = null;
 
   async run(ctx: Context): Promise<void> {
+    this.checkStopped();
     const { dailySets = [], dailySetDebug = null, loggedIn, rewardsTabId } = await fetchActivities(ctx);
     if (!loggedIn) { await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping'); return; }
 
@@ -36,7 +36,7 @@ class CompleteDailySets extends OrchestratorBase {
       await ctx.dbg(DBG.INFO, `Starting daily sets: ${dailySets.length} activity/activities`);
 
       for (let i = 0; i < dailySets.length; i++) {
-        if (!getIsActivelyRunning() || this.stopped) return;
+        this.checkStopped();
 
         const { href, title } = dailySets[i];
         const label = (title || href || '').slice(0, 60);
@@ -50,11 +50,7 @@ class CompleteDailySets extends OrchestratorBase {
           continue;
         }
         await this.waitForTabLoad(tab.id!, 15000);
-
-        if (!getIsActivelyRunning() || this.stopped) {
-          this.closeTab(tab.id!);
-          return;
-        }
+        this.checkStoppedOrCloseTab(tab.id!);
 
         if (USER_ACTION_RE.test(title)) {
           await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
@@ -62,19 +58,22 @@ class CompleteDailySets extends OrchestratorBase {
             onResolve: r => { this.lingerResolve = r; },
             onTabId:   id => { this.lingerTabId = id; },
           });
+          this.checkStopped();
           if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         } else {
           await lingerOnPage('daily set activity');
+          this.checkStoppedOrCloseTab(tab.id!);
           this.closeTab(tab.id!);
           if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
         }
 
+        this.checkStopped();
         await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
         ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completed: i + 1, total: dailySets.length });
 
         if (i < dailySets.length - 1) {
-          if (!getIsActivelyRunning() || this.stopped) return;
           await lingerOnPage('between daily set activities');
+          this.checkStopped();
         }
       }
 

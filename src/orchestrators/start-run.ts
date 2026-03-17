@@ -4,6 +4,7 @@ import { loadState, resetState, getIsActivelyRunning, setIsActivelyRunning, setA
 import { createContext } from '../util/context.js';
 import { NotLoggedInError } from '../steps/fetch-activities.js';
 import type { Context } from '../util/context.js';
+import { StoppedError } from '../interfaces/orchestrator.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 import { CompleteExploreOnBing } from './complete-explore-on-bing.js';
@@ -19,10 +20,6 @@ interface RunOptions {
 
 
 class StartRun {
-  private readonly completeExploreOnBing = new CompleteExploreOnBing();
-  private readonly completeDailySets     = new CompleteDailySets();
-  private readonly farmPcSearches        = new FarmPcSearches();
-
   async run(): Promise<void> {
     const today = new Date().toDateString();
     const { lastRunDate, currentIndex, completedSearches } = await loadState();
@@ -49,9 +46,12 @@ class StartRun {
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
-      await this._runOrchestrator(ctx, this.completeExploreOnBing, () => this.completeExploreOnBing.run(ctx, startIndex));
-      await this._runOrchestrator(ctx, this.completeDailySets,     () => this.completeDailySets.run(ctx));
-      await this._runOrchestrator(ctx, this.farmPcSearches,        () => this.farmPcSearches.run(ctx));
+      const exploreOnBing  = new CompleteExploreOnBing();
+      const dailySets      = new CompleteDailySets();
+      const farmPcSearches = new FarmPcSearches();
+      await this._runOrchestrator(ctx, exploreOnBing,  () => exploreOnBing.run(ctx, startIndex));
+      await this._runOrchestrator(ctx, dailySets,      () => dailySets.run(ctx));
+      await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));
     } catch (err) {
       if (err instanceof NotLoggedInError) {
         await this._endRun(ctx, 'Not logged in — sign into Bing first', 'Aborting: not logged into Bing Rewards', false);
@@ -64,11 +64,13 @@ class StartRun {
   }
 
   private async _runOrchestrator(ctx: Context, orchestrator: OrchestratorBase<any[]>, run: () => Promise<void>): Promise<void> {
+    if (!getIsActivelyRunning()) return;
     setActiveOrchestrator(orchestrator);
     try {
       await run();
     } catch (err) {
       if (err instanceof NotLoggedInError) throw err;
+      if (err instanceof StoppedError) return;
       await ctx.dbg(DBG.ERROR, `${orchestrator.name} failed: ${(err as Error).message}`);
     } finally {
       setActiveOrchestrator(null);
