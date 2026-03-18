@@ -5,9 +5,9 @@ import { lingerOnPage } from '../util/timing.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import * as lingerOnTab from '../steps/linger-on-tab.js';
-import * as validateActivity from '../steps/validate-activity.js';
-import { run as fetchActivities } from '../steps/fetch-activities.js';
+import { lingerOnTab } from '../steps/linger-on-tab.js';
+import { validateActivity } from '../steps/validate-activity.js';
+import { fetchActivities } from '../steps/fetch-activities.js';
 
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
@@ -19,7 +19,7 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const { dailySets = [], dailySetDebug = null, loggedIn, rewardsTabId } = await fetchActivities(ctx);
+    const { dailySets = [], dailySetDebug = null, loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
     if (!loggedIn) { await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping'); return; }
 
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);

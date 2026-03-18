@@ -1,31 +1,38 @@
 import { CardState } from '../util/activity.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
+import { StepBase } from '../interfaces/step.js';
 import type { Activity } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
-export async function run(ctx: Context, activity: Activity, rewardsTabId: number): Promise<boolean | null> {
-  const response = await chrome.tabs.sendMessage(rewardsTabId, {
-    action: MSG_ACTION.VALIDATE_ACTIVITY,
-    href: activity.href,
-  }).catch(() => null);
+class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> {
+  readonly name = 'validate-activity';
 
-  const label = (activity.title || activity.href).slice(0, 60);
+  async run(ctx: Context, activity: Activity, rewardsTabId: number): Promise<boolean | null> {
+    const response = await chrome.tabs.sendMessage(rewardsTabId, {
+      action: MSG_ACTION.VALIDATE_ACTIVITY,
+      href: activity.href,
+    }).catch(() => null);
 
-  if (!response) {
-    await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);
-    return null;
-  }
+    const label = (activity.title || activity.href).slice(0, 60);
 
-  const { state } = response;
-  if (state === CardState.Completed) {
-    await ctx.dbg(DBG.SUCCESS, `Validated complete: "${label}"`);
-    return true;
+    if (!response) {
+      await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);
+      return null;
+    }
+
+    const { state } = response;
+    if (state === CardState.Completed) {
+      await ctx.dbg(DBG.SUCCESS, `Validated complete: "${label}"`);
+      return true;
+    }
+    if (state === CardState.NotFound) {
+      await ctx.dbg(DBG.WARN, `Not found during validation: "${label}"`);
+      return null;
+    }
+    await ctx.dbg(DBG.WARN, `Validation: state="${state}" — "${label}"`);
+    return false;
   }
-  if (state === CardState.NotFound) {
-    await ctx.dbg(DBG.WARN, `Not found during validation: "${label}"`);
-    return null;
-  }
-  await ctx.dbg(DBG.WARN, `Validation: state="${state}" — "${label}"`);
-  return false;
 }
+
+export const validateActivity = new ValidateActivityStep();
