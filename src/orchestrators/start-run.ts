@@ -10,6 +10,7 @@ import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { CompleteExploreOnBing } from './complete-explore-on-bing.js';
 import { CompleteDailySets } from './complete-daily-sets.js';
 import { FarmPcSearches } from './farm-pc-searches.js';
+import { WarmUpSearches } from './warm-up-searches.js';
 
 interface RunOptions {
   today:        string;
@@ -46,9 +47,11 @@ class StartRun {
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
+      const warmUp         = new WarmUpSearches();
       const exploreOnBing  = new CompleteExploreOnBing();
       const dailySets      = new CompleteDailySets();
       const farmPcSearches = new FarmPcSearches();
+      await this._runOrchestrator(ctx, warmUp,         () => warmUp.run(ctx));
       await this._runOrchestrator(ctx, exploreOnBing,  () => exploreOnBing.run(ctx, startIndex));
       await this._runOrchestrator(ctx, dailySets,      () => dailySets.run(ctx));
       await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));

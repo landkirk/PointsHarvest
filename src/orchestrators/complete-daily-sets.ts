@@ -69,7 +69,7 @@ class CompleteDailySets extends OrchestratorBase {
 
         this.checkStopped();
         await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
-        ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completed: i + 1, total: dailySets.length });
+        ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completedSearches: i + 1, totalSearches: dailySets.length });
 
         if (i < dailySets.length - 1) {
           await lingerOnPage('between daily set activities');

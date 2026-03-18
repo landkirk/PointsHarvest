@@ -2,6 +2,7 @@
 
 import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
+import { shuffleArray } from '../util/array.js';
 import { lingerOnPage } from '../util/timing.js';
 import { openTab } from '../util/tabs.js';
 import { DBG } from '../util/debug.js';
@@ -63,7 +64,6 @@ class FarmPcSearches extends OrchestratorBase {
       return;
     }
 
-    await ctx.setState({ status: `Farming PC searches (${counter.current}/${counter.max})` });
     await ctx.dbg(DBG.INFO, `PC farm started: ${counter.current}/${counter.max}`);
 
     ctx.setHeaderMessage({ status: 'Farming PC searches…' });
@@ -71,7 +71,7 @@ class FarmPcSearches extends OrchestratorBase {
     let current = counter.current;
     let max = counter.max;
     let noProgressCount = 0;
-    const shuffled = [...PC_SEARCH_QUERIES].sort(() => Math.random() - 0.5);
+    const shuffled = shuffleArray(PC_SEARCH_QUERIES);
     let shuffleIndex = 0;
 
     while (current < max) {
@@ -84,7 +84,7 @@ class FarmPcSearches extends OrchestratorBase {
       const query = shuffled[shuffleIndex++];
 
       const tab = await this.openManagedTab('https://www.bing.com', true);
-      await this.waitForTabLoad(tab.id!, 30000);
+      await this.waitForTabLoad(tab.id!);
       this.checkStoppedOrCloseTab(tab.id!);
 
       await performSearch.run(ctx, tab.id!, query);
@@ -99,9 +99,8 @@ class FarmPcSearches extends OrchestratorBase {
       const newCurrent = updatedCounter?.current ?? current;
 
       if (newCurrent > current) {
-        await ctx.setState({ status: `Farming PC searches (${newCurrent}/${max})` });
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
-        ctx.setHeaderMessage({ status: 'Farming PC searches…', completed: newCurrent, total: max });
+        ctx.setHeaderMessage({ status: 'Farming PC searches…', completedSearches: newCurrent, totalSearches: max });
         noProgressCount = 0;
       } else {
         noProgressCount++;
