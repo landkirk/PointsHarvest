@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "RewardsFarm",
+  "name": "RewardFarm",
   "version": "1.5.1",
   "description": "Automates daily Bing Rewards searches and Explore activities",
   "permissions": ["tabs", "storage"],
