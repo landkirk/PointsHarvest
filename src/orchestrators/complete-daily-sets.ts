@@ -104,7 +104,7 @@ class CompleteDailySets extends OrchestratorBase {
   }
 
   protected async _onStop(_ctx: Context): Promise<void> {
-    this._resolveLinger(false);
+    this._resolveLinger(true);
   }
 }
 
