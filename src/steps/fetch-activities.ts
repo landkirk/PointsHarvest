@@ -4,6 +4,7 @@ import { openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
+import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/activity.js';
 
@@ -15,59 +16,65 @@ export class NotLoggedInError extends Error {
 
 const EMPTY_ACTIVITIES: ActivitiesResult = { activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true };
 
-export async function run(ctx: Context): Promise<FetchActivitiesResult> {
-  let resolveLocal!: (result: ActivitiesResult) => void;
-  const activitiesPromise = new Promise<ActivitiesResult>(resolve => { resolveLocal = resolve; });
+class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
+  readonly name = 'fetch-activities';
 
-  let rewardsTab: chrome.tabs.Tab;
-  try {
-    rewardsTab = await openTab(REWARDS_URL, false);
-  } catch {
-    ctx.dbg(DBG.ERROR, 'Failed to open rewards tab');
-    return { ...EMPTY_ACTIVITIES, rewardsTabId: null };
-  }
+  async run(ctx: Context): Promise<FetchActivitiesResult> {
+    let resolveLocal!: (result: ActivitiesResult) => void;
+    const activitiesPromise = new Promise<ActivitiesResult>(resolve => { resolveLocal = resolve; });
 
-  const rewardsTabId = rewardsTab.id!;
-
-  function cleanup(): void {
-    clearTimeout(timeout);
-    chrome.tabs.onUpdated.removeListener(onTabUpdated);
-    chrome.runtime.onMessage.removeListener(onMessage);
-  }
-
-  const timeout = setTimeout(() => {
-    cleanup();
-    ctx.dbg(DBG.WARN, 'Rewards page timed out — no activities');
-    resolveLocal(EMPTY_ACTIVITIES);
-  }, 20000);
-
-  const onTabUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void => {
-    if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
-    if (tab.url.startsWith(REWARDS_URL)) {
-      chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
-    } else {
-      ctx.dbg(DBG.ERROR, `Not logged in — redirected to: ${tab.url}`);
-      cleanup();
-      resolveLocal({ ...EMPTY_ACTIVITIES, loggedIn: false });
+    let rewardsTab: chrome.tabs.Tab;
+    try {
+      rewardsTab = await openTab(REWARDS_URL, false);
+    } catch {
+      ctx.dbg(DBG.ERROR, 'Failed to open rewards tab');
+      return { ...EMPTY_ACTIVITIES, rewardsTabId: null };
     }
-  };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onMessage = (msg: any): void => {
-    if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
-    cleanup();
-    resolveLocal({
-      activities:    msg.activities,
-      domDebug:      msg.domDebug,
-      dailySets:     msg.dailySets     ?? [],
-      dailySetDebug: msg.dailySetDebug ?? null,
-      loggedIn:      msg.loggedIn      !== false,
-    });
-  };
+    const rewardsTabId = rewardsTab.id!;
 
-  chrome.tabs.onUpdated.addListener(onTabUpdated);
-  chrome.runtime.onMessage.addListener(onMessage);
+    function cleanup(): void {
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(onTabUpdated);
+      chrome.runtime.onMessage.removeListener(onMessage);
+    }
 
-  const result = await activitiesPromise;
-  return { ...result, rewardsTabId };
+    const timeout = setTimeout(() => {
+      cleanup();
+      ctx.dbg(DBG.WARN, 'Rewards page timed out — no activities');
+      resolveLocal(EMPTY_ACTIVITIES);
+    }, 20000);
+
+    const onTabUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void => {
+      if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
+      if (tab.url.startsWith(REWARDS_URL)) {
+        chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
+      } else {
+        ctx.dbg(DBG.ERROR, `Not logged in — redirected to: ${tab.url}`);
+        cleanup();
+        resolveLocal({ ...EMPTY_ACTIVITIES, loggedIn: false });
+      }
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const onMessage = (msg: any): void => {
+      if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
+      cleanup();
+      resolveLocal({
+        activities:    msg.activities,
+        domDebug:      msg.domDebug,
+        dailySets:     msg.dailySets     ?? [],
+        dailySetDebug: msg.dailySetDebug ?? null,
+        loggedIn:      msg.loggedIn      !== false,
+      });
+    };
+
+    chrome.tabs.onUpdated.addListener(onTabUpdated);
+    chrome.runtime.onMessage.addListener(onMessage);
+
+    const result = await activitiesPromise;
+    return { ...result, rewardsTabId };
+  }
 }
+
+export const fetchActivities = new FetchActivitiesStep();

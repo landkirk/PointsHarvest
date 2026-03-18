@@ -9,8 +9,8 @@ import type { Context } from '../util/context.js';
 import { PC_SEARCH_TYPE } from '../util/state.js';
 import type { SearchCounter } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import * as performSearch from '../steps/perform-search.js';
-import * as fetchCounters from '../steps/fetch-counters.js';
+import { performSearch } from '../steps/perform-search.js';
+import { fetchCounters } from '../steps/fetch-counters.js';
 
 const MAX_NO_PROGRESS = 3;
 

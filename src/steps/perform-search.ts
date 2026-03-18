@@ -4,17 +4,24 @@
 import { lingerOnPage } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
+import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 
-export async function run(ctx: Context, tabId: number, query: string): Promise<void> {
-  await lingerOnPage('search tab');
+class PerformSearchStep extends StepBase<[number, string]> {
+  readonly name = 'perform-search';
 
-  const result = await chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.PERFORM_SEARCH, query })
-    .catch(() => null);
+  async run(ctx: Context, tabId: number, query: string): Promise<void> {
+    await lingerOnPage('search tab');
 
-  if (!result?.ok) {
-    await ctx.dbg(DBG.WARN, `Search input failed for "${query}": ${result?.error ?? 'no response'}`);
+    const result = await chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.PERFORM_SEARCH, query })
+      .catch(() => null);
+
+    if (!result?.ok) {
+      await ctx.dbg(DBG.WARN, `Search input failed for "${query}": ${result?.error ?? 'no response'}`);
+    }
+
+    await lingerOnPage(`results: "${query}"`);
   }
-
-  await lingerOnPage(`results: "${query}"`);
 }
+
+export const performSearch = new PerformSearchStep();

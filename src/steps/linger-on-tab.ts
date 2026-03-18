@@ -1,4 +1,5 @@
 import { MSG_ACTION } from '../util/messaging.js';
+import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 
 export interface LingerHooks {
@@ -10,16 +11,22 @@ export interface LingerHooks {
 // The promise resolves when the user either:
 //   - clicks "Done" in the popup  (sends USER_ACTION_COMPLETE to background)
 //   - closes the tab directly     (caught by chrome.tabs.onRemoved in background.js)
-export async function run(ctx: Context, tabId: number, hooks: LingerHooks): Promise<void> {
-  try {
-    await chrome.tabs.update(tabId, { active: true });
-  } catch {
-    return; // tab already closed before we started waiting
+class LingerOnTabStep extends StepBase<[number, LingerHooks]> {
+  readonly name = 'linger-on-tab';
+
+  async run(ctx: Context, tabId: number, hooks: LingerHooks): Promise<void> {
+    try {
+      await chrome.tabs.update(tabId, { active: true });
+    } catch {
+      return; // tab already closed before we started waiting
+    }
+    hooks.onTabId(tabId);
+    await ctx.setState({ isLingering: true });
+    chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
+    await new Promise<void>(resolve => { hooks.onResolve(resolve); });
+    hooks.onTabId(null);
+    await ctx.setState({ isLingering: false });
   }
-  hooks.onTabId(tabId);
-  await ctx.setState({ isLingering: true });
-  chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
-  await new Promise<void>(resolve => { hooks.onResolve(resolve); });
-  hooks.onTabId(null);
-  await ctx.setState({ isLingering: false });
 }
+
+export const lingerOnTab = new LingerOnTabStep();
