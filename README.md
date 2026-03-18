@@ -61,9 +61,13 @@ package.json          npm scripts and dev dependencies
 tsconfig.json         TypeScript config (full — used by IDE and type checking)
 tsconfig.build.json   TypeScript config for emit — excludes content scripts (bundled by esbuild)
 src/                  Source files (edit these)
-  popup.html          Extension popup UI
-  popup.ts            Popup logic
   background.ts       Service worker — tab event listeners, message routing
+  ui/
+    popup.html        Extension popup UI
+    popup.ts          Popup logic
+    onboarding.html   First-run onboarding UI
+    onboarding.ts     Onboarding logic
+    screens/          HTML fragments shown in onboarding (ToS, Bing warning, changelog)
   orchestrators/
     start-run.ts           Top-level run coordinator (fire-and-forget from background)
     stop-run.ts            Cancels an active run and closes all opened tabs
