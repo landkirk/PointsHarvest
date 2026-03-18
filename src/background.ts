@@ -40,7 +40,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void =
     return true;
   }
   if (msg.action === MSG_ACTION.PURGE) {
-    resetState().then(() => sendResponse({ ok: true }));
+    resetState({ seenScreenIds: [] }).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
@@ -51,6 +51,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void =
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
-chrome.runtime.onInstalled.addListener(() => {
-  resetState();
+chrome.runtime.onInstalled.addListener(async () => {
+  await resetState();
 });

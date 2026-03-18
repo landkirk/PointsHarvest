@@ -34,6 +34,7 @@ export interface AppState {
   warmUpQueries:    string[];
   searchCounters:   SearchCounter[];
   mappedActivities: MappedActivity[];
+  seenScreenIds:    string[];
   header:           AppHeaderState;
   debug:            AppDebugState;
 }
@@ -46,6 +47,7 @@ export const INITIAL_STATE: AppState = {
   warmUpQueries:    [],
   searchCounters:   [],
   mappedActivities: [],
+  seenScreenIds:    [],
   header: {
     status:            'idle',
     completedSearches: 0,
@@ -101,8 +103,11 @@ export const setHeaderState = (u: Partial<AppHeaderState>) => setSubState('heade
 /** Write debug-specific updates, merging into the debug subobject. */
 export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
 
-/** Reset all persistent state to initial values, with optional overrides applied atomically. */
+/** Reset all persistent state to initial values, with optional overrides applied atomically.
+ *  seenScreenIds is preserved by default — pass { seenScreenIds: [] } to wipe it (e.g. purge). */
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
-  cache = { ...INITIAL_STATE, ...overrides };
+  if (!cache) await loadState();
+  const seenScreenIds = cache!.seenScreenIds;
+  cache = { ...INITIAL_STATE, seenScreenIds, ...overrides };
   await chrome.storage.local.set(cache);
 }
