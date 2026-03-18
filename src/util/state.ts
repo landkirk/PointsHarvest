@@ -21,8 +21,9 @@ export interface AppState {
   completedSearches:   number;
   totalSearches:       number;
   lastRunDate:         string | null;
-  lastLabel:           string;
+  lastSearchString:           string;
   debugLog:            DebugEntry[];
+  warmUpQueries:       string[];
   domDebug:            ActivityScan | null;
   dailySetDebug:       ActivityScan | null;
   searchCounters:      SearchCounter[];
@@ -37,8 +38,9 @@ export const INITIAL_STATE: AppState = {
   completedSearches:    0,
   totalSearches:        0,
   lastRunDate:          null,
-  lastLabel:            '',
+  lastSearchString:            '',
   debugLog:             [],
+  warmUpQueries:        [],
   domDebug:             null,
   dailySetDebug:        null,
   searchCounters:       [],

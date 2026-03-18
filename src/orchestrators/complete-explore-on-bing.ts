@@ -39,7 +39,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
       totalSearches:     mapped.length,
       currentIndex:      startIndex,
       completedSearches: startIndex,
-      status:            `Running (0 / ${mapped.length})`,
     });
 
     try {
@@ -54,7 +53,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         }
 
         const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-        await ctx.setState({ status: `Searching: "${label}"` });
+        ctx.setHeaderMessage({ status: `Searching: "${label}"` });
         await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
         // Set up capture before sending click — tab may open before sendMessage resolves
@@ -92,17 +91,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         this.checkStopped();
 
         const completed = i + 1;
-        await ctx.setState({
-          currentIndex:      i,
-          completedSearches: completed,
-          lastLabel:         query,
-          status:            `Running (${completed} / ${mapped.length})`,
-        });
+        await ctx.setState({ currentIndex: i });
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
         this.checkStopped();
         await validateActivity.run(ctx, mapped[i], rewardsTabId!);
 
-        ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completed, total: mapped.length, label: query });
+        ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completedSearches: completed, totalSearches: mapped.length, lastSearchString: query });
 
         if (i < mapped.length - 1) {
           await lingerOnPage('between searches');
