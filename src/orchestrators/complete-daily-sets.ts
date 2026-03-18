@@ -19,13 +19,10 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const { dailySets = [], dailySetDebug = null, loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
+    const { dailySets = [], loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
     if (!loggedIn) { await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping'); return; }
 
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
-
-    await ctx.setState({ dailySetDebug });
-    await ctx.dbg(DBG.INFO, `Daily sets: ${dailySetDebug?.actionableActivities ?? 0} actionable${dailySetDebug ? '' : ' (section not found)'}`);
 
     try {
       if (dailySets.length === 0) {

@@ -4,6 +4,7 @@ import { openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
+import { setDebugState } from '../util/state.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/activity.js';
@@ -14,7 +15,7 @@ export class NotLoggedInError extends Error {
   constructor() { super('Not logged in'); }
 }
 
-const EMPTY_ACTIVITIES: ActivitiesResult = { activities: [], domDebug: null, dailySets: [], dailySetDebug: null, loggedIn: true };
+const EMPTY_ACTIVITIES: ActivitiesResult = { activities: [], dailySets: [], loggedIn: true };
 
 class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
   readonly name = 'fetch-activities';
@@ -60,12 +61,11 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
     const onMessage = (msg: any): void => {
       if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
       cleanup();
+      setDebugState({ domDebug: msg.domDebug ?? null, dailySetDebug: msg.dailySetDebug ?? null }).catch(() => {});
       resolveLocal({
-        activities:    msg.activities,
-        domDebug:      msg.domDebug,
-        dailySets:     msg.dailySets     ?? [],
-        dailySetDebug: msg.dailySetDebug ?? null,
-        loggedIn:      msg.loggedIn      !== false,
+        activities: msg.activities,
+        dailySets:  msg.dailySets ?? [],
+        loggedIn:   msg.loggedIn !== false,
       });
     };
 
