@@ -1,8 +1,8 @@
 export interface ProgressPayload {
   status?:    string;
-  completed?: number;
-  total?:     number;
-  label?:     string;
+  completedSearches?: number;
+  totalSearches?:     number;
+  lastSearchString?:     string;
 }
 
 export type MsgAction =

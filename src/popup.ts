@@ -32,6 +32,7 @@ const lastSearch   = document.getElementById('last-search')!;
 const debugCheck   = document.getElementById('debug-check') as HTMLInputElement;
 const debugPanel   = document.getElementById('debug-panel')!;
 const btnPurge     = document.getElementById('btn-purge')!;
+const dbgWarmUp    = document.getElementById('dbg-warmup')!;
 const dbgExplore   = document.getElementById('dbg-explore')!;
 const dbgDaily     = document.getElementById('dbg-daily')!;
 const dbgPcCounters = document.getElementById('dbg-pc-counters')!;
@@ -45,10 +46,10 @@ interface RenderState {
   status?:            string;
   completedSearches?: number;
   totalSearches?:     number;
-  lastLabel?:         string;
+  lastSearchString?:         string;
 }
 
-function render({ isRunning, isLingering, status, completedSearches, totalSearches, lastLabel }: RenderState): void {
+function render({ isRunning, isLingering, status, completedSearches, totalSearches, lastSearchString }: RenderState): void {
   const completed = completedSearches || 0;
   const total     = totalSearches || 0;
   const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -57,7 +58,7 @@ function render({ isRunning, isLingering, status, completedSearches, totalSearch
   statusEl.textContent   = status || 'Idle';
   bar.style.width        = pct + '%';
   labelEl.textContent    = total > 0 ? `${completed} / ${total} searches` : '—';
-  lastSearch.textContent = lastLabel ? `Last: ${lastLabel}` : '';
+  lastSearch.textContent = lastSearchString ? `Last: ${lastSearchString}` : '';
 
   dot.className = 'dot';
   if (isLingering)     dot.classList.add('waiting');
@@ -94,9 +95,9 @@ chrome.runtime.onMessage.addListener((msg) => {
     render({
       isRunning:         true,
       status:            msg.status,
-      completedSearches: msg.completed,
-      totalSearches:     msg.total,
-      lastLabel:         msg.label,
+      completedSearches: msg.completedSearches,
+      totalSearches:     msg.totalSearches,
+      lastSearchString:  msg.lastSearchString,
     });
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
@@ -157,13 +158,15 @@ debugCheck.addEventListener('change', () => {
 });
 
 function clearDebug(): void {
+  dbgWarmUp.innerHTML     = '<div class="dbg-empty">Run the extension to see warm-up queries.</div>';
   renderActivitySection(dbgExplore, { items: [], emptyMessage: 'Run the extension to see extraction results.' });
   renderActivitySection(dbgDaily,   { items: [], emptyMessage: 'Run the extension to see results.' });
   dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
   dbgLog.innerHTML        = '<div class="dbg-empty">No events yet.</div>';
 }
 
-function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, debugLog }: AppState): void {
+function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, debugLog, warmUpQueries }: AppState): void {
+  renderWarmUp(warmUpQueries);
   renderActivitySection(dbgExplore, exploreToActivityData(domDebug, mappedActivities as MappedActivity[]));
   renderActivitySection(dbgDaily,   dailySetsToActivityData(dailySetDebug));
   renderPcCounters(searchCounters);
@@ -205,13 +208,7 @@ function renderActivitySection(container: HTMLElement, data: ActivityDebugData):
 
   if (data.queue !== undefined) {
     html += '<div class="dbg-section-label" style="margin-top:8px">Search Queue</div>';
-    if (data.queue.length === 0) {
-      html += '<div class="dbg-list"><div class="dbg-empty">Not yet built.</div></div>';
-    } else {
-      html += '<div class="dbg-list">' + data.queue.map((q, i) => `
-        <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
-      `).join('') + '</div>';
-    }
+    html += queryListHtml(data.queue, 'Not yet built.');
   }
 
   container.innerHTML = html;
@@ -283,6 +280,23 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
   }));
 
   return { stats: buildScanStats(scan), items, emptyMessage: 'No daily set activities found.' };
+}
+
+// ── Shared helpers ─────────────────────────────────────────────────────────
+
+function queryListHtml(queries: string[], emptyMessage: string): string {
+  if (!queries || queries.length === 0) {
+    return `<div class="dbg-list"><div class="dbg-empty">${esc(emptyMessage)}</div></div>`;
+  }
+  return '<div class="dbg-list">' + queries.map((q, i) => `
+    <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
+  `).join('') + '</div>';
+}
+
+// ── Warm-Up Searches ───────────────────────────────────────────────────────
+
+function renderWarmUp(queries: string[]): void {
+  dbgWarmUp.innerHTML = queryListHtml(queries, 'Run the extension to see warm-up queries.');
 }
 
 // ── PC Search Farming ──────────────────────────────────────────────────────
