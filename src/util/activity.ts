@@ -1,11 +1,7 @@
-import type { ActivityScan } from './debug.js';
-
 export interface ActivitiesResult {
-  activities:   Activity[];
-  domDebug:     ActivityScan | null;
-  dailySets?:   Activity[];
-  dailySetDebug?: ActivityScan | null;
-  loggedIn:     boolean;
+  activities: Activity[];
+  dailySets?: Activity[];
+  loggedIn:   boolean;
 }
 
 export interface Activity {

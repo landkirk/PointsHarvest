@@ -73,20 +73,21 @@ function render({ isRunning, isLingering, status, completedSearches, totalSearch
 // Load state on open. If storage says running, ping to confirm the service worker
 // is actually alive and running — if it was restarted, isActivelyRunning is false
 // and we reset rather than showing a permanently-stuck running state.
+function renderState(state: AppState): void {
+  render({ ...state, ...state.header });
+  if (debugCheck.checked) renderDebug(state);
+}
+
 chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
   if (!state) return;
-  if (!state.isRunning) {
-    render(state);
-    if (debugCheck.checked) renderDebug(state);
-    return;
-  }
+  if (!state.isRunning) { renderState(state); return; }
   chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response: { running: boolean }) => {
     if (!response?.running) {
-      chrome.storage.local.set({ isRunning: false, status: 'Stopped' });
-      state = { ...state, isRunning: false, status: 'Stopped' };
+      const stoppedHeader = { ...state.header, status: 'Stopped' };
+      chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
+      state = { ...state, isRunning: false, header: stoppedHeader };
     }
-    render(state);
-    if (debugCheck.checked) renderDebug(state);
+    renderState(state);
   });
 });
 
@@ -102,14 +103,14 @@ chrome.runtime.onMessage.addListener((msg) => {
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
-      if (state) { render(state); if (debugCheck.checked) renderDebug(state); }
+      if (state) renderState(state);
     });
   }
   if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
       if (state) {
-        renderActivitySection(dbgExplore, exploreToActivityData(state.domDebug, state.mappedActivities as MappedActivity[]));
-        renderActivitySection(dbgDaily, dailySetsToActivityData(state.dailySetDebug));
+        renderActivitySection(dbgExplore, exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]));
+        renderActivitySection(dbgDaily, dailySetsToActivityData(state.debug.dailySetDebug));
         renderPcCounters(state.searchCounters);
       }
     });
@@ -165,12 +166,12 @@ function clearDebug(): void {
   dbgLog.innerHTML        = '<div class="dbg-empty">No events yet.</div>';
 }
 
-function renderDebug({ domDebug, dailySetDebug, searchCounters, mappedActivities, debugLog, warmUpQueries }: AppState): void {
+function renderDebug({ debug, searchCounters, mappedActivities, warmUpQueries }: AppState): void {
   renderWarmUp(warmUpQueries);
-  renderActivitySection(dbgExplore, exploreToActivityData(domDebug, mappedActivities as MappedActivity[]));
-  renderActivitySection(dbgDaily,   dailySetsToActivityData(dailySetDebug));
+  renderActivitySection(dbgExplore, exploreToActivityData(debug.domDebug, mappedActivities as MappedActivity[]));
+  renderActivitySection(dbgDaily,   dailySetsToActivityData(debug.dailySetDebug));
   renderPcCounters(searchCounters);
-  renderLog(debugLog);
+  renderLog(debug.debugLog);
 }
 
 // ── Generic activity section renderer ──────────────────────────────────────

@@ -13,38 +13,50 @@ export interface SearchCounter {
   max:     number;
 }
 
+export interface AppHeaderState {
+  status:            string;
+  completedSearches: number;
+  totalSearches:     number;
+  lastSearchString:  string;
+}
+
+export interface AppDebugState {
+  debugLog:      DebugEntry[];
+  domDebug:      ActivityScan | null;
+  dailySetDebug: ActivityScan | null;
+}
+
 export interface AppState {
-  isRunning:           boolean;
-  isLingering:         boolean;
-  status:              string;
-  currentIndex:        number;
-  completedSearches:   number;
-  totalSearches:       number;
-  lastRunDate:         string | null;
-  lastSearchString:           string;
-  debugLog:            DebugEntry[];
-  warmUpQueries:       string[];
-  domDebug:            ActivityScan | null;
-  dailySetDebug:       ActivityScan | null;
-  searchCounters:      SearchCounter[];
-  mappedActivities:    MappedActivity[];
+  isRunning:        boolean;
+  isLingering:      boolean;
+  currentIndex:     number;
+  lastRunDate:      string | null;
+  warmUpQueries:    string[];
+  searchCounters:   SearchCounter[];
+  mappedActivities: MappedActivity[];
+  header:           AppHeaderState;
+  debug:            AppDebugState;
 }
 
 export const INITIAL_STATE: AppState = {
-  isRunning:            false,
-  isLingering:          false,
-  status:               'idle',
-  currentIndex:         0,
-  completedSearches:    0,
-  totalSearches:        0,
-  lastRunDate:          null,
-  lastSearchString:            '',
-  debugLog:             [],
-  warmUpQueries:        [],
-  domDebug:             null,
-  dailySetDebug:        null,
-  searchCounters:       [],
-  mappedActivities:     [],
+  isRunning:        false,
+  isLingering:      false,
+  currentIndex:     0,
+  lastRunDate:      null,
+  warmUpQueries:    [],
+  searchCounters:   [],
+  mappedActivities: [],
+  header: {
+    status:            'idle',
+    completedSearches: 0,
+    totalSearches:     0,
+    lastSearchString:  '',
+  },
+  debug: {
+    debugLog:      [],
+    domDebug:      null,
+    dailySetDebug: null,
+  },
 };
 
 let cache: AppState | null = null;
@@ -76,6 +88,18 @@ export async function setState(updates: Partial<AppState>): Promise<void> {
   Object.assign(cache, updates);
   await chrome.storage.local.set(updates);
 }
+
+async function setSubState<K extends 'header' | 'debug'>(key: K, updates: Partial<AppState[K]>): Promise<void> {
+  if (!cache) cache = { ...INITIAL_STATE };
+  cache[key] = { ...cache[key], ...updates } as AppState[K];
+  await chrome.storage.local.set({ [key]: cache[key] });
+}
+
+/** Write header-specific updates, merging into the header subobject. */
+export const setHeaderState = (u: Partial<AppHeaderState>) => setSubState('header', u);
+
+/** Write debug-specific updates, merging into the debug subobject. */
+export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
 
 /** Reset all persistent state to initial values, with optional overrides applied atomically. */
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {

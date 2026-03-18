@@ -6,6 +6,7 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { setHeaderState } from '../util/state.js';
 import { fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
 import { buildSearchList } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
@@ -18,14 +19,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
   async run(ctx: Context, startIndex: number): Promise<void> {
     this.checkStopped();
-    const { activities, domDebug, loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
+    const { activities, loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
     this.rewardsTabId = rewardsTabId;
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
-
-    await ctx.setState({ domDebug });
-    await ctx.dbg(DBG.INFO, `DOM scan: ${domDebug?.actionableActivities ?? '?'} actionable, ${domDebug?.skippedLocked ?? 0} locked, ${domDebug?.skippedCompleted ?? 0} completed`);
     await ctx.dbg(DBG.INFO, `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`);
 
     const mapped = buildSearchList(activities);
@@ -35,11 +33,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     const unmapped = mapped.filter(m => m.unmatched).length;
     await ctx.dbg(DBG.INFO, `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
 
-    await ctx.setState({
-      totalSearches:     mapped.length,
-      currentIndex:      startIndex,
-      completedSearches: startIndex,
-    });
+    await ctx.setState({ currentIndex: startIndex });
+    await setHeaderState({ totalSearches: mapped.length, completedSearches: startIndex });
 
     try {
       for (let i = startIndex; i < mapped.length; i++) {
