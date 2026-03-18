@@ -8,21 +8,21 @@
     "https://*.bing.com/*"
   ],
   "background": {
-    "service_worker": "dist/background.js",
+    "service_worker": "background.js",
     "type": "module"
   },
   "action": {
-    "default_popup": "dist/popup.html"
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
       "matches": ["https://rewards.bing.com/*"],
-      "js": ["dist/content/rewards-content.js"],
+      "js": ["content/rewards-content.js"],
       "run_at": "document_idle"
     },
     {
       "matches": ["https://www.bing.com/*"],
-      "js": ["dist/content/search-content.js"],
+      "js": ["content/search-content.js"],
       "run_at": "document_idle"
     }
   ]
