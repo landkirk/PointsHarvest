@@ -1,6 +1,6 @@
 {
   "name": "bingbot2",
-  "version": "1.4.0",
+  "version": "1.5.1",
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json && npm run build:content && cp manifest.json dist/",
