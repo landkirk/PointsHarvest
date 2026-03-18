@@ -2,7 +2,6 @@
 
 import { WARMUP_SEARCH_QUERIES } from '../util/search-queries.js';
 import { shuffleArray } from '../util/array.js';
-import { lingerOnPage } from '../util/timing.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -31,9 +30,6 @@ class WarmUpSearches extends OrchestratorBase {
 
       await performSearch.run(ctx, tab.id!, query);
       this.closeTab(tab.id!);
-      this.checkStopped();
-
-      await lingerOnPage('after warm-up search');
       this.checkStopped();
 
       await ctx.dbg(DBG.INFO, `Warm-up: ${i + 1}/${WARMUP_COUNT}`);
