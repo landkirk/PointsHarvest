@@ -1,5 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
-import { setState } from './state.js';
+import { setDebugState } from './state.js';
 import type { CardState } from './activity.js';
 
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
@@ -45,6 +45,6 @@ export async function dbg(type: DebugType, message: string, orchestrator?: strin
   const entry: DebugEntry = { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type, message, orchestrator };
   log.push(entry);
   if (log.length > MAX_LOG_ENTRIES) log.shift();
-  await setState({ debugLog: log });
+  await setDebugState({ debugLog: log });
   chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {});
 }

@@ -1,6 +1,6 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { resetLog, DBG } from '../util/debug.js';
-import { loadState, resetState, getIsActivelyRunning, setIsActivelyRunning, setActiveOrchestrator } from '../util/state.js';
+import { loadState, resetState, setHeaderState, getIsActivelyRunning, setIsActivelyRunning, setActiveOrchestrator } from '../util/state.js';
 import { createContext } from '../util/context.js';
 import { NotLoggedInError } from '../steps/fetch-activities.js';
 import type { Context } from '../util/context.js';
@@ -23,11 +23,14 @@ interface RunOptions {
 class StartRun {
   async run(): Promise<void> {
     const today = new Date().toDateString();
-    const { lastRunDate, currentIndex, completedSearches } = await loadState();
+    const state = await loadState();
+    const { lastRunDate, currentIndex } = state;
+    const { completedSearches } = state.header;
     const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
     resetLog();
-    await resetState({ isRunning: true, status: 'Starting...', lastRunDate: today });
+    await resetState({ isRunning: true, lastRunDate: today });
+    await setHeaderState({ status: 'Starting...' });
 
     setIsActivelyRunning(true);
     const ctx = createContext();
@@ -82,7 +85,8 @@ class StartRun {
 
   private async _endRun(ctx: Context, status: string, msg: string, success: boolean): Promise<void> {
     setIsActivelyRunning(false);
-    await ctx.setState({ isRunning: false, status });
+    await ctx.setState({ isRunning: false });
+    await setHeaderState({ status });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
     chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
   }
