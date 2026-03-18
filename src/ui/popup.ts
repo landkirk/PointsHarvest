@@ -1,9 +1,11 @@
-import { MSG_ACTION } from './util/messaging.js';
-import { CardState } from './util/activity.js';
-import { PC_SEARCH_TYPE } from './util/state.js';
-import type { AppState, SearchCounter } from './util/state.js';
-import type { ActivityScan, DebugEntry } from './util/debug.js';
-import type { MappedActivity } from './util/activity.js';
+import { MSG_ACTION } from '../util/messaging.js';
+import { CardState } from '../util/activity.js';
+import { PC_SEARCH_TYPE } from '../util/state.js';
+import type { AppState, SearchCounter } from '../util/state.js';
+import type { ActivityScan, DebugEntry } from '../util/debug.js';
+import type { MappedActivity } from '../util/activity.js';
+import { SCREENS } from '../util/screens.js';
+import { showOnboarding } from './onboarding.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────
 
@@ -78,17 +80,33 @@ function renderState(state: AppState): void {
   if (debugCheck.checked) renderDebug(state);
 }
 
-chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
-  if (!state) return;
-  if (!state.isRunning) { renderState(state); return; }
-  chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response: { running: boolean }) => {
-    if (!response?.running) {
-      const stoppedHeader = { ...state.header, status: 'Stopped' };
-      chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
-      state = { ...state, isRunning: false, header: stoppedHeader };
-    }
-    renderState(state);
+const mainEl = document.getElementById('main') as HTMLElement;
+
+function initPopup(): void {
+  mainEl.style.display = '';
+  chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+    if (!state) return;
+    if (!state.isRunning) { renderState(state); return; }
+    chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response: { running: boolean }) => {
+      if (!response?.running) {
+        const stoppedHeader = { ...state.header, status: 'Stopped' };
+        chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
+        state = { ...state, isRunning: false, header: stoppedHeader };
+      }
+      renderState(state);
+    });
   });
+}
+
+chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+  if (!state) { initPopup(); return; }
+  const seen    = new Set(state.seenScreenIds ?? []);
+  const pending = SCREENS.filter(s => !seen.has(s.id));
+  if (pending.length > 0) {
+    showOnboarding(pending, initPopup);
+  } else {
+    initPopup();
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
@@ -141,10 +159,7 @@ btnDone.addEventListener('click', () => {
 });
 
 btnPurge.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }, () => {
-    render({ isRunning: false, status: 'Idle' });
-    clearDebug();
-  });
+  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }, () => window.close());
 });
 
 // ── Debug panel ────────────────────────────────────────────────────────────
