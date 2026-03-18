@@ -1,4 +1,4 @@
-# BingBotV2
+# RewardsFarm
 
 A Chrome extension that automates daily Bing Rewards points by running your searches and completing "Explore on Bing" activities automatically.
 
@@ -25,7 +25,7 @@ This extension:
 
 ### Option 1: From Release (recommended)
 
-1. Download the latest `BingBotV2-*.zip` from the [Releases page](../../releases)
+1. Download the latest `RewardsFarm-*.zip` from the [Releases page](../../releases)
 2. Extract the ZIP file
 3. Open Chrome and go to `chrome://extensions`
 4. Enable **Developer mode** (toggle in the top right)

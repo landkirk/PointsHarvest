@@ -1,6 +1,6 @@
 // Farms daily PC search points by running searches until the cap is reached.
 
-import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
+import { REWARDS_BREAKDOWN_URL, PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { shuffleArray } from '../util/array.js';
 import { lingerOnPage } from '../util/timing.js';
@@ -100,7 +100,7 @@ class FarmPcSearches extends OrchestratorBase {
 
       if (newCurrent > current) {
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
-        ctx.setHeaderMessage({ status: 'Farming PC searches…', completedSearches: newCurrent, totalSearches: max });
+        ctx.setHeaderMessage({ status: 'Farming PC searches…', completedSearches: newCurrent / PC_SEARCH_POINTS_PER_SEARCH, totalSearches: max / PC_SEARCH_POINTS_PER_SEARCH });
         noProgressCount = 0;
       } else {
         noProgressCount++;

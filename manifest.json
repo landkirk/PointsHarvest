@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "BingBotV2",
+  "name": "RewardsFarm",
   "version": "1.5.1",
   "description": "Automates daily Bing Rewards searches and Explore activities",
   "permissions": ["tabs", "storage"],
