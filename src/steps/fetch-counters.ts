@@ -22,6 +22,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[]> {
     }
 
     for (let i = 0; i < MAX_POLLS; i++) {
+      this.checkStopped();
       const result = await chrome.tabs.sendMessage(breakdownTabId, { action: MSG_ACTION.GET_COUNTERS })
         .catch(() => null);
 

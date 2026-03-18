@@ -1,32 +1,23 @@
 import { waitForTabLoad, closeOwnedTabs, openTab, type TabLoadState } from '../util/tabs.js';
-import { getIsActivelyRunning } from '../util/state.js';
+import { StoppableBase, StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
 
-export class StoppedError extends Error {
-  constructor() { super('Run stopped'); }
-}
+export { StoppedError };
 
-export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
+export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends StoppableBase {
   abstract readonly name: string;
-  protected stopped = false;
   protected openedTabIds = new Set<number>();
   protected tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
 
   abstract run(ctx: Context, ...args: TArgs): Promise<void>;
-
-  /** Throws StoppedError if stop() has been called or the run is no longer active. */
-  protected checkStopped(): void {
-    if (this.stopped || !getIsActivelyRunning()) throw new StoppedError();
-  }
 
   /** Closes tabId then throws StoppedError if stopped; no-op otherwise. */
   protected checkStoppedOrCloseTab(tabId: number): void {
     try { this.checkStopped(); } catch (e) { this.closeTab(tabId); throw e; }
   }
 
-  /** Sets the stopped flag, resolves pending tab load, runs subclass cleanup, and closes owned tabs. */
+  /** Resolves pending tab load, runs subclass cleanup, and closes owned tabs. */
   async stop(ctx: Context): Promise<void> {
-    this.stopped = true;
     if (this.tabLoadState.pendingResolve) {
       this.tabLoadState.pendingResolve();
       this.tabLoadState.pendingResolve = null;
