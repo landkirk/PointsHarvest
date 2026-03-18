@@ -6,10 +6,10 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { run as fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
+import { fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
 import { buildSearchList } from '../util/activity.js';
-import * as performSearch from '../steps/perform-search.js';
-import * as validateActivity from '../steps/validate-activity.js';
+import { performSearch } from '../steps/perform-search.js';
+import { validateActivity } from '../steps/validate-activity.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   readonly name = 'Explore on Bing';
@@ -18,7 +18,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
   async run(ctx: Context, startIndex: number): Promise<void> {
     this.checkStopped();
-    const { activities, domDebug, loggedIn, rewardsTabId } = await fetchActivities(ctx);
+    const { activities, domDebug, loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
     this.rewardsTabId = rewardsTabId;
