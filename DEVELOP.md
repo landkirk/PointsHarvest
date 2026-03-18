@@ -249,7 +249,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Service Worker Console
 1. Go to `chrome://extensions`
-2. Find RewardsFarm
+2. Find RewardFarm
 3. Click **service worker** link (appears when active)
 4. View console logs and errors
 
