@@ -22,7 +22,8 @@ export type MsgAction =
   | 'debugEntry'
   | 'lingerWaiting'
   | 'userActionComplete'
-  | 'getCounters';
+  | 'getCounters'
+  | 'failureEntry';
 
 export const MSG_ACTION: Record<string, MsgAction> = {
   // Background ↔ rewards content script
@@ -48,4 +49,5 @@ export const MSG_ACTION: Record<string, MsgAction> = {
   USER_ACTION_COMPLETE: 'userActionComplete',
   // Background → rewards content script (counter extraction)
   GET_COUNTERS:         'getCounters',
+  FAILURE_ENTRY:        'failureEntry',
 };

@@ -55,11 +55,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         const captureTabPromise = new Promise<chrome.tabs.Tab | null>(resolve => { this.captureNextTabResolve = resolve; });
 
         const clickResult = await chrome.tabs.sendMessage(this.rewardsTabId!, { action: MSG_ACTION.CLICK_CARD, index: i })
-          .catch((err: unknown) => { ctx.dbg(DBG.WARN, `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
+          .catch(async (err: unknown) => { await ctx.fail('navigation', `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
 
         if (!clickResult?.clicked) {
           this.captureNextTabResolve = null;
-          await ctx.dbg(DBG.WARN, `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
+          await ctx.fail('navigation', `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
           continue;
         }
 
@@ -71,7 +71,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         }
 
         if (!searchTab) {
-          await ctx.dbg(DBG.WARN, `No tab opened after clicking card "${title}"`);
+          await ctx.fail('navigation', `No tab opened after clicking card "${title}"`);
           continue;
         }
 

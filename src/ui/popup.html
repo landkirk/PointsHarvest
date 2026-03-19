@@ -93,6 +93,27 @@
     #btn-purge { background: #1f0f0f; color: #ef4444; margin-top: 10px; border: 1px solid #3f1515; font-size: 11px; padding: 6px; }
     #btn-purge:hover { background: #2d1212; }
 
+    /* ── Failure banner ── */
+    #failure-banner {
+      margin-bottom: 12px;
+      background: #1a0f0f;
+      border: 1px solid #3f1515;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 11px;
+    }
+    #failure-summary { color: #ef4444; cursor: pointer; user-select: none; }
+    #failure-summary:hover { color: #f87171; }
+    #failure-list { margin-top: 6px; max-height: 100px; overflow-y: auto; }
+    #failure-list::-webkit-scrollbar { width: 4px; }
+    #failure-list::-webkit-scrollbar-track { background: transparent; }
+    #failure-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+    .failure-item { padding: 2px 0; border-bottom: 1px solid #2a1515; display: flex; gap: 6px; align-items: baseline; }
+    .failure-item:last-child { border-bottom: none; }
+    .failure-item .f-time { color: #777; flex-shrink: 0; }
+    .failure-item .f-cat  { color: #f59e0b; font-size: 10px; flex-shrink: 0; }
+    .failure-item .f-msg  { color: #bbb; }
+
     .last-search {
       font-size: 11px;
       color: #999;
@@ -215,6 +236,10 @@
     <div class="progress-bar" id="progress-bar"></div>
   </div>
   <div class="progress-label" id="progress-label">—</div>
+  <div id="failure-banner" style="display:none">
+    <div id="failure-summary"></div>
+    <div id="failure-list" style="display:none"></div>
+  </div>
   <button id="btn-start">Run today's searches</button>
   <button id="btn-stop">Stop</button>
   <button id="btn-done">Done — I completed the action</button>

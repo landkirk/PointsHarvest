@@ -3,7 +3,6 @@
 
 import { lingerOnPage, TIMING } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
-import { DBG } from '../util/debug.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 
@@ -19,7 +18,7 @@ class PerformSearchStep extends StepBase<[number, string]> {
     this.checkStopped();
 
     if (!result?.ok) {
-      await ctx.dbg(DBG.WARN, `Search input failed for "${query}": ${result?.error ?? 'no response'}`);
+      await ctx.fail('search', `Search input failed for "${query}": ${result?.error ?? 'no response'}`);
     }
 
     await lingerOnPage(`results: "${query}"`);

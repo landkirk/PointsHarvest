@@ -1,4 +1,5 @@
 import type { DebugEntry, ActivityScan } from './debug.js';
+import type { Failure } from './failures.js';
 import type { MappedActivity } from './activity.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
@@ -35,6 +36,7 @@ export interface AppState {
   searchCounters:   SearchCounter[];
   mappedActivities: MappedActivity[];
   seenScreenIds:    string[];
+  failures:         Failure[];
   header:           AppHeaderState;
   debug:            AppDebugState;
 }
@@ -48,6 +50,7 @@ export const INITIAL_STATE: AppState = {
   searchCounters:   [],
   mappedActivities: [],
   seenScreenIds:    [],
+  failures:         [],
   header: {
     status:            'idle',
     completedSearches: 0,

@@ -1,13 +1,16 @@
 import { setState, setHeaderState, getActiveOrchestrator } from './state.js';
 import { dbg } from './debug.js';
+import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
 import type { AppState } from './state.js';
 import type { DebugType } from './debug.js';
+import type { FailureCategory } from './failures.js';
 import type { ProgressPayload } from './messaging.js';
 
 export interface Context {
   setState: (updates: Partial<AppState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
+  fail: (category: FailureCategory, message: string) => Promise<void>;
   setHeaderMessage: (payload: ProgressPayload) => void;
 }
 
@@ -16,6 +19,9 @@ export function createContext(): Context {
     setState,
     dbg(type: DebugType, message: string): Promise<void> {
       return dbg(type, message, getActiveOrchestrator()?.name);
+    },
+    fail(category: FailureCategory, message: string): Promise<void> {
+      return fail(category, message, getActiveOrchestrator()?.name);
     },
     setHeaderMessage(payload: ProgressPayload): void {
       const headerUpdate: Parameters<typeof setHeaderState>[0] = {};

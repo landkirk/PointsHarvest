@@ -28,7 +28,7 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
     try {
       rewardsTab = await openTab(REWARDS_URL, false);
     } catch {
-      ctx.dbg(DBG.ERROR, 'Failed to open rewards tab');
+      await ctx.fail('navigation', 'Failed to open rewards tab');
       return { ...EMPTY_ACTIVITIES, rewardsTabId: null };
     }
 

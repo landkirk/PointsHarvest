@@ -17,7 +17,7 @@ class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> 
     const label = (activity.title || activity.href).slice(0, 60);
 
     if (!response) {
-      await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);
+      await ctx.fail('validation', `Validation: no response — "${label}"`);
       return null;
     }
 
