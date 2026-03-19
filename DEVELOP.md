@@ -174,7 +174,6 @@ dist/                   Compiled output (generated — do not edit)
 All timing uses `randMs(min, max)` with triangular distribution (defined in `util/timing.ts`). Named presets live in `TIMING` in `util/timing.ts`:
 
 - **Page dwell**: `TIMING.LINGER_ON_PAGE` (`5–7s`) used by `lingerOnPage()` everywhere — before searches, after searches, between searches, on tile pages, after PC searches
-- `TIMING.INITIAL_DELAY` (`0–8s`) is defined but currently unused
 
 ### Modifying DOM Extraction
 
