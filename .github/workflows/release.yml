@@ -49,9 +49,15 @@ jobs:
           draft: false
           prerelease: false
       
-      - name: Upload artifact (manual trigger)
+      - name: Upload artifact to github releases (manual trigger)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: RewardFarm-extension
           path: RewardFarm-*.zip
+
+      - name: Upload to R2 for public distrobution
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: r2 object put points-harvest-release/PointsHarvest-${{ steps.version.outputs.version }}.zip --file=RewardFarm-${{ steps.version.outputs.version }}.zip
