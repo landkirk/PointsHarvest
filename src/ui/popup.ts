@@ -1,12 +1,14 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { CardState } from '../util/activity.js';
-import { PC_SEARCH_TYPE } from '../util/state.js';
+import { PC_SEARCH_TYPE, setState } from '../util/state.js';
 import type { AppState, SearchCounter } from '../util/state.js';
 import type { ActivityScan, DebugEntry } from '../util/debug.js';
 import type { Failure } from '../util/failures.js';
 import type { MappedActivity } from '../util/activity.js';
-import { SCREENS } from '../util/screens.js';
+import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
+import { checkForUpdate } from '../util/update-check.js';
+import { dbg, DBG } from '../util/debug.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────
 
@@ -140,14 +142,44 @@ function initPopup(): void {
   });
 }
 
-chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-  if (!state) { initPopup(); return; }
+function showPendingOrInit(state: AppState): void {
   const seen    = new Set(state.seenScreenIds ?? []);
   const pending = SCREENS.filter(s => !seen.has(s.id));
   if (pending.length > 0) {
     showOnboarding(pending, initPopup);
   } else {
     initPopup();
+  }
+}
+
+Promise.all([
+  chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }) as Promise<AppState>,
+  checkForUpdate(),
+]).then(async ([state, updateResult]) => {
+  if (!state) { initPopup(); return; }
+  if (updateResult === null) {
+    await dbg(DBG.WARN, 'Update check failed or timed out');
+  } else if (updateResult.hasUpdate && state.ignoredUpdateVersion !== updateResult.latestVersion) {
+    await dbg(DBG.WARN, `Update available: v${updateResult.latestVersion} (installed: v${updateResult.installedVersion})`);
+    let ignoreChecked = false;
+    const onIgnoreChange = (e: Event) => {
+      if ((e.target as HTMLElement).id === 'ignore-update-checkbox')
+        ignoreChecked = (e.target as HTMLInputElement).checked;
+    };
+    document.addEventListener('change', onIgnoreChange);
+    showOnboarding([UPDATE_SCREEN], () => {
+      document.removeEventListener('change', onIgnoreChange);
+      if (ignoreChecked) setState({ ignoredUpdateVersion: updateResult.latestVersion });
+      showPendingOrInit(state);
+    });
+  } else {
+    await dbg(
+      updateResult.hasUpdate ? DBG.WARN : DBG.INFO,
+      updateResult.hasUpdate
+        ? `Update v${updateResult.latestVersion} ignored`
+        : `Up to date: v${updateResult.installedVersion}`,
+    );
+    showPendingOrInit(state);
   }
 });
 
