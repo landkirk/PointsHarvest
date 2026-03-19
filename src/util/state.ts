@@ -35,8 +35,9 @@ export interface AppState {
   warmUpQueries:    string[];
   searchCounters:   SearchCounter[];
   mappedActivities: MappedActivity[];
-  seenScreenIds:    string[];
-  failures:         Failure[];
+  seenScreenIds:        string[];
+  ignoredUpdateVersion: string | null;
+  failures:             Failure[];
   header:           AppHeaderState;
   debug:            AppDebugState;
 }
@@ -49,8 +50,9 @@ export const INITIAL_STATE: AppState = {
   warmUpQueries:    [],
   searchCounters:   [],
   mappedActivities: [],
-  seenScreenIds:    [],
-  failures:         [],
+  seenScreenIds:        [],
+  ignoredUpdateVersion: null,
+  failures:             [],
   header: {
     status:            'idle',
     completedSearches: 0,
@@ -107,10 +109,11 @@ export const setHeaderState = (u: Partial<AppHeaderState>) => setSubState('heade
 export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
 
 /** Reset all persistent state to initial values, with optional overrides applied atomically.
- *  seenScreenIds is preserved by default — pass { seenScreenIds: [] } to wipe it (e.g. purge). */
+ *  seenScreenIds and ignoredUpdateVersion are preserved by default — pass explicit overrides to wipe them (e.g. purge). */
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
   if (!cache) await loadState();
-  const seenScreenIds = cache!.seenScreenIds;
-  cache = { ...INITIAL_STATE, seenScreenIds, ...overrides };
+  const seenScreenIds        = cache!.seenScreenIds;
+  const ignoredUpdateVersion = cache!.ignoredUpdateVersion;
+  cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, ...overrides };
   await chrome.storage.local.set(cache);
 }

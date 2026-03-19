@@ -9,3 +9,11 @@ export const SCREENS: OnboardingScreen[] = [
   { id: 'bing-warning-v1', title: 'Bing Account Risk',   bodyFile: 'ui/screens/bing-warning-v1.html' },
   { id: 'changelog-1.7.0', title: "What's New in 1.7",   bodyFile: 'ui/screens/changelog-1.7.0.html' },
 ];
+
+/** Shown when a newer version is available. Not persisted to seenScreenIds,
+ *  so it re-appears on every popup open until the user updates. */
+export const UPDATE_SCREEN: OnboardingScreen = {
+  id:       'update-available',
+  title:    'Update Available',
+  bodyFile: 'ui/screens/update-available.html',
+};
