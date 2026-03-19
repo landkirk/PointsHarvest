@@ -1,5 +1,6 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { resetLog, DBG } from '../util/debug.js';
+import { resetFailures } from '../util/failures.js';
 import { loadState, resetState, setHeaderState, getIsActivelyRunning, setIsActivelyRunning, setActiveOrchestrator } from '../util/state.js';
 import { createContext } from '../util/context.js';
 import { NotLoggedInError } from '../steps/fetch-activities.js';
@@ -29,6 +30,7 @@ class StartRun {
     const alreadyDone = lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
     resetLog();
+    resetFailures();
     await resetState({ isRunning: true, lastRunDate: today });
     await setHeaderState({ status: 'Starting...' });
 
