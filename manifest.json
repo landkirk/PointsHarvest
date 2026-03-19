@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "RewardFarm",
+  "name": "PointsHarvest",
   "version": "1.6.0",
   "description": "Automates daily Bing Rewards searches and Explore activities",
   "permissions": ["tabs", "storage"],
