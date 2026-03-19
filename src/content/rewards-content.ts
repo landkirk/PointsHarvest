@@ -198,10 +198,10 @@ function waitAndExtract(): void {
   poll();
 }
 
-chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; href?: string }, _sender, sendResponse): true | void => {
+chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; href?: string }, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START_EXTRACT) {
     waitAndExtract();
-    return;
+    return undefined;
   }
 
   if (msg.action === MSG_ACTION.CLICK_CARD) {
@@ -231,4 +231,5 @@ chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; 
     sendResponse({ state: match ? determineCardState(match) : CardState.NotFound });
     return true;
   }
+  return undefined;
 });
