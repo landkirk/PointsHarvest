@@ -3,7 +3,7 @@
 import { REWARDS_BREAKDOWN_URL, PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { shuffleArray } from '../util/array.js';
-import { lingerOnPage } from '../util/timing.js';
+import { lingerOnPage, TIMING } from '../util/timing.js';
 import { openTab } from '../util/tabs.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
@@ -15,7 +15,7 @@ import { fetchCounters } from '../steps/fetch-counters.js';
 
 const MAX_NO_PROGRESS = 3;
 
-function findPcCounter(counters: SearchCounter[] | undefined): SearchCounter | undefined {
+function findPcCounter(counters: SearchCounter[] | null | undefined): SearchCounter | undefined {
   return counters?.find(c => c.type.toLowerCase() === PC_SEARCH_TYPE);
 }
 
@@ -52,6 +52,7 @@ class FarmPcSearches extends OrchestratorBase {
   private async _farm(ctx: Context): Promise<void> {
     this.checkStopped();
     const searchCounters = await fetchCounters.run(ctx, this.breakdownTabId);
+    if (searchCounters === null) return;
     const counter = findPcCounter(searchCounters);
 
     if (!counter) {
@@ -90,10 +91,11 @@ class FarmPcSearches extends OrchestratorBase {
       this.closeTab(tab.id!);
       this.checkStopped();
 
-      await lingerOnPage('after PC search');
+      await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES);
       this.checkStopped();
 
       const updated = await fetchCounters.run(ctx, this.breakdownTabId);
+      if (updated === null) { await ctx.fail('counter', 'PC farm aborted: counter fetch failed'); return; }
       const updatedCounter = findPcCounter(updated);
       const newCurrent = updatedCounter?.current ?? current;
 
@@ -106,7 +108,7 @@ class FarmPcSearches extends OrchestratorBase {
         await ctx.dbg(DBG.WARN, `No progress ${noProgressCount}/${MAX_NO_PROGRESS}`);
         if (noProgressCount >= MAX_NO_PROGRESS) {
           await ctx.fail('search', `PC farm aborted: no progress after ${MAX_NO_PROGRESS} searches`);
-          break;
+          return;
         }
       }
 
