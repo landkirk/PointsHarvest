@@ -12,13 +12,13 @@ import type { SearchCounter } from '../util/state.js';
 const POLL_INTERVAL_MS = 1000;
 const MAX_POLLS        = 20;
 
-class FetchCountersStep extends StepBase<[number | null], SearchCounter[]> {
+class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null> {
   readonly name = 'fetch-counters';
 
-  async run(ctx: Context, breakdownTabId: number | null): Promise<SearchCounter[]> {
+  async run(ctx: Context, breakdownTabId: number | null): Promise<SearchCounter[] | null> {
     if (!breakdownTabId) {
       await ctx.dbg(DBG.WARN, 'fetchSearchCounters: no breakdown tab open');
-      return [];
+      return null;
     }
 
     for (let i = 0; i < MAX_POLLS; i++) {
@@ -40,7 +40,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[]> {
     }
 
     await ctx.fail('counter', `Counter fetch timed out after ${MAX_POLLS}s`);
-    return [];
+    return null;
   }
 }
 
