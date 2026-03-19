@@ -1,6 +1,6 @@
 {
   "name": "pointsharvest",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "scripts": {
     "build": "tsc --noEmit && tsc -p tsconfig.build.json && npm run build:content && cp manifest.json dist/ && cp -r src/ui/screens/. dist/ui/screens",
