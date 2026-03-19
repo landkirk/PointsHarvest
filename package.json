@@ -1,6 +1,6 @@
 {
   "name": "pointsharvest",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "private": true,
   "scripts": {
     "build": "rm -rf dist && tsc --noEmit && esbuild src/background.ts src/ui/popup.ts src/ui/onboarding.ts --bundle --outdir=dist --platform=browser --target=es2022 --minify && esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --minify && esbuild src/ui/popup.html src/ui/onboarding.html --loader:.html=copy --outdir=dist/ui && cp manifest.json dist/ && cp -r src/ui/screens/. dist/ui/screens",
