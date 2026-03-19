@@ -3,6 +3,7 @@ import { CardState } from '../util/activity.js';
 import { PC_SEARCH_TYPE } from '../util/state.js';
 import type { AppState, SearchCounter } from '../util/state.js';
 import type { ActivityScan, DebugEntry } from '../util/debug.js';
+import type { Failure } from '../util/failures.js';
 import type { MappedActivity } from '../util/activity.js';
 import { SCREENS } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
@@ -39,6 +40,46 @@ const dbgExplore   = document.getElementById('dbg-explore')!;
 const dbgDaily     = document.getElementById('dbg-daily')!;
 const dbgPcCounters = document.getElementById('dbg-pc-counters')!;
 const dbgLog       = document.getElementById('dbg-log')!;
+const failureBanner  = document.getElementById('failure-banner')!;
+const failureSummary = document.getElementById('failure-summary')!;
+const failureList    = document.getElementById('failure-list')!;
+
+// ── Failure banner ─────────────────────────────────────────────────────────
+
+let failureListExpanded = false;
+
+function updateFailureSummary(count: number): void {
+  failureSummary.textContent = `${count} warning${count === 1 ? '' : 's'} — click to ${failureListExpanded ? 'collapse' : 'expand'}`;
+}
+
+function renderFailures(failures: Failure[]): void {
+  if (!failures || failures.length === 0) {
+    failureBanner.style.display = 'none';
+    failureList.innerHTML = '';
+    return;
+  }
+  failureBanner.style.display = 'block';
+  updateFailureSummary(failures.length);
+  failureList.innerHTML = failures.map(f => failureItemHtml(f)).join('');
+}
+
+function appendFailure(f: Failure): void {
+  failureBanner.style.display = 'block';
+  const div = document.createElement('div');
+  div.innerHTML = failureItemHtml(f);
+  failureList.appendChild(div.firstElementChild!);
+  updateFailureSummary(failureList.children.length);
+}
+
+function failureItemHtml(f: Failure): string {
+  return `<div class="failure-item"><span class="f-time">${esc(f.time)}</span><span class="f-cat">[${esc(f.category)}]</span><span class="f-msg">${esc(f.message)}</span></div>`;
+}
+
+failureSummary.addEventListener('click', () => {
+  failureListExpanded = !failureListExpanded;
+  failureList.style.display = failureListExpanded ? 'block' : 'none';
+  updateFailureSummary(failureList.children.length);
+});
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
@@ -77,6 +118,7 @@ function render({ isRunning, isLingering, status, completedSearches, totalSearch
 // and we reset rather than showing a permanently-stuck running state.
 function renderState(state: AppState): void {
   render({ ...state, ...state.header });
+  renderFailures(state.failures ?? []);
   if (debugCheck.checked) renderDebug(state);
 }
 
@@ -136,6 +178,9 @@ chrome.runtime.onMessage.addListener((msg): undefined => {
   if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
     appendLogEntry(msg.entry as DebugEntry);
   }
+  if (msg.action === MSG_ACTION.FAILURE_ENTRY) {
+    appendFailure(msg.failure as Failure);
+  }
   if (msg.action === MSG_ACTION.LINGER_WAITING) {
     render({ isRunning: true, isLingering: true, status: 'Action required — complete the activity in the tab' });
   }
@@ -145,6 +190,7 @@ btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
   chrome.runtime.sendMessage({ action: MSG_ACTION.START });
   render({ isRunning: true, status: 'Starting…', completedSearches: 0, totalSearches: 0 });
+  renderFailures([]);
   if (debugCheck.checked) clearDebug();
 });
 

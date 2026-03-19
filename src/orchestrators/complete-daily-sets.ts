@@ -64,7 +64,7 @@ class CompleteDailySets extends OrchestratorBase {
         try {
           succeeded = await attemptActivity();
         } catch {
-          await ctx.dbg(DBG.WARN, `Failed to open tab for daily set activity ${i + 1}`);
+          await ctx.fail('navigation', `Failed to open tab for daily set activity ${i + 1}`);
           continue;
         }
         if (!succeeded) {
@@ -73,11 +73,11 @@ class CompleteDailySets extends OrchestratorBase {
           this.checkStopped();
           let retrySucceeded: boolean;
           try { retrySucceeded = await attemptActivity(); } catch {
-            await ctx.dbg(DBG.WARN, `Retry: failed to open tab for daily set activity ${i + 1}`);
+            await ctx.fail('navigation', `Retry: failed to open tab for daily set activity ${i + 1}`);
             continue;
           }
           if (!retrySucceeded) {
-            await ctx.dbg(DBG.WARN, `Daily set activity ${i + 1} still not validated after retry — skipping`);
+            await ctx.fail('validation', `Daily set activity ${i + 1} still not validated after retry — skipping`);
           }
         }
 

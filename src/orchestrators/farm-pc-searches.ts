@@ -55,7 +55,7 @@ class FarmPcSearches extends OrchestratorBase {
     const counter = findPcCounter(searchCounters);
 
     if (!counter) {
-      await ctx.dbg(DBG.WARN, 'farmPcSearches: PC Search counter not found, skipping');
+      await ctx.fail('counter', 'PC search counter not found — skipping');
       return;
     }
 
@@ -79,6 +79,7 @@ class FarmPcSearches extends OrchestratorBase {
 
       if (shuffleIndex >= shuffled.length) {
         await ctx.dbg(DBG.ERROR, 'PC farm aborted: queries exhausted');
+        await ctx.fail('search', 'PC search queries exhausted');
         break;
       }
       const query = shuffled[shuffleIndex++];
@@ -106,8 +107,8 @@ class FarmPcSearches extends OrchestratorBase {
         noProgressCount++;
         await ctx.dbg(DBG.WARN, `No progress ${noProgressCount}/${MAX_NO_PROGRESS}`);
         if (noProgressCount >= MAX_NO_PROGRESS) {
-          await ctx.dbg(DBG.ERROR, `PC farm aborted: no progress after ${MAX_NO_PROGRESS} searches`);
-          throw new Error(`farmPcSearches: no progress after ${MAX_NO_PROGRESS} searches, aborting`);
+          await ctx.fail('search', `PC farm aborted: no progress after ${MAX_NO_PROGRESS} searches`);
+          break;
         }
       }
 
