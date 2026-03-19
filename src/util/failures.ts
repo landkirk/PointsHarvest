@@ -15,6 +15,8 @@ const MAX_FAILURES = 50;
 
 let failures: Failure[] = [];
 
+export function resetFailures(): void { failures = []; }
+
 /** Records a user-facing soft failure. Also writes a ERROR entry to the debug log. */
 export async function fail(category: FailureCategory, message: string, orchestrator?: string): Promise<void> {
   await dbg(DBG.ERROR, message, orchestrator);
