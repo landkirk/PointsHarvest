@@ -8,7 +8,6 @@ import type { MappedActivity } from '../util/activity.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
-import { dbg, DBG } from '../util/debug.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────
 
@@ -157,10 +156,17 @@ Promise.all([
   checkForUpdate(),
 ]).then(async ([state, updateResult]) => {
   if (!state) { initPopup(); return; }
+  const updateStatusEl = document.getElementById('update-status')!;
   if (updateResult === null) {
-    await dbg(DBG.WARN, 'Update check failed or timed out');
-  } else if (updateResult.hasUpdate && state.ignoredUpdateVersion !== updateResult.latestVersion) {
-    await dbg(DBG.WARN, `Update available: v${updateResult.latestVersion} (installed: v${updateResult.installedVersion})`);
+    updateStatusEl.textContent = 'Update check failed or timed out';
+  } else if (updateResult.hasUpdate) {
+    updateStatusEl.textContent = state.ignoredUpdateVersion === updateResult.latestVersion
+      ? `Update v${updateResult.latestVersion} ignored`
+      : `Update available: v${updateResult.latestVersion} (installed: v${updateResult.installedVersion})`;
+  } else {
+    updateStatusEl.textContent = `Up to date: v${updateResult.installedVersion}`;
+  }
+  if (updateResult?.hasUpdate && state.ignoredUpdateVersion !== updateResult.latestVersion) {
     let ignoreChecked = false;
     const onIgnoreChange = (e: Event) => {
       if ((e.target as HTMLElement).id === 'ignore-update-checkbox')
@@ -173,12 +179,6 @@ Promise.all([
       showPendingOrInit(state);
     });
   } else {
-    await dbg(
-      updateResult.hasUpdate ? DBG.WARN : DBG.INFO,
-      updateResult.hasUpdate
-        ? `Update v${updateResult.latestVersion} ignored`
-        : `Up to date: v${updateResult.installedVersion}`,
-    );
     showPendingOrInit(state);
   }
 });
