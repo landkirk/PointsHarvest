@@ -39,29 +39,46 @@ class CompleteDailySets extends OrchestratorBase {
         const label = (title || href || '').slice(0, 60);
         await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
-        let tab: chrome.tabs.Tab;
+        const attemptActivity = async (): Promise<boolean> => {
+          const t = await this.openManagedTab(href, true);
+          await this.waitForTabLoad(t.id!, 15000);
+          this.checkStoppedOrCloseTab(t.id!);
+          if (USER_ACTION_RE.test(title)) {
+            await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
+            await lingerOnTab.run(ctx, t.id!, {
+              onResolve: r => { this.lingerResolve = r; },
+              onTabId:   id => { this.lingerTabId = id; },
+            });
+          } else {
+            await lingerOnPage('daily set activity');
+            this.checkStoppedOrCloseTab(t.id!);
+            this.closeTab(t.id!);
+          }
+          this.checkStopped();
+          if (!rewardsTabId) return true;
+          const validated = await validateActivity.run(ctx, dailySets[i], rewardsTabId);
+          return validated !== false;
+        };
+
+        let succeeded: boolean;
         try {
-          tab = await this.openManagedTab(href, true);
+          succeeded = await attemptActivity();
         } catch {
           await ctx.dbg(DBG.WARN, `Failed to open tab for daily set activity ${i + 1}`);
           continue;
         }
-        await this.waitForTabLoad(tab.id!, 15000);
-        this.checkStoppedOrCloseTab(tab.id!);
-
-        if (USER_ACTION_RE.test(title)) {
-          await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
-          await lingerOnTab.run(ctx, tab.id!, {
-            onResolve: r => { this.lingerResolve = r; },
-            onTabId:   id => { this.lingerTabId = id; },
-          });
+        if (!succeeded) {
+          await ctx.dbg(DBG.WARN, `Daily set activity ${i + 1} not validated — retrying`);
+          await lingerOnPage('daily set activity retry');
           this.checkStopped();
-          if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
-        } else {
-          await lingerOnPage('daily set activity');
-          this.checkStoppedOrCloseTab(tab.id!);
-          this.closeTab(tab.id!);
-          if (rewardsTabId) await validateActivity.run(ctx, dailySets[i], rewardsTabId);
+          let retrySucceeded: boolean;
+          try { retrySucceeded = await attemptActivity(); } catch {
+            await ctx.dbg(DBG.WARN, `Retry: failed to open tab for daily set activity ${i + 1}`);
+            continue;
+          }
+          if (!retrySucceeded) {
+            await ctx.dbg(DBG.WARN, `Daily set activity ${i + 1} still not validated after retry — skipping`);
+          }
         }
 
         this.checkStopped();
