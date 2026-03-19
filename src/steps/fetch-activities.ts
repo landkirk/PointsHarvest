@@ -42,7 +42,7 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
 
     const timeout = setTimeout(() => {
       cleanup();
-      ctx.dbg(DBG.WARN, 'Rewards page timed out — no activities');
+      ctx.fail('navigation', 'Rewards page timed out — no activities extracted').catch(() => {});
       resolveLocal(EMPTY_ACTIVITIES);
     }, 20000);
 

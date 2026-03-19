@@ -51,6 +51,14 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     return waitForTabLoad(tabId, this.tabLoadState, timeoutMs);
   }
 
+  /** Open a tab, wait for it to load, check stopped (closing tab if so), and return it. */
+  protected async openTabAndWait(url: string, active = true, timeoutMs = 30000): Promise<chrome.tabs.Tab> {
+    const tab = await this.openManagedTab(url, active);
+    await this.waitForTabLoad(tab.id!, timeoutMs);
+    this.checkStoppedOrCloseTab(tab.id!);
+    return tab;
+  }
+
   /** Open a tab, track it in openedTabIds, and return it. */
   protected async openManagedTab(url: string, active = false): Promise<chrome.tabs.Tab> {
     const tab = await openTab(url, active);
