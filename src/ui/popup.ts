@@ -49,7 +49,7 @@ const failureList    = document.getElementById('failure-list')!;
 let failureListExpanded = false;
 
 function updateFailureSummary(count: number): void {
-  failureSummary.textContent = `${count} warning${count === 1 ? '' : 's'} — click to ${failureListExpanded ? 'collapse' : 'expand'}`;
+  failureSummary.textContent = `${count} failure${count === 1 ? '' : 's'} — click to ${failureListExpanded ? 'collapse' : 'expand'}`;
 }
 
 function renderFailures(failures: Failure[]): void {
