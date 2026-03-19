@@ -56,9 +56,18 @@ jobs:
           name: RewardFarm-extension
           path: RewardFarm-*.zip
 
-      - name: Upload to R2 for public distrobution
+      - name: Upload versioned zip to R2
         uses: cloudflare/wrangler-action@v3
         with:
+          wranglerVersion: "4"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: r2 object put points-harvest-release/PointsHarvest-${{ steps.version.outputs.version }}.zip --file=RewardFarm-${{ steps.version.outputs.version }}.zip
+          command: r2 object put points-harvest-release/PointsHarvest-${{ steps.version.outputs.version }}.zip --file=RewardFarm-${{ steps.version.outputs.version }}.zip --remote
+
+      - name: Upload latest zip to R2
+        uses: cloudflare/wrangler-action@v3
+        with:
+          wranglerVersion: "4"
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: r2 object put points-harvest-release/PointsHarvest-latest.zip --file=RewardFarm-${{ steps.version.outputs.version }}.zip --remote
