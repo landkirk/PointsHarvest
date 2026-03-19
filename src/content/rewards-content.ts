@@ -65,7 +65,7 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivitySca
     }
 
     activities.push({ href, snippet, skipReason: null });
-    actionable.push({ href, title: ariaLabel, description: '' });
+    actionable.push({ href, title: ariaLabel, description: el.textContent?.trim().slice(0, 120) || '' });
   }
 
   return {

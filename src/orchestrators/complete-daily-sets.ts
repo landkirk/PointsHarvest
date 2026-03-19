@@ -35,15 +35,13 @@ class CompleteDailySets extends OrchestratorBase {
       for (let i = 0; i < dailySets.length; i++) {
         this.checkStopped();
 
-        const { href, title } = dailySets[i];
+        const { href, title, description } = dailySets[i];
         const label = (title || href || '').slice(0, 60);
         await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
         const attemptActivity = async (): Promise<boolean> => {
-          const t = await this.openManagedTab(href, true);
-          await this.waitForTabLoad(t.id!, 15000);
-          this.checkStoppedOrCloseTab(t.id!);
-          if (USER_ACTION_RE.test(title)) {
+          const t = await this.openTabAndWait(href, true, 15000);
+          if (USER_ACTION_RE.test(title) || USER_ACTION_RE.test(description)) {
             await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
             await lingerOnTab.run(ctx, t.id!, {
               onResolve: r => { this.lingerResolve = r; },
