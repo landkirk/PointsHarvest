@@ -213,6 +213,19 @@ return; // Stop here for testing
 ### Resetting State
 Use the **Purge all state** button in the debug panel to clear all stored data and reset to a fresh state.
 
+## Version Bump Checklist
+
+When releasing a new version (e.g. `1.8.0` → `1.9.0`):
+
+1. Update `"version"` in `manifest.json`
+2. Update `"version"` in `package.json`
+3. Update `LATEST_VERSION` in `docs/index.html`
+4. Add a new changelog screen in `src/ui/screens/changelog-X.Y.Z.html`
+5. Add an entry for it in `src/util/screens.ts` → `SCREENS` array
+6. Delete the previous version's changelog file from `src/ui/screens/`
+7. Remove the previous version's entry from the `SCREENS` array
+8. Grep for the old version string (e.g. `1.8.0`) across the repo to catch any remaining references
+
 ## Creating a Release
 
 ### Automatic Release (Recommended)

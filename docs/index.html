@@ -200,7 +200,7 @@
     <h1>Earn Bing Rewards<br /><span>on autopilot</span></h1>
     <p>PointsHarvest is a Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — no clicking required.</p>
     <div class="cta-group">
-      <a class="btn btn-primary" href="https://r2.pointsharvest.com/PointsHarvest-latest.zip" download>Download Latest</a>
+      <a class="btn btn-primary" href="#" data-download download>Download Latest</a>
     </div>
   </section>
 
@@ -244,7 +244,7 @@
         <div class="step-num">1</div>
         <div class="step-body">
           <h4>Download the latest release</h4>
-          <p>Download the latest <a href="https://r2.pointsharvest.com/PointsHarvest-latest.zip">PointsHarvest-latest.zip</a> and extract it.</p>
+          <p>Download the latest <a href="#" data-download="filename"></a> and extract it.</p>
         </div>
       </div>
       <div class="step">
@@ -275,5 +275,13 @@
     <p>PointsHarvest is not affiliated with Microsoft or Bing.</p>
   </footer>
 
+  <script>
+    const LATEST_VERSION = 'v1.8.0';
+    const DOWNLOAD_URL = `https://r2.pointsharvest.com/PointsHarvest-${LATEST_VERSION}.zip`;
+    document.querySelectorAll('a[data-download]').forEach(el => {
+      el.href = DOWNLOAD_URL;
+      if (el.dataset.download === 'filename') el.textContent = `PointsHarvest-${LATEST_VERSION}.zip`;
+    });
+  </script>
 </body>
 </html>
