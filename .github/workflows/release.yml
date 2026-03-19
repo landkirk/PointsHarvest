@@ -39,13 +39,13 @@ jobs:
       - name: Create extension ZIP
         run: |
           cd dist
-          zip -r ../RewardFarm-${{ steps.version.outputs.version }}.zip .
+          zip -r ../PointsHarvest-${{ steps.version.outputs.version }}.zip .
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: RewardFarm-*.zip
+          files: PointsHarvest-*.zip
           draft: false
           prerelease: false
       
@@ -53,8 +53,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: RewardFarm-extension
-          path: RewardFarm-*.zip
+          name: PointsHarvest-extension
+          path: PointsHarvest-*.zip
 
       - name: Upload versioned zip to R2
         uses: cloudflare/wrangler-action@v3
@@ -62,7 +62,7 @@ jobs:
           wranglerVersion: "4"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: r2 object put points-harvest-release/PointsHarvest-${{ steps.version.outputs.version }}.zip --file=RewardFarm-${{ steps.version.outputs.version }}.zip --remote
+          command: r2 object put points-harvest-release/PointsHarvest-${{ steps.version.outputs.version }}.zip --file=PointsHarvest-${{ steps.version.outputs.version }}.zip --remote
 
       - name: Upload latest zip to R2
         uses: cloudflare/wrangler-action@v3
@@ -70,4 +70,4 @@ jobs:
           wranglerVersion: "4"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: r2 object put points-harvest-release/PointsHarvest-latest.zip --file=RewardFarm-${{ steps.version.outputs.version }}.zip --remote
+          command: r2 object put points-harvest-release/PointsHarvest-latest.zip --file=PointsHarvest-${{ steps.version.outputs.version }}.zip --remote
