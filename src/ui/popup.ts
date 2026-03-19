@@ -84,10 +84,10 @@ const mainEl = document.getElementById('main') as HTMLElement;
 
 function initPopup(): void {
   mainEl.style.display = '';
-  chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+  chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
     if (!state) return;
     if (!state.isRunning) { renderState(state); return; }
-    chrome.runtime.sendMessage({ action: MSG_ACTION.PING }, (response: { running: boolean }) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.PING }).then((response: { running: boolean }) => {
       if (!response?.running) {
         const stoppedHeader = { ...state.header, status: 'Stopped' };
         chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
@@ -98,7 +98,7 @@ function initPopup(): void {
   });
 }
 
-chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
   if (!state) { initPopup(); return; }
   const seen    = new Set(state.seenScreenIds ?? []);
   const pending = SCREENS.filter(s => !seen.has(s.id));
@@ -109,7 +109,7 @@ chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) =
   }
 });
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg): undefined => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     render({
       isRunning:         true,
@@ -120,12 +120,12 @@ chrome.runtime.onMessage.addListener((msg) => {
     });
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
       if (state) renderState(state);
     });
   }
   if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
       if (state) {
         renderActivitySection(dbgExplore, exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]));
         renderActivitySection(dbgDaily, dailySetsToActivityData(state.debug.dailySetDebug));
@@ -159,7 +159,7 @@ btnDone.addEventListener('click', () => {
 });
 
 btnPurge.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }, () => window.close());
+  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }).then(() => window.close());
 });
 
 // ── Debug panel ────────────────────────────────────────────────────────────
@@ -167,7 +167,7 @@ btnPurge.addEventListener('click', () => {
 debugCheck.addEventListener('change', () => {
   debugPanel.classList.toggle('open', debugCheck.checked);
   if (debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }, (state: AppState) => {
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
       if (state) renderDebug(state);
     });
   }

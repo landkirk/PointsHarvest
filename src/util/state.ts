@@ -79,7 +79,7 @@ export function setActiveOrchestrator(instance: AnyOrchestrator | null): void { 
 
 /** Load from storage into cache. Returns the loaded state. */
 export async function loadState(): Promise<AppState> {
-  const stored = await chrome.storage.local.get(null);
+  const stored = await chrome.storage.local.get();
   cache = { ...INITIAL_STATE, ...stored } as AppState;
   return cache;
 }

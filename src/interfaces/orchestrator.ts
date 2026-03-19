@@ -31,7 +31,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected async _onStop(_ctx: Context): Promise<void> {}
 
-  onTabUpdated(tabId: number, changeInfo: chrome.tabs.TabChangeInfo): void {
+  onTabUpdated(tabId: number, changeInfo: { status?: string }): void {
     const { pendingTabId, pendingResolve } = this.tabLoadState;
     if (changeInfo.status === 'complete' && tabId === pendingTabId && pendingResolve) {
       this.tabLoadState.pendingResolve = null;
