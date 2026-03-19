@@ -9,7 +9,7 @@
     "watch:content": "concurrently \"esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --watch\" \"esbuild src/ui/popup.html src/ui/onboarding.html --loader:.html=copy --outdir=dist/ui --watch\""
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.324",
+    "chrome-types": "^0.1.424",
     "concurrently": "^9.2.1",
     "esbuild": "^0.27.4",
     "typescript": "^5.9.3"

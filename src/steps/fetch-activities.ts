@@ -46,7 +46,7 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
       resolveLocal(EMPTY_ACTIVITIES);
     }, 20000);
 
-    const onTabUpdated = (tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void => {
+    const onTabUpdated = (tabId: number, changeInfo: { status?: string }, tab: chrome.tabs.Tab): void => {
       if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
       if (tab.url.startsWith(REWARDS_URL)) {
         chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
@@ -58,7 +58,7 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
     };
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onMessage = (msg: any): void => {
+    const onMessage = (msg: any): undefined => {
       if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
       cleanup();
       setDebugState({ domDebug: msg.domDebug ?? null, dailySetDebug: msg.dailySetDebug ?? null }).catch(() => {});

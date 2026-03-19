@@ -22,7 +22,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // ── Message routing ────────────────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void => {
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START) {
     startRun.run().then(() => sendResponse({ ok: true }));
     return true;
@@ -45,8 +45,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse): true | void =
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
     getActiveOrchestrator()?.onUserActionComplete();
-    return;
   }
+  return undefined;
 });
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────
