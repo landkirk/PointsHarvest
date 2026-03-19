@@ -111,7 +111,7 @@ dist/                   Compiled output (generated — do not edit)
 ### orchestrators/farm-pc-searches.ts
 - Opens a breakdown tab if one isn't already open, then polls for the PC Search counter
 - Runs Bing searches in a loop until the cap is reached or no progress after `MAX_NO_PROGRESS` (3) consecutive searches
-- Throws on no-progress so callers can catch and log without aborting the whole run
+- Surfaces a failure and breaks on no-progress, allowing the run to continue to the next orchestrator
 
 ### steps/fetch-activities.ts
 - Opens rewards.bing.com in a background tab

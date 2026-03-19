@@ -39,7 +39,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[]> {
       if (i < MAX_POLLS - 1) await sleep(POLL_INTERVAL_MS);
     }
 
-    await ctx.dbg(DBG.WARN, `Counter fetch timed out after ${MAX_POLLS}s`);
+    await ctx.fail('counter', `Counter fetch timed out after ${MAX_POLLS}s`);
     return [];
   }
 }
