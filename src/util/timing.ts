@@ -2,9 +2,9 @@ import { dbg, DBG } from './debug.js';
 
 // Named timing ranges — change here to affect all call sites.
 export const TIMING: Record<string, [number, number]> = {
-  INITIAL_DELAY:       [0,    8000],  // jitter before first search
-  LINGER_ON_PAGE:      [5000, 7000],  // dwell time on any page
-  LINGER_ON_SEARCH:    [1500, 3000],  // dwell time on search tab
+  LINGER_ON_PAGE:                  [3000, 5000],  // dwell time on any page
+  LINGER_ON_SEARCH:                [1500, 3000],  // dwell time on search tab
+  DELAY_BETWEEN_FARMING_SEARCHES:  [2000, 4000],  // pause between PC farm searches
 };
 
 /** Triangular distribution biased toward the middle of [min, max]. */
