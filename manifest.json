@@ -5,7 +5,8 @@
   "description": "Automates daily Bing Rewards searches and Explore activities",
   "permissions": ["tabs", "storage"],
   "host_permissions": [
-    "https://*.bing.com/*"
+    "https://*.bing.com/*",
+    "https://r2.pointsharvest.com/*"
   ],
   "background": {
     "service_worker": "background.js",

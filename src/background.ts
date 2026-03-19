@@ -40,7 +40,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === MSG_ACTION.PURGE) {
-    resetState({ seenScreenIds: [] }).then(() => sendResponse({ ok: true }));
+    resetState({ seenScreenIds: [], ignoredUpdateVersion: null }).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
