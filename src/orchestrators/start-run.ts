@@ -66,6 +66,7 @@ class StartRun {
       throw err;
     }
 
+    if (!getIsActivelyRunning()) return;
     await this._endRun(ctx, 'Done for today!', 'All tasks complete', true);
   }
 
