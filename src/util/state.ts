@@ -37,6 +37,7 @@ export interface AppState {
   mappedActivities: MappedActivity[];
   seenScreenIds:        string[];
   ignoredUpdateVersion: string | null;
+  skipWarmUp:           boolean;
   failures:             Failure[];
   header:           AppHeaderState;
   debug:            AppDebugState;
@@ -52,6 +53,7 @@ export const INITIAL_STATE: AppState = {
   mappedActivities: [],
   seenScreenIds:        [],
   ignoredUpdateVersion: null,
+  skipWarmUp:           false,
   failures:             [],
   header: {
     status:            'idle',
@@ -114,6 +116,7 @@ export async function resetState(overrides: Partial<AppState> = {}): Promise<voi
   if (!cache) await loadState();
   const seenScreenIds        = cache!.seenScreenIds;
   const ignoredUpdateVersion = cache!.ignoredUpdateVersion;
-  cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, ...overrides };
+  const skipWarmUp           = cache!.skipWarmUp;
+  cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, skipWarmUp, ...overrides };
   await chrome.storage.local.set(cache);
 }
