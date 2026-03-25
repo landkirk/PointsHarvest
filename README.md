@@ -18,7 +18,7 @@ This extension:
 3. Maps each card to a search query by stripping the "Search on Bing to/for…" boilerplate from the description; falls back to the card title if the description is too short
 4. Clicks each card on the rewards page, which opens a Bing search tab, then performs the mapped query in that tab with randomized timing (5–7s dwell before search, 5–7s after, 5–7s between searches)
 5. Closes each search tab when done
-6. Opens each daily set activity in a background tab; for quizzes, polls, tests, and puzzles it activates the tab and waits for you to complete them manually (click **Done** when finished); for other activity types it dwells briefly and closes automatically
+6. Clicks each daily set activity card on the rewards page (the same way Explore cards are clicked, so Bing can track completion); for quizzes, polls, tests, and puzzles it activates the opened tab and waits for you to complete them manually (click **Done** when finished); for other activity types it dwells briefly and closes automatically
 7. Closes the rewards tab after all cards and daily sets are processed
 
 ## Installation
@@ -43,7 +43,7 @@ You must be signed into your Microsoft account in Chrome for rewards to accrue.
 
 ## Usage
 
-Click the extension icon → **Run today's searches**.
+Click the extension icon to open the side panel → **Run today's searches**.
 
 The extension tracks the last run date and progress:
 - If you run it today and complete all searches, it shows "Done for today!" and won't run again until tomorrow
@@ -129,7 +129,8 @@ For each activity card:
        ▼
 orchestrators/complete-daily-sets.js —
 For each daily set activity:
-  open activity URL in background tab → wait for load (15s timeout)
+  send clickCard (target: dailySet) → content script clicks the card
+  → new activity tab opens → wait for tab to load
   if title matches quiz/poll/test/puzzle:
     → activate tab → wait for user to complete it → user clicks Done
   else:
@@ -177,5 +178,7 @@ The debug panel also includes a **Purge all state** button that clears all store
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message
 - Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (5–7s) should be sufficient, but you can increase it by raising `TIMING.LINGER_ON_PAGE` in `src/util/timing.ts` if you notice missed points
 - After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/search-queries.ts`
+- Enable **Skip warm-up searches** in the popup to bypass the initial warm-up phase and jump straight to Explore cards
+- If Chrome's popup blocker prevents activity tabs from opening, a banner appears with a link to the Chrome settings page where you can allow pop-ups from `rewards.bing.com`
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - Service worker state is preserved across restarts, allowing mid-run resumption
