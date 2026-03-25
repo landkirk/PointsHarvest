@@ -6,8 +6,8 @@
 // "Search on Bing" activities are identified via aria-label on the card element.
 
 import { CardState } from '../util/activity.js';
-import { MSG_ACTION } from '../util/messaging.js';
-import type { MsgAction } from '../util/messaging.js';
+import { MSG_ACTION, MSG_TARGET } from '../util/messaging.js';
+import type { MsgAction, MsgTarget } from '../util/messaging.js';
 import type { Activity } from '../util/activity.js';
 import type { ActivityScan, ActivityScanEntry } from '../util/debug.js'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
@@ -31,6 +31,7 @@ const POLL_INTERVAL_MS = 500;
 
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls: HTMLAnchorElement[] = [];
+let extractedDailySetEls: HTMLAnchorElement[] = [];
 
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
@@ -43,14 +44,15 @@ function determineCardState(card: Element): CardState {
   return CardState.Unknown;
 }
 
-// Returns { dailySets, dailySetDebug }
-function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivityScan | null } {
+// Returns { dailySets, dailySetDebug, dailySetEls }
+function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivityScan | null; dailySetEls: HTMLAnchorElement[] } {
   const container = document.querySelector('#daily-sets');
-  if (!container) return { dailySets: [], dailySetDebug: null };
+  if (!container) return { dailySets: [], dailySetDebug: null, dailySetEls: [] };
 
   const els = Array.from(container.querySelectorAll('a.ds-card-sec'));
 
   const actionable: Activity[] = [];
+  const dailySetEls: HTMLAnchorElement[] = [];
   const activities: ActivityScanEntry[] = [];
 
   for (const el of els) {
@@ -66,11 +68,13 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivitySca
 
     activities.push({ href, snippet, skipReason: null });
     actionable.push({ href, title: ariaLabel, description: el.textContent?.trim().slice(0, 120) || '' });
+    dailySetEls.push(el as HTMLAnchorElement);
   }
 
   return {
     dailySets: actionable,
     dailySetDebug: buildActivityScan(activities, actionable.length),
+    dailySetEls,
   };
 }
 
@@ -184,11 +188,12 @@ function waitAndExtract(): void {
       if (Date.now() - start < MAX_WAIT_MS) { setTimeout(poll, POLL_INTERVAL_MS); return; }
     }
 
-    const { activities, domDebug, cardEls } = extractActivities();
-    const { dailySets, dailySetDebug }       = extractDailySets();
+    const { activities, domDebug, cardEls }           = extractActivities();
+    const { dailySets, dailySetDebug, dailySetEls }   = extractDailySets();
 
     if (activities.length > 0 || dailySets.length > 0 || domDebug.actionableActivities > 0 || dailySetDebug !== null || Date.now() - start >= MAX_WAIT_MS) {
-      extractedCardEls = cardEls;
+      extractedCardEls    = cardEls;
+      extractedDailySetEls = dailySetEls;
       chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
     } else {
       setTimeout(poll, POLL_INTERVAL_MS);
@@ -198,14 +203,15 @@ function waitAndExtract(): void {
   poll();
 }
 
-chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; href?: string }, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; href?: string; target?: MsgTarget }, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START_EXTRACT) {
     waitAndExtract();
     return undefined;
   }
 
   if (msg.action === MSG_ACTION.CLICK_CARD) {
-    const card = extractedCardEls[msg.index!];
+    const els  = msg.target === MSG_TARGET.DAILY_SET ? extractedDailySetEls : extractedCardEls;
+    const card = els[msg.index!];
     if (!card) {
       sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
       return true;
