@@ -3,7 +3,7 @@
   "name": "PointsHarvest",
   "version": "1.8.2",
   "description": "Automates daily Bing Rewards searches and Explore activities",
-  "permissions": ["tabs", "storage"],
+  "permissions": ["tabs", "storage", "sidePanel"],
   "host_permissions": [
     "https://*.bing.com/*",
     "https://r2.pointsharvest.com/*"
@@ -12,8 +12,9 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "action": {
-    "default_popup": "ui/popup.html"
+  "action": {},
+  "side_panel": {
+    "default_path": "ui/popup.html"
   },
   "content_scripts": [
     {
