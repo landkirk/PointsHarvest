@@ -24,7 +24,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START) {
-    startRun.run().then(() => sendResponse({ ok: true }));
+    startRun.run(msg.skipWarmUp === true).then(() => sendResponse({ ok: true }));
     return true;
   }
   if (msg.action === MSG_ACTION.STOP) {

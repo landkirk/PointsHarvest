@@ -18,11 +18,12 @@ interface RunOptions {
   lastRunDate:  string | null;
   currentIndex: number;
   alreadyDone:  boolean;
+  skipWarmUp:   boolean;
 }
 
 
 class StartRun {
-  async run(): Promise<void> {
+  async run(skipWarmUp = false): Promise<void> {
     const today = new Date().toDateString();
     const state = await loadState();
     const { lastRunDate, currentIndex } = state;
@@ -37,11 +38,11 @@ class StartRun {
     setIsActivelyRunning(true);
     const ctx = createContext();
 
-    this._executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone }) // fire and forget
+    this._executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone, skipWarmUp }) // fire and forget
       .catch(err => ctx.dbg(DBG.ERROR, `Fatal run error: ${(err as Error).message}`));
   }
 
-  private async _executeRun(ctx: Context, { today, lastRunDate, currentIndex, alreadyDone }: RunOptions): Promise<void> {
+  private async _executeRun(ctx: Context, { today, lastRunDate, currentIndex, alreadyDone, skipWarmUp }: RunOptions): Promise<void> {
     await ctx.dbg(DBG.INFO, 'Run started');
 
     if (!getIsActivelyRunning()) return;
@@ -52,11 +53,15 @@ class StartRun {
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
-      const warmUp         = new WarmUpSearches();
       const exploreOnBing  = new CompleteExploreOnBing();
       const dailySets      = new CompleteDailySets();
       const farmPcSearches = new FarmPcSearches();
-      await this._runOrchestrator(ctx, warmUp,         () => warmUp.run(ctx));
+      if (skipWarmUp) {
+        await ctx.dbg(DBG.INFO, 'Warm-up skipped');
+      } else {
+        const warmUp = new WarmUpSearches();
+        await this._runOrchestrator(ctx, warmUp,       () => warmUp.run(ctx));
+      }
       await this._runOrchestrator(ctx, exploreOnBing,  () => exploreOnBing.run(ctx, startIndex));
       await this._runOrchestrator(ctx, dailySets,      () => dailySets.run(ctx));
       await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));

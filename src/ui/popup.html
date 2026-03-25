@@ -135,6 +135,7 @@
     }
     .debug-toggle input { cursor: pointer; accent-color: #3b82f6; }
     .debug-toggle label { font-size: 11px; color: #999; cursor: pointer; }
+    .debug-toggle + .debug-toggle { margin-top: 6px; }
 
     /* ── Debug panel ── */
     #debug-panel {
@@ -245,6 +246,11 @@
   <button id="btn-stop">Stop</button>
   <button id="btn-done">Done — I completed the action</button>
   <div class="last-search" id="last-search"></div>
+
+  <div class="debug-toggle">
+    <input type="checkbox" id="skip-warmup-check" />
+    <label for="skip-warmup-check">Skip warm-up searches</label>
+  </div>
 
   <div class="debug-toggle">
     <input type="checkbox" id="debug-check" />

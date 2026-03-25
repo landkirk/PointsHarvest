@@ -33,6 +33,7 @@ const btnStart     = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop      = document.getElementById('btn-stop') as HTMLElement;
 const btnDone      = document.getElementById('btn-done') as HTMLElement;
 const lastSearch   = document.getElementById('last-search')!;
+const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
 const debugCheck   = document.getElementById('debug-check') as HTMLInputElement;
 const debugPanel   = document.getElementById('debug-panel')!;
 const btnPurge     = document.getElementById('btn-purge')!;
@@ -118,6 +119,7 @@ function render({ isRunning, isLingering, status, completedSearches, totalSearch
 // is actually alive and running — if it was restarted, isActivelyRunning is false
 // and we reset rather than showing a permanently-stuck running state.
 function renderState(state: AppState): void {
+  skipWarmUpCheck.checked = state.skipWarmUp;
   render({ ...state, ...state.header });
   renderFailures(state.failures ?? []);
   if (debugCheck.checked) renderDebug(state);
@@ -220,7 +222,7 @@ chrome.runtime.onMessage.addListener((msg): undefined => {
 
 btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
-  chrome.runtime.sendMessage({ action: MSG_ACTION.START });
+  chrome.runtime.sendMessage({ action: MSG_ACTION.START, skipWarmUp: skipWarmUpCheck.checked });
   render({ isRunning: true, status: 'Starting…', completedSearches: 0, totalSearches: 0 });
   renderFailures([]);
   if (debugCheck.checked) clearDebug();
@@ -241,6 +243,10 @@ btnPurge.addEventListener('click', () => {
 });
 
 // ── Debug panel ────────────────────────────────────────────────────────────
+
+skipWarmUpCheck.addEventListener('change', () => {
+  chrome.storage.local.set({ skipWarmUp: skipWarmUpCheck.checked });
+});
 
 debugCheck.addEventListener('change', () => {
   debugPanel.classList.toggle('open', debugCheck.checked);
