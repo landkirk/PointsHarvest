@@ -2,6 +2,7 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
+import { MSG_TARGET } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -40,7 +41,11 @@ class CompleteDailySets extends OrchestratorBase {
         await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
         const attemptActivity = async (): Promise<boolean> => {
-          const t = await this.openTabAndWait(href, true, 15000);
+          const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId!, i, label, MSG_TARGET.DAILY_SET);
+          if (!t) return false;
+
+          this.checkStoppedOrCloseTab(t.id!);
+
           if (USER_ACTION_RE.test(title) || USER_ACTION_RE.test(description)) {
             await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
             await lingerOnTab.run(ctx, t.id!, {

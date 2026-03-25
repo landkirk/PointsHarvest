@@ -1,6 +1,8 @@
 import { waitForTabLoad, closeOwnedTabs, openTab, type TabLoadState } from '../util/tabs.js';
+import { sleep } from '../util/timing.js';
 import { StoppableBase, StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
+import { MSG_ACTION } from '../util/messaging.js';
 
 export { StoppedError };
 
@@ -8,6 +10,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   abstract readonly name: string;
   protected openedTabIds = new Set<number>();
   protected tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
+  protected captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
 
   abstract run(ctx: Context, ...args: TArgs): Promise<void>;
 
@@ -22,6 +25,10 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
       this.tabLoadState.pendingResolve();
       this.tabLoadState.pendingResolve = null;
       this.tabLoadState.pendingTabId = null;
+    }
+    if (this.captureNextTabResolve) {
+      this.captureNextTabResolve(null);
+      this.captureNextTabResolve = null;
     }
     await this._onStop(ctx);
     await closeOwnedTabs(this.openedTabIds);
@@ -39,8 +46,13 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  onTabCreated(_tab: chrome.tabs.Tab): void {}
+  onTabCreated(tab: chrome.tabs.Tab): void {
+    if (this.captureNextTabResolve) {
+      const resolve = this.captureNextTabResolve;
+      this.captureNextTabResolve = null;
+      resolve(tab);
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onTabRemoved(_tabId: number): void {}
@@ -70,5 +82,46 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   protected closeTab(tabId: number): void {
     chrome.tabs.remove(tabId).catch(() => {});
     this.openedTabIds.delete(tabId);
+  }
+
+  protected async captureNextTab(timeoutMs = 10000): Promise<chrome.tabs.Tab | null> {
+    const capturePromise = new Promise<chrome.tabs.Tab | null>(resolve => { this.captureNextTabResolve = resolve; });
+    try {
+      return await Promise.race([capturePromise, sleep(timeoutMs).then(() => null)]);
+    } finally {
+      this.captureNextTabResolve = null;
+    }
+  }
+
+  /** Click a card on the rewards page and capture the tab it opens. Returns null on any failure. */
+  protected async clickCardAndCaptureTab(
+    ctx: Context,
+    rewardsTabId: number,
+    index: number,
+    label: string,
+    target?: string,
+  ): Promise<chrome.tabs.Tab | null> {
+    const captureTabPromise = this.captureNextTab();
+
+    const msg: Record<string, unknown> = { action: MSG_ACTION.CLICK_CARD, index };
+    if (target !== undefined) msg.target = target;
+
+    const clickResult = await chrome.tabs.sendMessage(rewardsTabId, msg)
+      .catch(async (err: unknown) => { await ctx.fail('navigation', `Card click message error for "${label}": ${(err as Error)?.message ?? String(err)}`); return null; });
+
+    if (!clickResult?.clicked) {
+      this.captureNextTabResolve?.(null);
+      await ctx.fail('navigation', `Card click failed for "${label}": ${clickResult?.error ?? 'no response'}`);
+      return null;
+    }
+
+    const tab = await captureTabPromise;
+    if (!tab) {
+      await ctx.fail('navigation', `No tab opened after clicking "${label}"`);
+      return null;
+    }
+
+    this.openedTabIds.add(tab.id!);
+    return tab;
   }
 }
