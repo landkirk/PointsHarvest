@@ -6,6 +6,10 @@ import { StopRun } from './orchestrators/stop-run.js';
 const startRun = new StartRun();
 const stopRun = new StopRun();
 
+// ── Initialization ─────────────────────────────────────────────────────────
+
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+
 // ── Tab event listeners ────────────────────────────────────────────────────
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
