@@ -117,7 +117,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
 
     const tab = await captureTabPromise;
     if (!tab) {
-      await ctx.fail('navigation', `No tab opened after clicking "${label}"`);
+      await ctx.fail('setup', `Chrome blocked the activity tab from opening ("${label}"). To fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → rewards.bing.com`);
       return null;
     }
 

@@ -2,7 +2,7 @@ import { MSG_ACTION } from './messaging.js';
 import { setState } from './state.js';
 import { dbg, DBG } from './debug.js';
 
-export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter';
+export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter' | 'setup';
 
 export interface Failure {
   time:          string;
