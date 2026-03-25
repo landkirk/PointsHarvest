@@ -25,6 +25,11 @@ export type MsgAction =
   | 'getCounters'
   | 'failureEntry';
 
+export const MSG_TARGET = {
+  DAILY_SET: 'dailySet',
+} as const;
+export type MsgTarget = typeof MSG_TARGET[keyof typeof MSG_TARGET];
+
 export const MSG_ACTION: Record<string, MsgAction> = {
   // Background ↔ rewards content script
   START_EXTRACT:    'startExtract',

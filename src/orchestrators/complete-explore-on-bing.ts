@@ -1,7 +1,7 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { sleep, lingerOnPage } from '../util/timing.js';
+import { lingerOnPage } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
@@ -14,7 +14,6 @@ import { validateActivity } from '../steps/validate-activity.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   readonly name = 'Explore on Bing';
-  private captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
   private rewardsTabId: number | null = null;
 
   async run(ctx: Context, startIndex: number): Promise<void> {
@@ -51,31 +50,9 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         ctx.setHeaderMessage({ status: `Searching: "${label}"` });
         await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
-        // Set up capture before sending click — tab may open before sendMessage resolves
-        const captureTabPromise = new Promise<chrome.tabs.Tab | null>(resolve => { this.captureNextTabResolve = resolve; });
+        const searchTab = await this.clickCardAndCaptureTab(ctx, this.rewardsTabId!, i, title);
+        if (!searchTab) continue;
 
-        const clickResult = await chrome.tabs.sendMessage(this.rewardsTabId!, { action: MSG_ACTION.CLICK_CARD, index: i })
-          .catch(async (err: unknown) => { await ctx.fail('navigation', `Card click message error for "${title}": ${(err as Error)?.message ?? String(err)}`); return null; });
-
-        if (!clickResult?.clicked) {
-          this.captureNextTabResolve = null;
-          await ctx.fail('navigation', `Card click failed for "${title}": ${clickResult?.error ?? 'no response'}`);
-          continue;
-        }
-
-        let searchTab: chrome.tabs.Tab | null;
-        try {
-          searchTab = await Promise.race([captureTabPromise, sleep(10000).then(() => null)]);
-        } finally {
-          this.captureNextTabResolve = null;
-        }
-
-        if (!searchTab) {
-          await ctx.fail('navigation', `No tab opened after clicking card "${title}"`);
-          continue;
-        }
-
-        this.openedTabIds.add(searchTab.id!);
         chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});
 
         await this.waitForTabLoad(searchTab.id!, 30000);
@@ -106,19 +83,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     }
   }
 
-  onTabCreated(tab: chrome.tabs.Tab): void {
-    if (this.captureNextTabResolve && tab.id !== this.rewardsTabId) {
-      const resolve = this.captureNextTabResolve;
-      this.captureNextTabResolve = null;
-      resolve(tab);
-    }
-  }
-
   protected async _onStop(_ctx: Context): Promise<void> {
-    if (this.captureNextTabResolve) {
-      this.captureNextTabResolve(null);
-      this.captureNextTabResolve = null;
-    }
     this.rewardsTabId = null;
   }
 }
