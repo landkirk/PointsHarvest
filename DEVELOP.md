@@ -83,12 +83,14 @@ dist/                   Compiled output (generated — do not edit)
 ## Key Components
 
 ### background.ts
-- Tab event listeners only: load detection, tab capture, tab removal
+- Calls `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` on startup so clicking the extension icon opens the side panel
+- Tab event listeners: load detection, tab capture, tab removal
 - Message routing: `START` / `STOP` / `GET_STATE` / `PING` / `PURGE` / `USER_ACTION_COMPLETE`
 - Delegates all run logic to `orchestrators/start-run.ts` and `orchestrators/stop-run.ts`
 
 ### orchestrators/start-run.ts
 - Loads state, resets session/log/storage, creates a context object
+- Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
 - `_executeRun` opens rewards dashboard + breakdown tab in parallel, then chains the three sub-orchestrators via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `state.ts` around each run
 
@@ -104,7 +106,7 @@ dist/                   Compiled output (generated — do not edit)
 
 ### orchestrators/complete-daily-sets.ts
 - Iterates daily set activities extracted from the rewards page
-- Opens each activity URL in a tab; waits up to 15s for load
+- Uses `clickCardAndCaptureTab` (with `MSG_TARGET.DAILY_SET`) to click the card element on the rewards page — this is how Bing registers the activity as started, matching the same flow used for Explore cards
 - If the activity title matches `quiz|poll|test|puzzle`, calls `steps/linger-on-tab` to pause for user interaction; otherwise dwells and closes
 - Calls `steps/validate-activity` after each activity
 
@@ -156,12 +158,15 @@ dist/                   Compiled output (generated — do not edit)
 ### popup.ts
 - Real-time UI updates via `chrome.runtime.onMessage`
 - Debug panel with per-orchestrator sections: Explore on Bing (DOM stats + cards + search queue), Daily Sets (stats + cards), PC Search Farming (counters), and Event Log
+- **Skip warm-up** checkbox — persisted to `chrome.storage.local`; passed as `skipWarmUp` in the `START` message to background
+- **Setup banner** — shown when a `'setup'`-category failure occurs (e.g. Chrome popup blocker blocked a tab); includes a button that opens `chrome://settings/content/popups`
 - Start / Stop / Purge actions
 
 ### content/rewards-content.ts
 - Bundled by esbuild — can freely import from `util/`
 - Polls the rewards SPA until activity cards render (max 15s), extracts "Search on Bing" activities and daily set activities, sends them to background
-- Handles `CLICK_CARD`, `VALIDATE_ACTIVITY`, and `GET_COUNTERS` messages on demand
+- Retains two separate element arrays after extraction: `extractedCardEls` for Explore cards and `extractedDailySetEls` for daily set cards
+- Handles `CLICK_CARD` (routes to the correct array based on `msg.target`), `VALIDATE_ACTIVITY`, and `GET_COUNTERS` messages on demand
 
 ### content/search-content.ts
 - Bundled by esbuild — can freely import from `util/`
@@ -213,42 +218,74 @@ return; // Stop here for testing
 ### Resetting State
 Use the **Purge all state** button in the debug panel to clear all stored data and reset to a fresh state.
 
-## Version Bump Checklist
+## Version Release Checklist
 
-When releasing a new version (e.g. `1.8.0` → `1.9.0`):
+When releasing a new version (e.g. `1.9.0` → `1.10.0`):
 
-1. Update `"version"` in `manifest.json`
-2. Update `"version"` in `package.json`
-3. Update `LATEST_VERSION` in `docs/index.html`
-4. Add a new changelog screen in `src/ui/screens/changelog-X.Y.Z.html`
-5. Add an entry for it in `src/util/screens.ts` → `SCREENS` array
-6. Delete the previous version's changelog file from `src/ui/screens/`
-7. Remove the previous version's entry from the `SCREENS` array
-8. Grep for the old version string (e.g. `1.8.0`) across the repo to catch any remaining references
+### 1. Study what changed
+
+Find the last tag and read every commit diff since then:
+```bash
+git tag --sort=-version:refname | head -3       # find the last tag, e.g. v1.9.0
+git log v1.9.0..HEAD --oneline                  # list commits since that tag
+git log v1.9.0..HEAD --format="%H" | xargs -I{} git show {} --stat
+```
+Read the full diff for each commit — not just the stat, the actual code changes. You need this to write an accurate changelog and to know which sections of DEVELOP.md and README.md need updating.
+
+### 2. Update docs (do this before touching version strings)
+
+- **DEVELOP.md** — update every section that describes changed behavior: orchestrator docs, state docs, message passing, architecture notes, etc. Read the source files to verify claims before writing.
+- **README.md** — update every user-facing description that no longer matches reality: the "What it does" steps, the flow diagram, the Notes section, Usage.
+- **CLAUDE.md** — update Key Layers and Message Passing if architectural facts changed.
+
+### 3. Write the changelog
+
+Create `src/ui/screens/changelog-X.Y.Z.html` with a `<ul>` of user-facing bullet points. Base each bullet on actual code changes, not commit message summaries. Example:
+```html
+<ul>
+  <li>Extension now opens as a side panel instead of a popup</li>
+  <li>Fix daily set activities not being credited in many circumstances</li>
+</ul>
+```
+
+### 4. Update version strings
+
+- `manifest.json` → `"version"`
+- `package.json` → `"version"`
+- `docs/index.html` → `LATEST_VERSION`
+
+### 5. Update the screens registry
+
+In `src/util/screens.ts` → `SCREENS` array:
+- Add entry for the new changelog: `{ id: 'changelog-X.Y.Z', title: "What's New in X.Y.Z", bodyFile: 'ui/screens/changelog-X.Y.Z.html' }`
+- Remove the previous version's entry
+
+Delete the previous version's changelog HTML file from `src/ui/screens/`.
+
+### 6. Verify no stale version strings
+
+```bash
+git grep "OLD_VERSION"   # e.g. git grep "1.9.0"
+```
+Fix any remaining references.
+
+### 7. Build and tag
+
+```bash
+npm run build
+git add manifest.json package.json docs/index.html src/util/screens.ts src/ui/screens/ DEVELOP.md README.md CLAUDE.md
+git commit -m "Release vX.Y.Z"
+git tag vX.Y.Z
+git push origin main
+git push origin vX.Y.Z
+```
+GitHub Actions will create the ZIP and GitHub Release automatically.
 
 ## Creating a Release
 
-### Automatic Release (Recommended)
+The build and tag steps are covered in the Version Release Checklist above. GitHub Actions will automatically create a ZIP and GitHub Release when the tag is pushed.
 
-1. Update version in `manifest.json`
-2. Run `npm run build` to produce a fresh `dist/`
-3. Commit your changes:
-   ```bash
-   git add .
-   git commit -m "Release v1.0.1"
-   ```
-3. Create and push a tag:
-   ```bash
-   git tag v1.0.1
-   git push origin main
-   git push origin v1.0.1
-   ```
-4. GitHub Actions will automatically:
-   - Create a ZIP file
-   - Create a GitHub Release
-   - Attach the ZIP to the release
-
-### Manual Release
+### Manual Release (fallback)
 
 1. Go to the **Actions** tab in GitHub
 2. Select **Build Release** workflow
@@ -295,7 +332,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 ## Architecture Notes
 
 ### State Management
-- Persistent state stored in `chrome.storage.local`
+- Persistent state stored in `chrome.storage.local` — includes `skipWarmUp` preference (survives resets; preserved across `resetState` calls alongside `seenScreenIds` and `ignoredUpdateVersion`)
 - Runtime state (`isActivelyRunning`, `activeOrchestrator`) lives in `util/state.ts` and resets on service worker restart
 - `lastRunDate` comparison enables daily reset without manual clearing
 
@@ -307,7 +344,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Message Passing
 - `popup.ts` ↔ `background.ts`: bidirectional via `chrome.runtime.sendMessage`
-- `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD`, `VALIDATE_ACTIVITY` commands; `ACTIVITIES_FOUND` response)
+- `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD` (optional `target: MSG_TARGET.DAILY_SET` to route to the daily-set element array), `VALIDATE_ACTIVITY` commands; `ACTIVITIES_FOUND` response)
 - `background.ts` ↔ breakdown tab: `GET_COUNTERS` request/response via `fetch-counters.ts`
 - `background.ts` → `search-content.ts`: one-way `PERFORM_SEARCH` command
 - Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `ACTIVITIES_MAPPED`, `DEBUG_ENTRY`, `COMPLETE`) pushed to popup during run
