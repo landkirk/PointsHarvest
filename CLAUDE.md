@@ -31,16 +31,16 @@ Popup (Start button)
 
 ### Key Layers
 
-**Orchestrators** (`src/orchestrators/`) — Top-level coordinators that own the run lifecycle. `OrchestratorBase` (`src/interfaces/orchestrator.ts`) provides shared tab tracking and load-waiting logic.
+**Orchestrators** (`src/orchestrators/`) — Top-level coordinators that own the run lifecycle. `OrchestratorBase` (`src/interfaces/orchestrator.ts`) provides shared tab tracking, load-waiting logic, and `clickCardAndCaptureTab` — a shared helper that sends `CLICK_CARD` to the rewards content script and captures the new tab via `captureNextTab`.
 
 **Steps** (`src/steps/`) — Reusable async routines called by orchestrators: `fetch-activities`, `fetch-counters`, `perform-search`, `linger-on-tab`, `validate-activity`.
 
 **Content Scripts** (`src/content/`) — Injected into Bing pages. Cannot use ES modules (Chrome MV3 limitation), so they are bundled as IIFEs by esbuild and excluded from `tsconfig.build.json`.
-- `rewards-content.ts` — Runs on `rewards.bing.com`; polls DOM for activity cards, handles `CLICK_CARD`, `VALIDATE_ACTIVITY`, `GET_COUNTERS` messages.
+- `rewards-content.ts` — Runs on `rewards.bing.com`; polls DOM for activity cards, handles `CLICK_CARD` (with optional `MSG_TARGET.DAILY_SET` to route to the daily-set element array), `VALIDATE_ACTIVITY`, `GET_COUNTERS` messages.
 - `search-content.ts` — Runs on `www.bing.com`; handles `PERFORM_SEARCH` message, fills and submits the search box.
 
 **State** (`src/util/state.ts`) — Split into two layers:
-- Persistent: `chrome.storage.local` — survives service worker restarts (run date, progress index, search queue, debug logs).
+- Persistent: `chrome.storage.local` — survives service worker restarts (run date, progress index, search queue, debug logs, `skipWarmUp` preference).
 - Runtime: In-memory only (`isActivelyRunning`, `activeOrchestrator`) — reset on SW restart. Popup pings background to detect stale "running" state.
 
 **Timing** (`src/util/timing.ts`) — All delays use `randMs(min, max)` with triangular distribution. `TIMING.LINGER_ON_PAGE` (5–7s) is the standard dwell preset used between actions.
@@ -54,6 +54,10 @@ Popup (Start button)
 ## Documentation
 
 When updating README.md or DEVELOP.md, read the actual source code to verify every claim before writing. Do not infer behavior from file names or outdated docs.
+
+## Version Releases
+
+Follow the **Version Release Checklist** in `DEVELOP.md` exactly and in order. The most commonly skipped step is updating DEVELOP.md and README.md — these must reflect actual source code behavior, not just commit message summaries. Read the diffs.
 
 ## Refactoring
 
@@ -71,6 +75,6 @@ CSS selectors in this project must be verified against actual DOM structure. Whe
 
 All cross-context communication uses `chrome.runtime.sendMessage`. Constants live in `src/util/messaging.ts` (`MSG_ACTION`). Key flows:
 - Popup ↔ Background: `START`, `STOP`, `GET_STATE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`
-- Background ↔ Rewards content: `START_EXTRACT`, `CLICK_CARD`, `VALIDATE_ACTIVITY`, `GET_COUNTERS`
+- Background ↔ Rewards content: `START_EXTRACT`, `CLICK_CARD` (optional `target: MSG_TARGET.DAILY_SET`), `VALIDATE_ACTIVITY`, `GET_COUNTERS`
 - Background → Search content: `PERFORM_SEARCH`
 - Background → Popup (push): `PROGRESS`, `COMPLETE`, `ACTIVITIES_MAPPED`, `DEBUG_ENTRY`, `LINGER_WAITING`
