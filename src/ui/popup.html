@@ -93,6 +93,29 @@
     #btn-purge { background: #1f0f0f; color: #ef4444; margin-top: 10px; border: 1px solid #3f1515; font-size: 11px; padding: 6px; }
     #btn-purge:hover { background: #2d1212; }
 
+    /* ── Setup warning banner ── */
+    #setup-banner {
+      margin-bottom: 12px;
+      background: #1a1200;
+      border: 1px solid #92400e;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+    }
+    #setup-msg { color: #f59e0b; font-weight: 600; margin-bottom: 4px; }
+    #setup-instructions { color: #bbb; line-height: 1.5; margin-bottom: 6px; }
+    #setup-instructions strong { color: #e8e8e8; }
+    #btn-open-settings {
+      width: auto;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 500;
+      background: #78350f;
+      color: #fde68a;
+      border-radius: 4px;
+    }
+    #btn-open-settings:hover { background: #92400e; }
+
     /* ── Failure banner ── */
     #failure-banner {
       margin-bottom: 12px;
@@ -238,6 +261,11 @@
     <div class="progress-bar" id="progress-bar"></div>
   </div>
   <div class="progress-label" id="progress-label">—</div>
+  <div id="setup-banner" style="display:none">
+    <div id="setup-msg">Chrome is blocking activity tabs from opening.</div>
+    <div id="setup-instructions">Fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → <strong>rewards.bing.com</strong></div>
+    <button id="btn-open-settings">Open Pop-up Settings</button>
+  </div>
   <div id="failure-banner" style="display:none">
     <div id="failure-summary"></div>
     <div id="failure-list" style="display:none"></div>

@@ -42,9 +42,17 @@ const dbgExplore   = document.getElementById('dbg-explore')!;
 const dbgDaily     = document.getElementById('dbg-daily')!;
 const dbgPcCounters = document.getElementById('dbg-pc-counters')!;
 const dbgLog       = document.getElementById('dbg-log')!;
+const setupBanner    = document.getElementById('setup-banner')!;
+const btnOpenSettings = document.getElementById('btn-open-settings') as HTMLButtonElement;
 const failureBanner  = document.getElementById('failure-banner')!;
 const failureSummary = document.getElementById('failure-summary')!;
 const failureList    = document.getElementById('failure-list')!;
+
+// ── Setup warning banner ────────────────────────────────────────────────────
+
+btnOpenSettings.addEventListener('click', () => {
+  chrome.tabs.create({ url: 'chrome://settings/content/popups' }).catch(() => {});
+});
 
 // ── Failure banner ─────────────────────────────────────────────────────────
 
@@ -57,15 +65,21 @@ function updateFailureSummary(count: number): void {
 function renderFailures(failures: Failure[]): void {
   if (!failures || failures.length === 0) {
     failureBanner.style.display = 'none';
+    setupBanner.style.display = 'none';
     failureList.innerHTML = '';
     return;
   }
+  let hasSetup = false;
+  const nonSetup = failures.filter(f => { if (f.category === 'setup') { hasSetup = true; return false; } return true; });
+  if (hasSetup) setupBanner.style.display = 'block';
+  if (nonSetup.length === 0) { failureBanner.style.display = 'none'; failureList.innerHTML = ''; return; }
   failureBanner.style.display = 'block';
-  updateFailureSummary(failures.length);
-  failureList.innerHTML = failures.map(f => failureItemHtml(f)).join('');
+  updateFailureSummary(nonSetup.length);
+  failureList.innerHTML = nonSetup.map(f => failureItemHtml(f)).join('');
 }
 
 function appendFailure(f: Failure): void {
+  if (f.category === 'setup') { setupBanner.style.display = 'block'; return; }
   failureBanner.style.display = 'block';
   const div = document.createElement('div');
   div.innerHTML = failureItemHtml(f);
@@ -225,6 +239,7 @@ btnStart.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.START, skipWarmUp: skipWarmUpCheck.checked });
   render({ isRunning: true, status: 'Starting…', completedSearches: 0, totalSearches: 0 });
   renderFailures([]);
+  setupBanner.style.display = 'none';
   if (debugCheck.checked) clearDebug();
 });
 
