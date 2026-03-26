@@ -18,7 +18,7 @@ class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> 
     const label = activity.title.slice(0, 60);
 
     if (!response) {
-      await ctx.fail('validation', `Validation: no response — "${label}"`);
+      await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);
       return null;
     }
 
@@ -31,7 +31,7 @@ class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> 
       await ctx.dbg(DBG.WARN, `Not found during validation: "${label}"`);
       return null;
     }
-    await ctx.fail('validation', `Validation failed: state="${state}" — "${label}"`);
+    await ctx.dbg(DBG.WARN, `Validation failed: state="${state}" — "${label}"`);
     return false;
   }
 }
