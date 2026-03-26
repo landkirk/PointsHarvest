@@ -7,7 +7,8 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      width: 320px;
+      width: 100%;
+      box-sizing: border-box;
       background: #0f0f0f;
       color: #e8e8e8;
       padding: 16px;
@@ -177,15 +178,33 @@
       letter-spacing: 0.05em;
       color: #888;
       margin-bottom: 6px;
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
+    .dbg-section h2::before {
+      content: '▾';
+      font-size: 10px;
+      transition: transform 0.15s;
+      display: inline-block;
+    }
+    .dbg-section.collapsed h2::before { transform: rotate(-90deg); }
+    .dbg-section.collapsed .dbg-section-body { display: none; }
 
     .dbg-list {
-      max-height: 130px;
+      min-height: 50px;
+      max-height: 800px;
       overflow-y: auto;
+      resize: vertical;
       font-size: 11px;
       color: #ccc;
       line-height: 1.5;
     }
+    .dbg-list--small  { height: 100px; }
+    .dbg-list--medium { height: 200px; }
+    .dbg-list--large  { height: 350px; }
     .dbg-list::-webkit-scrollbar { width: 4px; }
     .dbg-list::-webkit-scrollbar-track { background: transparent; }
     .dbg-list::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
@@ -289,36 +308,46 @@
 
     <div class="dbg-section">
       <h2>Warm-Up Searches</h2>
-      <div class="dbg-list" id="dbg-warmup">
-        <div class="dbg-empty">Run the extension to see warm-up queries.</div>
+      <div class="dbg-section-body">
+        <div class="dbg-list dbg-list--small" id="dbg-warmup">
+          <div class="dbg-empty">Run the extension to see warm-up queries.</div>
+        </div>
       </div>
     </div>
 
     <div class="dbg-section">
       <h2>Explore on Bing</h2>
-      <div id="dbg-explore">
-        <div class="dbg-list"><div class="dbg-empty">Run the extension to see extraction results.</div></div>
+      <div class="dbg-section-body">
+        <div id="dbg-explore">
+          <div class="dbg-list"><div class="dbg-empty">Run the extension to see extraction results.</div></div>
+        </div>
       </div>
     </div>
 
     <div class="dbg-section">
       <h2>Daily Sets</h2>
-      <div id="dbg-daily">
-        <div class="dbg-list"><div class="dbg-empty">Run the extension to see results.</div></div>
+      <div class="dbg-section-body">
+        <div id="dbg-daily">
+          <div class="dbg-list"><div class="dbg-empty">Run the extension to see results.</div></div>
+        </div>
       </div>
     </div>
 
     <div class="dbg-section">
       <h2>PC Search Farming</h2>
-      <div class="dom-stats" id="dbg-pc-counters">
-        <div class="dbg-empty">No data yet.</div>
+      <div class="dbg-section-body">
+        <div class="dom-stats" id="dbg-pc-counters">
+          <div class="dbg-empty">No data yet.</div>
+        </div>
       </div>
     </div>
 
     <div class="dbg-section">
       <h2>Event Log</h2>
-      <div class="dbg-list" id="dbg-log">
-        <div class="dbg-empty">No events yet.</div>
+      <div class="dbg-section-body">
+        <div class="dbg-list dbg-list--large" id="dbg-log">
+          <div class="dbg-empty">No events yet.</div>
+        </div>
       </div>
     </div>
 

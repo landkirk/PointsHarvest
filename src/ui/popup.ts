@@ -217,8 +217,8 @@ chrome.runtime.onMessage.addListener((msg): undefined => {
   if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
       if (state) {
-        renderActivitySection(dbgExplore, exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]));
-        renderActivitySection(dbgDaily, dailySetsToActivityData(state.debug.dailySetDebug));
+        renderActivitySection(dbgExplore, exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]), LIST_SIZE.LARGE);
+        renderActivitySection(dbgDaily, dailySetsToActivityData(state.debug.dailySetDebug), LIST_SIZE.MEDIUM);
         renderPcCounters(state.searchCounters);
       }
     });
@@ -259,6 +259,10 @@ btnPurge.addEventListener('click', () => {
 
 // ── Debug panel ────────────────────────────────────────────────────────────
 
+document.querySelectorAll('.dbg-section h2').forEach(h2 => {
+  h2.addEventListener('click', () => h2.closest('.dbg-section')!.classList.toggle('collapsed'));
+});
+
 skipWarmUpCheck.addEventListener('change', () => {
   chrome.storage.local.set({ skipWarmUp: skipWarmUpCheck.checked });
 });
@@ -274,23 +278,26 @@ debugCheck.addEventListener('change', () => {
 
 function clearDebug(): void {
   dbgWarmUp.innerHTML     = '<div class="dbg-empty">Run the extension to see warm-up queries.</div>';
-  renderActivitySection(dbgExplore, { items: [], emptyMessage: 'Run the extension to see extraction results.' });
-  renderActivitySection(dbgDaily,   { items: [], emptyMessage: 'Run the extension to see results.' });
+  renderActivitySection(dbgExplore, { items: [], emptyMessage: 'Run the extension to see extraction results.' }, LIST_SIZE.LARGE);
+  renderActivitySection(dbgDaily,   { items: [], emptyMessage: 'Run the extension to see results.' }, LIST_SIZE.MEDIUM);
   dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
   dbgLog.innerHTML        = '<div class="dbg-empty">No events yet.</div>';
 }
 
 function renderDebug({ debug, searchCounters, mappedActivities, warmUpQueries }: AppState): void {
   renderWarmUp(warmUpQueries);
-  renderActivitySection(dbgExplore, exploreToActivityData(debug.domDebug, mappedActivities as MappedActivity[]));
-  renderActivitySection(dbgDaily,   dailySetsToActivityData(debug.dailySetDebug));
+  renderActivitySection(dbgExplore, exploreToActivityData(debug.domDebug, mappedActivities as MappedActivity[]), LIST_SIZE.LARGE);
+  renderActivitySection(dbgDaily,   dailySetsToActivityData(debug.dailySetDebug), LIST_SIZE.MEDIUM);
   renderPcCounters(searchCounters);
   renderLog(debug.debugLog);
 }
 
 // ── Generic activity section renderer ──────────────────────────────────────
 
-function renderActivitySection(container: HTMLElement, data: ActivityDebugData): void {
+type ListSize = 'small' | 'medium' | 'large';
+const LIST_SIZE = { SMALL: 'small', MEDIUM: 'medium', LARGE: 'large' } as const;
+
+function renderActivitySection(container: HTMLElement, data: ActivityDebugData, listSize: ListSize = LIST_SIZE.LARGE): void {
   let html = '';
 
   if (data.stats) {
@@ -305,9 +312,9 @@ function renderActivitySection(container: HTMLElement, data: ActivityDebugData):
   }
 
   if (data.items.length === 0) {
-    html += `<div class="dbg-list"><div class="dbg-empty">${esc(data.emptyMessage)}</div></div>`;
+    html += `<div class="dbg-list dbg-list--${listSize}"><div class="dbg-empty">${esc(data.emptyMessage)}</div></div>`;
   } else {
-    html += '<div class="dbg-list">' + data.items.map(item => `
+    html += `<div class="dbg-list dbg-list--${listSize}">` + data.items.map(item => `
       <div class="dbg-card" data-status="${esc(item.skipReason ?? CardState.Actionable)}">
         <div class="card-title${item.skipReason ? ' skipped' : ''}">${esc(item.title)}</div>
         ${item.description ? `<div class="card-desc">${esc(item.description)}</div>` : ''}
@@ -323,7 +330,7 @@ function renderActivitySection(container: HTMLElement, data: ActivityDebugData):
 
   if (data.queue !== undefined) {
     html += '<div class="dbg-section-label" style="margin-top:8px">Search Queue</div>';
-    html += queryListHtml(data.queue, 'Not yet built.');
+    html += queryListHtml(data.queue, 'Not yet built.', LIST_SIZE.SMALL);
   }
 
   container.innerHTML = html;
@@ -399,11 +406,11 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
-function queryListHtml(queries: string[], emptyMessage: string): string {
+function queryListHtml(queries: string[], emptyMessage: string, size: ListSize = LIST_SIZE.LARGE): string {
   if (!queries || queries.length === 0) {
-    return `<div class="dbg-list"><div class="dbg-empty">${esc(emptyMessage)}</div></div>`;
+    return `<div class="dbg-list dbg-list--${size}"><div class="dbg-empty">${esc(emptyMessage)}</div></div>`;
   }
-  return '<div class="dbg-list">' + queries.map((q, i) => `
+  return `<div class="dbg-list dbg-list--${size}">` + queries.map((q, i) => `
     <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
   `).join('') + '</div>';
 }
@@ -411,7 +418,13 @@ function queryListHtml(queries: string[], emptyMessage: string): string {
 // ── Warm-Up Searches ───────────────────────────────────────────────────────
 
 function renderWarmUp(queries: string[]): void {
-  dbgWarmUp.innerHTML = queryListHtml(queries, 'Run the extension to see warm-up queries.');
+  if (!queries || queries.length === 0) {
+    dbgWarmUp.innerHTML = `<div class="dbg-empty">Run the extension to see warm-up queries.</div>`;
+    return;
+  }
+  dbgWarmUp.innerHTML = queries.map((q, i) => `
+    <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
+  `).join('');
 }
 
 // ── PC Search Farming ──────────────────────────────────────────────────────
