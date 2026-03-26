@@ -1,3 +1,5 @@
+import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
+
 export interface ActivitiesResult {
   activities: Activity[];
   dailySets?: Activity[];
@@ -48,13 +50,6 @@ function generateSearchQuery(title: string, description: string): string {
   if (base.length < MIN_QUERY_LENGTH) base = (title || '').trim();
   return base.slice(0, 80).trim();
 }
-
-const VALIDATION_RETRY_QUERIES: { pattern: RegExp; retryQuery: string }[] = [
-  { pattern: /specific stock/i, retryQuery: 'AMD stock' },
-  { pattern: /favorite video game/i, retryQuery: 'Skyrim' },
-  { pattern: /next adventure/i, retryQuery: 'Bahamas' },
-  { pattern: /your team/i, retryQuery: 'Tampa Bay Lightning games' },
-];
 
 export function findRetryQuery(query: string): string | null {
   return VALIDATION_RETRY_QUERIES.find(({ pattern }) => pattern.test(query))?.retryQuery ?? null;
