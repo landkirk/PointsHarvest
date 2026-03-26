@@ -49,6 +49,17 @@ function generateSearchQuery(title: string, description: string): string {
   return base.slice(0, 80).trim();
 }
 
+const VALIDATION_RETRY_QUERIES: { pattern: RegExp; retryQuery: string }[] = [
+  { pattern: /specific stock/i, retryQuery: 'AMD stock' },
+  { pattern: /favorite video game/i, retryQuery: 'Skyrim' },
+  { pattern: /next adventure/i, retryQuery: 'Bahamas' },
+  { pattern: /your team/i, retryQuery: 'Tampa Bay Lightning games' },
+];
+
+export function findRetryQuery(query: string): string | null {
+  return VALIDATION_RETRY_QUERIES.find(({ pattern }) => pattern.test(query))?.retryQuery ?? null;
+}
+
 // Maps each activity to a query (may be null if none could be generated).
 export function buildSearchList(activities: Activity[]): MappedActivity[] {
   return activities.map(({ title, description, activityIndex, activityType }) => {
