@@ -31,7 +31,7 @@ class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> 
       await ctx.dbg(DBG.WARN, `Not found during validation: "${label}"`);
       return null;
     }
-    await ctx.dbg(DBG.WARN, `Validation: state="${state}" — "${label}"`);
+    await ctx.fail('validation', `Validation failed: state="${state}" — "${label}"`);
     return false;
   }
 }
