@@ -12,7 +12,7 @@ import type { Activity } from '../util/activity.js';
 import type { ActivityScan, ActivityScanEntry } from '../util/debug.js'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
 
-const SEARCH_ON_BING_RE = /search on bing/i;
+const SEARCH_ON_BING_RE = /search (?:on|using|with) bing/i;
 
 function countSkipped(entries: ActivityScanEntry[], reason: CardState): number {
   return entries.filter(a => a.skipReason === reason).length;
@@ -117,7 +117,8 @@ function extractActivities(): { activities: Activity[]; domDebug: ActivityScan; 
     const ariaLabel = card.getAttribute('aria-label') || '';
     const cardText  = card.textContent || '';
 
-    if (!SEARCH_ON_BING_RE.test(ariaLabel) && !SEARCH_ON_BING_RE.test(cardText)) continue;
+    const parentBiId = card.closest('[data-bi-id]')?.getAttribute('data-bi-id') || '';
+    if (!SEARCH_ON_BING_RE.test(ariaLabel) && !SEARCH_ON_BING_RE.test(cardText) && !parentBiId.includes('exploreonbing')) continue;
 
     const snippet = (ariaLabel || cardText.trim()).slice(0, 120);
     const state   = determineCardState(card);

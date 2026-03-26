@@ -32,6 +32,7 @@ const MIN_QUERY_LENGTH = 8;
 
 const BOILERPLATE = [
   /^search on bing (?:to |for )?/i,
+  /^search using bing (?:to |for )?/i,
   /^search bing (?:to |for )?/i,
   /^use bing to /i,
   /^bing search (?:to |for )?/i,
