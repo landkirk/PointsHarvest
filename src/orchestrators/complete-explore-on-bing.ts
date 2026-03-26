@@ -8,7 +8,8 @@ import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { setHeaderState } from '../util/state.js';
 import { fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
-import { buildSearchList } from '../util/activity.js';
+import { buildSearchList, findRetryQuery } from '../util/activity.js';
+import type { MappedActivity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity } from '../steps/validate-activity.js';
 
@@ -50,28 +51,30 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         ctx.setHeaderMessage({ status: `Searching: "${label}"` });
         await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
-        const searchTab = await this.clickCardAndCaptureTab(ctx, this.rewardsTabId!, i, title);
-        if (!searchTab) continue;
-
-        chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});
-
-        await this.waitForTabLoad(searchTab.id!, 30000);
-        this.checkStoppedOrCloseTab(searchTab.id!);
-
-        await performSearch.run(ctx, searchTab.id!, query);
-        this.closeTab(searchTab.id!);
-        this.checkStopped();
+        const retryQuery = findRetryQuery(query);
+        const succeeded = await this.executeActivityWithValidation(
+          ctx,
+          () => this.runSearchForActivity(ctx, mapped[i], i, query),
+          retryQuery ? () => this.runSearchForActivity(ctx, mapped[i], i, retryQuery) : null,
+          {
+            retryLogMessage: `Validation failed — retrying with lookup query: "${retryQuery}"`,
+            lingerLabel: 'explore on bing validation retry',
+            failCategory: 'validation',
+            failMessage: `Validation failed after retry for: "${query}"`,
+            noRetryFailMessage: `Validation failed — no lookup query for: "${query}"`,
+          },
+        );
+        if (!succeeded) continue;
 
         const completed = i + 1;
         await ctx.setState({ currentIndex: i });
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
         this.checkStopped();
-        await validateActivity.run(ctx, mapped[i], rewardsTabId!);
 
         ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completedSearches: completed, totalSearches: mapped.length, lastSearchString: query });
 
         if (i < mapped.length - 1) {
-          await lingerOnPage('between searches');
+          await lingerOnPage('between explore on bing searches');
           this.checkStopped();
         }
       }
@@ -81,6 +84,25 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         this.rewardsTabId = null;
       }
     }
+  }
+
+  private async runSearchForActivity(
+    ctx: Context,
+    activity: MappedActivity,
+    index: number,
+    query: string,
+  ): Promise<boolean | null> {
+    const searchTab = await this.clickCardAndCaptureTab(ctx, this.rewardsTabId!, index, activity.title);
+    if (!searchTab) return null;
+
+    chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});
+    await this.waitForTabLoad(searchTab.id!, 30000);
+    this.checkStoppedOrCloseTab(searchTab.id!);
+    await performSearch.run(ctx, searchTab.id!, query);
+    this.closeTab(searchTab.id!);
+    this.checkStopped();
+
+    return validateActivity.run(ctx, activity, this.rewardsTabId!);
   }
 
   protected async _onStop(_ctx: Context): Promise<void> {
