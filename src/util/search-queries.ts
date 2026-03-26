@@ -1,3 +1,12 @@
+export const VALIDATION_RETRY_QUERIES: { pattern: RegExp; retryQuery: string }[] = [
+  { pattern: /specific stock/i, retryQuery: 'AMD stock' },
+  { pattern: /favorite video game/i, retryQuery: 'Skyrim' },
+  { pattern: /next adventure/i, retryQuery: 'Bahamas' },
+  { pattern: /your team/i, retryQuery: 'Tampa Bay Lightning games' },
+  { pattern: /your shopping list/i, retryQuery: 'eggs' },
+  { pattern: /your package/i, retryQuery: 'where is my package 1Z662F416878787827' },
+];
+
 export const WARMUP_SEARCH_QUERIES: string[] = [
   'current time in tokyo',
   'calories in an avocado',
