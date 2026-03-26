@@ -21,7 +21,6 @@ export interface DebugEntry {
 export interface ActivityScanEntry {
   skipReason: CardState | null;
   snippet:    string;
-  href?:      string;
 }
 
 export interface ActivityScan {

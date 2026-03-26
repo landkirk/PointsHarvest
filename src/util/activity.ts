@@ -4,10 +4,13 @@ export interface ActivitiesResult {
   loggedIn:   boolean;
 }
 
+import type { ActivityType } from './messaging.js';
+
 export interface Activity {
-  title:       string;
-  description: string;
-  href:        string;
+  title:         string;
+  description:   string;
+  activityIndex: number;
+  activityType?: ActivityType;
 }
 
 export interface MappedActivity extends Activity {
@@ -21,7 +24,6 @@ export const enum CardState {
   Locked     = 'locked',
   Unknown    = 'unknown',
   NotFound   = 'not-found',
-  NoHref     = 'no-href',
 }
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
@@ -49,10 +51,10 @@ function generateSearchQuery(title: string, description: string): string {
 
 // Maps each activity to a query (may be null if none could be generated).
 export function buildSearchList(activities: Activity[]): MappedActivity[] {
-  return activities.map(({ title, description, href }) => {
+  return activities.map(({ title, description, activityIndex, activityType }) => {
     const query = generateSearchQuery(title, description);
     return query
-      ? { title, description, href, query, unmatched: false }
-      : { title, description, href, query: null, unmatched: true };
+      ? { title, description, activityIndex, activityType, query, unmatched: false }
+      : { title, description, activityIndex, activityType, query: null, unmatched: true };
   });
 }

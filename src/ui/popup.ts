@@ -398,7 +398,6 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
   const items: ActivityDebugItem[] = scan.activities.map(t => ({
     title:      t.snippet || '(no title)',
     skipReason: t.skipReason,
-    action:     t.skipReason ? undefined : t.href ?? undefined,
   }));
 
   return { stats: buildScanStats(scan), items, emptyMessage: 'No daily set activities found.' };
