@@ -79,7 +79,6 @@ class FarmPcSearches extends OrchestratorBase {
       this.checkStopped();
 
       if (shuffleIndex >= shuffled.length) {
-        await ctx.dbg(DBG.ERROR, 'PC farm aborted: queries exhausted');
         await ctx.fail('search', 'PC search queries exhausted');
         break;
       }
