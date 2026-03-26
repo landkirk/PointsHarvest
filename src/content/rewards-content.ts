@@ -6,8 +6,8 @@
 // "Search on Bing" activities are identified via aria-label on the card element.
 
 import { CardState } from '../util/activity.js';
-import { MSG_ACTION, MSG_TARGET } from '../util/messaging.js';
-import type { MsgAction, MsgTarget } from '../util/messaging.js';
+import { MSG_ACTION, ACTIVITY_TYPE } from '../util/messaging.js';
+import type { MsgAction, ActivityType } from '../util/messaging.js';
 import type { Activity } from '../util/activity.js';
 import type { ActivityScan, ActivityScanEntry } from '../util/debug.js'; // eslint-disable-line @typescript-eslint/no-unused-vars
 
@@ -61,13 +61,14 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivitySca
     const href      = (el as HTMLAnchorElement).href || '';
     const snippet   = ariaLabel.slice(0, 80);
 
-    if (state !== CardState.Actionable || !href) {
-      activities.push({ skipReason: !href ? CardState.NoHref : state, snippet });
+    if (!href) continue;
+    if (state !== CardState.Actionable) {
+      activities.push({ skipReason: state, snippet });
       continue;
     }
 
-    activities.push({ href, snippet, skipReason: null });
-    actionable.push({ href, title: ariaLabel, description: el.textContent?.trim().slice(0, 120) || '' });
+    activities.push({ snippet, skipReason: null });
+    actionable.push({ title: ariaLabel, description: el.textContent?.trim().slice(0, 120) || '', activityIndex: dailySetEls.length, activityType: ACTIVITY_TYPE.DAILY_SET });
     dailySetEls.push(el as HTMLAnchorElement);
   }
 
@@ -138,7 +139,7 @@ function extractActivities(): { activities: Activity[]; domDebug: ActivityScan; 
     const href = (card as HTMLAnchorElement).href || '';
 
     if (!href) continue;
-    activities.push({ title, description, href });
+    activities.push({ title, description, activityIndex: cardEls.length });
     cardEls.push(card as HTMLAnchorElement);
   }
 
@@ -204,14 +205,18 @@ function waitAndExtract(): void {
   poll();
 }
 
-chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; href?: string; target?: MsgTarget }, _sender, sendResponse) => {
+function resolveEls(target: ActivityType | undefined): HTMLAnchorElement[] {
+  return target === ACTIVITY_TYPE.DAILY_SET ? extractedDailySetEls : extractedCardEls;
+}
+
+chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; target?: ActivityType }, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START_EXTRACT) {
     waitAndExtract();
     return undefined;
   }
 
   if (msg.action === MSG_ACTION.CLICK_CARD) {
-    const els  = msg.target === MSG_TARGET.DAILY_SET ? extractedDailySetEls : extractedCardEls;
+    const els  = resolveEls(msg.target);
     const card = els[msg.index!];
     if (!card) {
       sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
@@ -233,9 +238,9 @@ chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; 
   }
 
   if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
-    const els = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.ds-card-sec'));
-    const match = els.find(el => el.href === msg.href);
-    sendResponse({ state: match ? determineCardState(match) : CardState.NotFound });
+    const els  = resolveEls(msg.target);
+    const card = els[msg.index!];
+    sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
     return true;
   }
   return undefined;

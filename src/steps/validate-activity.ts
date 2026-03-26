@@ -11,10 +11,11 @@ class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> 
   async run(ctx: Context, activity: Activity, rewardsTabId: number): Promise<boolean | null> {
     const response = await chrome.tabs.sendMessage(rewardsTabId, {
       action: MSG_ACTION.VALIDATE_ACTIVITY,
-      href: activity.href,
+      index:  activity.activityIndex,
+      target: activity.activityType,
     }).catch(() => null);
 
-    const label = (activity.title || activity.href).slice(0, 60);
+    const label = activity.title.slice(0, 60);
 
     if (!response) {
       await ctx.fail('validation', `Validation: no response — "${label}"`);

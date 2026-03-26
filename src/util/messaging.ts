@@ -25,10 +25,10 @@ export type MsgAction =
   | 'getCounters'
   | 'failureEntry';
 
-export const MSG_TARGET = {
+export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
 } as const;
-export type MsgTarget = typeof MSG_TARGET[keyof typeof MSG_TARGET];
+export type ActivityType = typeof ACTIVITY_TYPE[keyof typeof ACTIVITY_TYPE];
 
 export const MSG_ACTION: Record<string, MsgAction> = {
   // Background ↔ rewards content script
