@@ -1,8 +1,8 @@
-// Opens each daily set activity's href URL in a background tab, dwells briefly, then closes.
+// Opens each daily set activity in a background tab by index, dwells briefly, then closes.
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
-import { MSG_TARGET } from '../util/messaging.js';
+import { ACTIVITY_TYPE } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -36,12 +36,12 @@ class CompleteDailySets extends OrchestratorBase {
       for (let i = 0; i < dailySets.length; i++) {
         this.checkStopped();
 
-        const { href, title, description } = dailySets[i];
-        const label = (title || href || '').slice(0, 60);
+        const { title, description } = dailySets[i];
+        const label = title.slice(0, 60);
         await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
         const attemptActivity = async (): Promise<boolean> => {
-          const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId!, i, label, MSG_TARGET.DAILY_SET);
+          const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId!, i, label, ACTIVITY_TYPE.DAILY_SET);
           if (!t) return false;
 
           this.checkStoppedOrCloseTab(t.id!);
