@@ -6,6 +6,7 @@
 // "Search on Bing" activities are identified via aria-label on the card element.
 
 import { CardState } from '../util/activity.js';
+import { TIMEOUTS } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { ACTIVITY_TYPE } from '../util/activity.js';
 import type { AppMessage } from '../util/messaging.js';
@@ -27,8 +28,8 @@ function buildActivityScan(entries: ActivityScanEntry[], actionableCount: number
     activities: entries,
   };
 }
-const MAX_WAIT_MS = 15000;
-const POLL_INTERVAL_MS = 500;
+const MAX_WAIT_MS = TIMEOUTS.REWARDS_DOM_MAX_WAIT;
+const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_DOM_POLL;
 
 // Card elements retained after extraction so they can be clicked on demand.
 let extractedCardEls: HTMLAnchorElement[] = [];
