@@ -83,8 +83,12 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
     chrome.tabs.onUpdated.addListener(onTabUpdated);
     chrome.runtime.onMessage.addListener(onMessage);
 
-    const result = await activitiesPromise;
-    return { ...result, rewardsTabId };
+    try {
+      const result = await activitiesPromise;
+      return { ...result, rewardsTabId };
+    } finally {
+      cleanup();
+    }
   }
 }
 
