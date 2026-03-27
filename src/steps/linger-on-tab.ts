@@ -23,7 +23,9 @@ class LingerOnTabStep extends StepBase<[number, LingerHooks]> {
     }
     hooks.onTabId(tabId);
     await ctx.setState({ isLingering: true });
-    chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
+    chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {
+      /* popup may be closed */
+    });
     await Promise.race([
       new Promise<void>((resolve) => {
         hooks.onResolve(resolve);

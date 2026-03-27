@@ -29,5 +29,7 @@ export async function fail(
   failures.push(entry);
   if (failures.length > MAX_FAILURES) failures.shift();
   await setState({ failures: [...failures] });
-  chrome.runtime.sendMessage({ action: MSG_ACTION.FAILURE_ENTRY, failure: entry }).catch(() => {});
+  chrome.runtime.sendMessage({ action: MSG_ACTION.FAILURE_ENTRY, failure: entry }).catch(() => {
+    /* popup may be closed */
+  });
 }

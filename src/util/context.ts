@@ -30,8 +30,13 @@ export function createContext(): Context {
       if (payload.totalSearches !== undefined) headerUpdate.totalSearches = payload.totalSearches;
       if (payload.lastSearchString !== undefined)
         headerUpdate.lastSearchString = payload.lastSearchString;
-      if (Object.keys(headerUpdate).length) setHeaderState(headerUpdate).catch(() => {});
-      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload }).catch(() => {});
+      if (Object.keys(headerUpdate).length)
+        setHeaderState(headerUpdate).catch(() => {
+          /* non-critical: UI display state */
+        });
+      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload }).catch(() => {
+        /* popup may be closed */
+      });
     },
   };
 }

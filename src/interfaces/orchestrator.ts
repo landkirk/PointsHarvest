@@ -154,7 +154,9 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
 
   /** Close a tab and remove it from openedTabIds. */
   protected closeTab(tabId: number): void {
-    chrome.tabs.remove(tabId).catch(() => {});
+    chrome.tabs.remove(tabId).catch(() => {
+      /* tab may already be closed */
+    });
     this.openedTabIds.delete(tabId);
   }
 
