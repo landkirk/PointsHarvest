@@ -2,15 +2,15 @@
 // Polling runs in the background service worker (not the tab) to avoid
 // Chrome's background-tab timer throttling.
 
-import { sleep } from '../util/timing.js';
+import { sleep, TIMEOUTS } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/state.js';
 
-const POLL_INTERVAL_MS = 1000;
-const MAX_POLLS = 20;
+const POLL_INTERVAL_MS = TIMEOUTS.FETCH_COUNTERS_POLL;
+const MAX_POLLS = TIMEOUTS.FETCH_COUNTERS_MAX_POLLS;
 
 class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null> {
   readonly name = 'fetch-counters';

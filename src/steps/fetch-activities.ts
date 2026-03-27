@@ -5,6 +5,7 @@ import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
+import { TIMEOUTS } from '../util/timing.js';
 import { setDebugState } from '../util/state.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
@@ -50,7 +51,7 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
       cleanup();
       ctx.fail('navigation', 'Rewards page timed out — no activities extracted').catch(() => {});
       resolveLocal(EMPTY_ACTIVITIES);
-    }, 20000);
+    }, TIMEOUTS.FETCH_ACTIVITIES);
 
     const onTabUpdated = (
       tabId: number,

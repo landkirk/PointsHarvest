@@ -7,6 +7,16 @@ export const TIMING: Record<string, [number, number]> = {
   DELAY_BETWEEN_FARMING_SEARCHES: [2000, 4000], // pause between PC farm searches
 };
 
+export const TIMEOUTS = {
+  FETCH_ACTIVITIES: 20_000, // rewards page extraction timeout
+  FETCH_COUNTERS_POLL: 1_000, // counter poll interval
+  FETCH_COUNTERS_MAX_POLLS: 20, // max polls before giving up
+  REWARDS_DOM_MAX_WAIT: 15_000, // max wait for DOM to render activities
+  REWARDS_DOM_POLL: 500, // DOM poll interval
+  VALIDATE_ACTIVITY: 2_000, // post-click settle delay
+  TAB_LOAD: 30_000, // default waitForTabLoad timeout
+};
+
 /** Triangular distribution biased toward the middle of [min, max]. */
 export function randMs(min: number, max: number): number {
   return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));

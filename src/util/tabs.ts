@@ -1,4 +1,4 @@
-import { sleep } from './timing.js';
+import { sleep, TIMEOUTS } from './timing.js';
 
 /** Open a new tab and return it. Throws if the tab could not be created. */
 export async function openTab(url: string, active = false): Promise<chrome.tabs.Tab> {
@@ -16,7 +16,7 @@ export interface TabLoadState {
 export async function waitForTabLoad(
   tabId: number,
   state: TabLoadState,
-  timeoutMs = 30000,
+  timeoutMs = TIMEOUTS.TAB_LOAD,
 ): Promise<void> {
   state.pendingTabId = tabId;
   await Promise.race([
