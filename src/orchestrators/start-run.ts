@@ -46,7 +46,9 @@ class StartRun {
     const ctx = createContext();
 
     this._executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone, skipWarmUp }) // fire and forget
-      .catch((err) => ctx.dbg(DBG.ERROR, `Fatal run error: ${(err as Error).message}`));
+      .catch((err) =>
+        ctx.dbg(DBG.ERROR, `Fatal run error: ${err instanceof Error ? err.message : String(err)}`),
+      );
   }
 
   private async _executeRun(
@@ -104,7 +106,10 @@ class StartRun {
     } catch (err) {
       if (err instanceof NotLoggedInError) throw err;
       if (err instanceof StoppedError) return;
-      await ctx.dbg(DBG.ERROR, `${orchestrator.name} failed: ${(err as Error).message}`);
+      await ctx.dbg(
+        DBG.ERROR,
+        `${orchestrator.name} failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     } finally {
       setActiveOrchestrator(null);
     }
