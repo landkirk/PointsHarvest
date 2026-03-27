@@ -1,10 +1,10 @@
 import { CardState } from '../util/activity.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
-import { sleep } from '../util/timing.js';
+import { sleep, TIMEOUTS } from '../util/timing.js';
 import { StepBase } from '../interfaces/step.js';
 
-const VALIDATION_DELAY_MS = 2000;
+const VALIDATION_DELAY_MS = TIMEOUTS.VALIDATE_ACTIVITY;
 import type { Activity } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
