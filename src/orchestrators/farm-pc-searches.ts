@@ -36,7 +36,9 @@ class FarmPcSearches extends OrchestratorBase {
       await this._farm(ctx);
     } finally {
       if (ownBreakdownTab && this.breakdownTabId) {
-        chrome.tabs.remove(this.breakdownTabId).catch(() => {});
+        chrome.tabs.remove(this.breakdownTabId).catch(() => {
+          /* tab may already be closed */
+        });
         this.breakdownTabId = null;
       }
     }
@@ -44,7 +46,9 @@ class FarmPcSearches extends OrchestratorBase {
 
   protected async _onStop(_ctx: Context): Promise<void> {
     if (this.breakdownTabId) {
-      chrome.tabs.remove(this.breakdownTabId).catch(() => {});
+      chrome.tabs.remove(this.breakdownTabId).catch(() => {
+        /* tab may already be closed */
+      });
       this.breakdownTabId = null;
     }
   }

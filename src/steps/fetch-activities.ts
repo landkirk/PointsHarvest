@@ -49,7 +49,9 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
 
     const timeout = setTimeout(() => {
       cleanup();
-      ctx.fail('navigation', 'Rewards page timed out — no activities extracted').catch(() => {});
+      ctx.fail('navigation', 'Rewards page timed out — no activities extracted').catch(() => {
+        /* fire-and-forget: cannot await in setTimeout callback */
+      });
       resolveLocal(EMPTY_ACTIVITIES);
     }, TIMEOUTS.FETCH_ACTIVITIES);
 
@@ -60,7 +62,9 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
     ): void => {
       if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
       if (tab.url.startsWith(REWARDS_URL)) {
-        chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
+        chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {
+          /* content script may not be ready yet; timeout handles non-response */
+        });
       } else {
         ctx.dbg(DBG.ERROR, `Not logged in — redirected to: ${tab.url}`);
         cleanup();
@@ -74,7 +78,9 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
       setDebugState({
         domDebug: (msg.domDebug ?? null) as ActivityScan | null,
         dailySetDebug: (msg.dailySetDebug ?? null) as ActivityScan | null,
-      }).catch(() => {});
+      }).catch(() => {
+        /* non-critical: debug scan data only */
+      });
       resolveLocal({
         activities: msg.activities,
         dailySets: msg.dailySets ?? [],

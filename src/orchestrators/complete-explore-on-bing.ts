@@ -31,7 +31,9 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
     const mapped = buildSearchList(activities);
     await ctx.setState({ mappedActivities: mapped });
-    chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {});
+    chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {
+      /* popup may be closed */
+    });
 
     const unmapped = mapped.filter((m) => m.unmatched).length;
     await ctx.dbg(
@@ -114,7 +116,9 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     );
     if (!searchTab) return null;
 
-    chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});
+    chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {
+      /* non-critical: tab may have closed before we activated it */
+    });
     await this.waitForTabLoad(searchTab.id!, 30000);
     this.checkStoppedOrCloseTab(searchTab.id!);
     await performSearch.run(ctx, searchTab.id!, query);
