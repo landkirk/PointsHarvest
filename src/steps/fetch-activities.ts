@@ -12,7 +12,9 @@ import type { ActivitiesResult } from '../util/activity.js';
 export type FetchActivitiesResult = ActivitiesResult & { rewardsTabId: number | null };
 
 export class NotLoggedInError extends Error {
-  constructor() { super('Not logged in'); }
+  constructor() {
+    super('Not logged in');
+  }
 }
 
 const EMPTY_ACTIVITIES: ActivitiesResult = { activities: [], dailySets: [], loggedIn: true };
@@ -22,7 +24,9 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
 
   async run(ctx: Context): Promise<FetchActivitiesResult> {
     let resolveLocal!: (result: ActivitiesResult) => void;
-    const activitiesPromise = new Promise<ActivitiesResult>(resolve => { resolveLocal = resolve; });
+    const activitiesPromise = new Promise<ActivitiesResult>((resolve) => {
+      resolveLocal = resolve;
+    });
 
     let rewardsTab: chrome.tabs.Tab;
     try {
@@ -46,7 +50,11 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
       resolveLocal(EMPTY_ACTIVITIES);
     }, 20000);
 
-    const onTabUpdated = (tabId: number, changeInfo: { status?: string }, tab: chrome.tabs.Tab): void => {
+    const onTabUpdated = (
+      tabId: number,
+      changeInfo: { status?: string },
+      tab: chrome.tabs.Tab,
+    ): void => {
       if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
       if (tab.url.startsWith(REWARDS_URL)) {
         chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
@@ -61,11 +69,14 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
     const onMessage = (msg: any): undefined => {
       if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
       cleanup();
-      setDebugState({ domDebug: msg.domDebug ?? null, dailySetDebug: msg.dailySetDebug ?? null }).catch(() => {});
+      setDebugState({
+        domDebug: msg.domDebug ?? null,
+        dailySetDebug: msg.dailySetDebug ?? null,
+      }).catch(() => {});
       resolveLocal({
         activities: msg.activities,
-        dailySets:  msg.dailySets ?? [],
-        loggedIn:   msg.loggedIn !== false,
+        dailySets: msg.dailySets ?? [],
+        loggedIn: msg.loggedIn !== false,
       });
     };
 

@@ -1,5 +1,10 @@
 import { MSG_ACTION } from './util/messaging.js';
-import { loadState, resetState, getActiveOrchestrator, getIsActivelyRunning } from './util/state.js';
+import {
+  loadState,
+  resetState,
+  getActiveOrchestrator,
+  getIsActivelyRunning,
+} from './util/state.js';
 import { StartRun } from './orchestrators/start-run.js';
 import { StopRun } from './orchestrators/stop-run.js';
 
@@ -44,7 +49,9 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
   if (msg.action === MSG_ACTION.PURGE) {
-    resetState({ seenScreenIds: [], ignoredUpdateVersion: null }).then(() => sendResponse({ ok: true }));
+    resetState({ seenScreenIds: [], ignoredUpdateVersion: null }).then(() =>
+      sendResponse({ ok: true }),
+    );
     return true;
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {

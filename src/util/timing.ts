@@ -2,9 +2,9 @@ import { dbg, DBG } from './debug.js';
 
 // Named timing ranges — change here to affect all call sites.
 export const TIMING: Record<string, [number, number]> = {
-  LINGER_ON_PAGE:                  [3000, 5000],  // dwell time on any page
-  LINGER_ON_SEARCH:                [1500, 3000],  // dwell time on search tab
-  DELAY_BETWEEN_FARMING_SEARCHES:  [2000, 4000],  // pause between PC farm searches
+  LINGER_ON_PAGE: [3000, 5000], // dwell time on any page
+  LINGER_ON_SEARCH: [1500, 3000], // dwell time on search tab
+  DELAY_BETWEEN_FARMING_SEARCHES: [2000, 4000], // pause between PC farm searches
 };
 
 /** Triangular distribution biased toward the middle of [min, max]. */
@@ -13,7 +13,7 @@ export function randMs(min: number, max: number): number {
 }
 
 export function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /** Dwell on a page for a random duration and log it. */

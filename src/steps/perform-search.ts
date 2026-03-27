@@ -13,12 +13,16 @@ class PerformSearchStep extends StepBase<[number, string]> {
     await lingerOnPage('search tab', TIMING.LINGER_ON_SEARCH);
     this.checkStopped();
 
-    const result = await chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.PERFORM_SEARCH, query })
+    const result = await chrome.tabs
+      .sendMessage(tabId, { action: MSG_ACTION.PERFORM_SEARCH, query })
       .catch(() => null);
     this.checkStopped();
 
     if (!result?.ok) {
-      await ctx.fail('search', `Search input failed for "${query}": ${result?.error ?? 'no response'}`);
+      await ctx.fail(
+        'search',
+        `Search input failed for "${query}": ${result?.error ?? 'no response'}`,
+      );
     }
 
     await lingerOnPage(`results: "${query}"`);

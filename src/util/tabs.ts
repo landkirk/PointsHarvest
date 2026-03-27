@@ -8,15 +8,21 @@ export async function openTab(url: string, active = false): Promise<chrome.tabs.
 }
 
 export interface TabLoadState {
-  pendingTabId:   number | null;
+  pendingTabId: number | null;
   pendingResolve: (() => void) | null;
 }
 
 /** Wait for a tab to reach 'complete' status (via onTabUpdated) or time out. */
-export async function waitForTabLoad(tabId: number, state: TabLoadState, timeoutMs = 30000): Promise<void> {
+export async function waitForTabLoad(
+  tabId: number,
+  state: TabLoadState,
+  timeoutMs = 30000,
+): Promise<void> {
   state.pendingTabId = tabId;
   await Promise.race([
-    new Promise<void>(resolve => { state.pendingResolve = resolve; }),
+    new Promise<void>((resolve) => {
+      state.pendingResolve = resolve;
+    }),
     sleep(timeoutMs),
   ]);
   state.pendingResolve = null;

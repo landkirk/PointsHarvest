@@ -9,24 +9,23 @@ import { CardState } from '../util/activity.js';
 import { MSG_ACTION, ACTIVITY_TYPE } from '../util/messaging.js';
 import type { MsgAction, ActivityType } from '../util/messaging.js';
 import type { Activity } from '../util/activity.js';
-import type { ActivityScan, ActivityScanEntry } from '../util/debug.js'; // eslint-disable-line @typescript-eslint/no-unused-vars
-
+import type { ActivityScan, ActivityScanEntry } from '../util/debug.js';
 
 const SEARCH_ON_BING_RE = /search (?:on|using|with) bing/i;
 
 function countSkipped(entries: ActivityScanEntry[], reason: CardState): number {
-  return entries.filter(a => a.skipReason === reason).length;
+  return entries.filter((a) => a.skipReason === reason).length;
 }
 
 function buildActivityScan(entries: ActivityScanEntry[], actionableCount: number): ActivityScan {
   return {
     actionableActivities: actionableCount,
-    skippedLocked:        countSkipped(entries, CardState.Locked),
-    skippedCompleted:     countSkipped(entries, CardState.Completed),
-    activities:           entries,
+    skippedLocked: countSkipped(entries, CardState.Locked),
+    skippedCompleted: countSkipped(entries, CardState.Completed),
+    activities: entries,
   };
 }
-const MAX_WAIT_MS    = 15000;
+const MAX_WAIT_MS = 15000;
 const POLL_INTERVAL_MS = 500;
 
 // Card elements retained after extraction so they can be clicked on demand.
@@ -36,16 +35,20 @@ let extractedDailySetEls: HTMLAnchorElement[] = [];
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
 function determineCardState(card: Element): CardState {
-  if (card.closest('.locked-card'))                               return CardState.Locked;
-  if (card.getAttribute('aria-disabled') === 'true')              return CardState.Locked;
+  if (card.closest('.locked-card')) return CardState.Locked;
+  if (card.getAttribute('aria-disabled') === 'true') return CardState.Locked;
   if (card.querySelector('[aria-label="Points you have earned"]')) return CardState.Completed;
-  if (card.querySelector('[aria-label="Points in progress"]'))     return CardState.Actionable;
-  if (card.querySelector('[aria-label="Points you will earn"]'))   return CardState.Actionable;
+  if (card.querySelector('[aria-label="Points in progress"]')) return CardState.Actionable;
+  if (card.querySelector('[aria-label="Points you will earn"]')) return CardState.Actionable;
   return CardState.Unknown;
 }
 
 // Returns { dailySets, dailySetDebug, dailySetEls }
-function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivityScan | null; dailySetEls: HTMLAnchorElement[] } {
+function extractDailySets(): {
+  dailySets: Activity[];
+  dailySetDebug: ActivityScan | null;
+  dailySetEls: HTMLAnchorElement[];
+} {
   const container = document.querySelector('#daily-sets');
   if (!container) return { dailySets: [], dailySetDebug: null, dailySetEls: [] };
 
@@ -56,10 +59,10 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivitySca
   const activities: ActivityScanEntry[] = [];
 
   for (const el of els) {
-    const state     = determineCardState(el);
+    const state = determineCardState(el);
     const ariaLabel = el.getAttribute('aria-label') || '';
-    const href      = (el as HTMLAnchorElement).href || '';
-    const snippet   = ariaLabel.slice(0, 80);
+    const href = (el as HTMLAnchorElement).href || '';
+    const snippet = ariaLabel.slice(0, 80);
 
     if (!href) continue;
     if (state !== CardState.Actionable) {
@@ -68,7 +71,12 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivitySca
     }
 
     activities.push({ snippet, skipReason: null });
-    actionable.push({ title: ariaLabel, description: el.textContent?.trim().slice(0, 120) || '', activityIndex: dailySetEls.length, activityType: ACTIVITY_TYPE.DAILY_SET });
+    actionable.push({
+      title: ariaLabel,
+      description: el.textContent?.trim().slice(0, 120) || '',
+      activityIndex: dailySetEls.length,
+      activityType: ACTIVITY_TYPE.DAILY_SET,
+    });
     dailySetEls.push(el as HTMLAnchorElement);
   }
 
@@ -80,20 +88,22 @@ function extractDailySets(): { dailySets: Activity[]; dailySetDebug: ActivitySca
 }
 
 // Returns { searchCounters, searchCounterDebug }
-function extractSearchCounters(): { searchCounters: { type: string; current: number; max: number }[] } {
-  const cards    = Array.from(document.querySelectorAll('.pointsBreakdownCard'));
+function extractSearchCounters(): {
+  searchCounters: { type: string; current: number; max: number }[];
+} {
+  const cards = Array.from(document.querySelectorAll('.pointsBreakdownCard'));
   const counters: { type: string; current: number; max: number }[] = [];
 
   for (const card of cards) {
-    const type    = card.querySelector('.title-detail p')?.textContent?.trim() || '';
+    const type = card.querySelector('.title-detail p')?.textContent?.trim() || '';
     const rawText = card.querySelector('p.pointsDetail')?.textContent?.trim() || '';
 
     // rawText example: "5 / 150"
-    const parts   = rawText.split('/');
+    const parts = rawText.split('/');
     if (parts.length < 2) continue;
 
     const current = parseInt(parts[0].trim());
-    const max     = parseInt(parts[1].trim());
+    const max = parseInt(parts[1].trim());
     if (!type || isNaN(current) || isNaN(max)) continue;
 
     counters.push({ type, current, max });
@@ -103,11 +113,17 @@ function extractSearchCounters(): { searchCounters: { type: string; current: num
 }
 
 // Returns { activities, domDebug, cardEls }
-function extractActivities(): { activities: Activity[]; domDebug: ActivityScan; cardEls: HTMLAnchorElement[] } {
+function extractActivities(): {
+  activities: Activity[];
+  domDebug: ActivityScan;
+  cardEls: HTMLAnchorElement[];
+} {
   // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
   const allCards = [
     ...document.querySelectorAll('.locked-card'),
-    ...Array.from(document.querySelectorAll('a.ds-card-sec')).filter(a => !a.closest('.locked-card')),
+    ...Array.from(document.querySelectorAll('a.ds-card-sec')).filter(
+      (a) => !a.closest('.locked-card'),
+    ),
   ];
 
   const activities: Activity[] = [];
@@ -116,26 +132,32 @@ function extractActivities(): { activities: Activity[]; domDebug: ActivityScan; 
 
   for (const card of allCards) {
     const ariaLabel = card.getAttribute('aria-label') || '';
-    const cardText  = card.textContent || '';
+    const cardText = card.textContent || '';
 
     const parentBiId = card.closest('[data-bi-id]')?.getAttribute('data-bi-id') || '';
-    if (!SEARCH_ON_BING_RE.test(ariaLabel) && !SEARCH_ON_BING_RE.test(cardText) && !parentBiId.includes('exploreonbing')) continue;
+    if (
+      !SEARCH_ON_BING_RE.test(ariaLabel) &&
+      !SEARCH_ON_BING_RE.test(cardText) &&
+      !parentBiId.includes('exploreonbing')
+    )
+      continue;
 
     const snippet = (ariaLabel || cardText.trim()).slice(0, 120);
-    const state   = determineCardState(card);
+    const state = determineCardState(card);
     if (state !== CardState.Actionable) {
       skipped.push({ skipReason: state, snippet });
       continue;
     }
 
-    const parts = ariaLabel.split(',').map(s => s.trim()).filter(Boolean);
+    const parts = ariaLabel
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     const title = parts[0] || cardText.trim().slice(0, 60);
 
     // Description: prefer the <p> inside .contentContainer — clean "Search on Bing to/for …" text.
-    const descP       = card.querySelector('.contentContainer p');
-    const description = descP
-      ? descP.textContent!.trim()
-      : parts.slice(1).join(', ');
+    const descP = card.querySelector('.contentContainer p');
+    const description = descP ? descP.textContent!.trim() : parts.slice(1).join(', ');
     const href = (card as HTMLAnchorElement).href || '';
 
     if (!href) continue;
@@ -162,11 +184,7 @@ function isLoggedIn(rawText: string): boolean | null {
   ];
   if (DASHBOARD_SIGNALS.some((s: string) => bodyText.includes(s))) return true;
 
-  const LOGOUT_SIGNALS = [
-    'sign in to start earning',
-    'sign in to earn',
-    'start earning rewards',
-  ];
+  const LOGOUT_SIGNALS = ['sign in to start earning', 'sign in to earn', 'start earning rewards'];
   if (LOGOUT_SIGNALS.some((s: string) => bodyText.includes(s))) return false;
 
   return null; // inconclusive — page may still be loading
@@ -178,25 +196,49 @@ function waitAndExtract(): void {
   const poll = () => {
     const bodyText = document.body?.textContent || '';
     if (bodyText.trim().length < 50) {
-      if (Date.now() - start < MAX_WAIT_MS) { setTimeout(poll, POLL_INTERVAL_MS); return; }
+      if (Date.now() - start < MAX_WAIT_MS) {
+        setTimeout(poll, POLL_INTERVAL_MS);
+        return;
+      }
     }
 
     const loginStatus = isLoggedIn(bodyText);
     if (loginStatus === false) {
-      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities: [], domDebug: null, loggedIn: false });
+      chrome.runtime.sendMessage({
+        action: MSG_ACTION.ACTIVITIES_FOUND,
+        activities: [],
+        domDebug: null,
+        loggedIn: false,
+      });
       return;
     }
     if (loginStatus === null) {
-      if (Date.now() - start < MAX_WAIT_MS) { setTimeout(poll, POLL_INTERVAL_MS); return; }
+      if (Date.now() - start < MAX_WAIT_MS) {
+        setTimeout(poll, POLL_INTERVAL_MS);
+        return;
+      }
     }
 
-    const { activities, domDebug, cardEls }           = extractActivities();
-    const { dailySets, dailySetDebug, dailySetEls }   = extractDailySets();
+    const { activities, domDebug, cardEls } = extractActivities();
+    const { dailySets, dailySetDebug, dailySetEls } = extractDailySets();
 
-    if (activities.length > 0 || dailySets.length > 0 || domDebug.actionableActivities > 0 || dailySetDebug !== null || Date.now() - start >= MAX_WAIT_MS) {
-      extractedCardEls    = cardEls;
+    if (
+      activities.length > 0 ||
+      dailySets.length > 0 ||
+      domDebug.actionableActivities > 0 ||
+      dailySetDebug !== null ||
+      Date.now() - start >= MAX_WAIT_MS
+    ) {
+      extractedCardEls = cardEls;
       extractedDailySetEls = dailySetEls;
-      chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_FOUND, activities, domDebug, dailySets, dailySetDebug, loggedIn: true });
+      chrome.runtime.sendMessage({
+        action: MSG_ACTION.ACTIVITIES_FOUND,
+        activities,
+        domDebug,
+        dailySets,
+        dailySetDebug,
+        loggedIn: true,
+      });
     } else {
       setTimeout(poll, POLL_INTERVAL_MS);
     }
@@ -209,39 +251,41 @@ function resolveEls(target: ActivityType | undefined): HTMLAnchorElement[] {
   return target === ACTIVITY_TYPE.DAILY_SET ? extractedDailySetEls : extractedCardEls;
 }
 
-chrome.runtime.onMessage.addListener((msg: { action: MsgAction; index?: number; target?: ActivityType }, _sender, sendResponse) => {
-  if (msg.action === MSG_ACTION.START_EXTRACT) {
-    waitAndExtract();
-    return undefined;
-  }
+chrome.runtime.onMessage.addListener(
+  (msg: { action: MsgAction; index?: number; target?: ActivityType }, _sender, sendResponse) => {
+    if (msg.action === MSG_ACTION.START_EXTRACT) {
+      waitAndExtract();
+      return undefined;
+    }
 
-  if (msg.action === MSG_ACTION.CLICK_CARD) {
-    const els  = resolveEls(msg.target);
-    const card = els[msg.index!];
-    if (!card) {
-      sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
+    if (msg.action === MSG_ACTION.CLICK_CARD) {
+      const els = resolveEls(msg.target);
+      const card = els[msg.index!];
+      if (!card) {
+        sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
+        return true;
+      }
+      try {
+        card.click();
+        sendResponse({ clicked: true });
+      } catch (err) {
+        sendResponse({ clicked: false, error: String(err) });
+      }
       return true;
     }
-    try {
-      card.click();
-      sendResponse({ clicked: true });
-    } catch (err) {
-      sendResponse({ clicked: false, error: String(err) });
+
+    if (msg.action === MSG_ACTION.GET_COUNTERS) {
+      const { searchCounters } = extractSearchCounters();
+      sendResponse({ searchCounters });
+      return true;
     }
-    return true;
-  }
 
-  if (msg.action === MSG_ACTION.GET_COUNTERS) {
-    const { searchCounters } = extractSearchCounters();
-    sendResponse({ searchCounters });
-    return true;
-  }
-
-  if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
-    const els  = resolveEls(msg.target);
-    const card = els[msg.index!];
-    sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
-    return true;
-  }
-  return undefined;
-});
+    if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
+      const els = resolveEls(msg.target);
+      const card = els[msg.index!];
+      sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
+      return true;
+    }
+    return undefined;
+  },
+);

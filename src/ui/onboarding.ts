@@ -6,29 +6,29 @@ export async function showOnboarding(
   onComplete: () => void,
 ): Promise<void> {
   // Fetch and inject the overlay markup
-  const res  = await fetch(chrome.runtime.getURL('ui/onboarding.html'));
+  const res = await fetch(chrome.runtime.getURL('ui/onboarding.html'));
   const html = await res.text();
   const wrap = document.createElement('div');
   wrap.innerHTML = html;
   document.body.appendChild(wrap);
 
-  const overlay     = document.getElementById('onboarding-overlay')!;
-  const titleEl     = overlay.querySelector<HTMLElement>('.ob-title')!;
-  const bodyEl      = overlay.querySelector<HTMLElement>('.ob-body')!;
-  const counterEl   = overlay.querySelector<HTMLElement>('.ob-step-counter')!;
-  const dotsEl      = overlay.querySelector<HTMLElement>('.ob-dots')!;
-  const backBtn     = document.getElementById('ob-back') as HTMLButtonElement;
-  const nextBtn     = document.getElementById('ob-next') as HTMLButtonElement;
+  const overlay = document.getElementById('onboarding-overlay')!;
+  const titleEl = overlay.querySelector<HTMLElement>('.ob-title')!;
+  const bodyEl = overlay.querySelector<HTMLElement>('.ob-body')!;
+  const counterEl = overlay.querySelector<HTMLElement>('.ob-step-counter')!;
+  const dotsEl = overlay.querySelector<HTMLElement>('.ob-dots')!;
+  const backBtn = document.getElementById('ob-back') as HTMLButtonElement;
+  const nextBtn = document.getElementById('ob-next') as HTMLButtonElement;
 
   let current = 0;
 
   async function render(): Promise<void> {
     const screen = screens[current];
-    const total  = screens.length;
+    const total = screens.length;
 
-    titleEl.textContent   = screen.title;
+    titleEl.textContent = screen.title;
     counterEl.textContent = `${current + 1} / ${total}`;
-    bodyEl.innerHTML      = await fetch(chrome.runtime.getURL(screen.bodyFile)).then(r => r.text());
+    bodyEl.innerHTML = await fetch(chrome.runtime.getURL(screen.bodyFile)).then((r) => r.text());
 
     // Dots
     dotsEl.innerHTML = '';
@@ -46,7 +46,10 @@ export async function showOnboarding(
   }
 
   backBtn.addEventListener('click', async () => {
-    if (current > 0) { current--; await render(); }
+    if (current > 0) {
+      current--;
+      await render();
+    }
   });
 
   nextBtn.addEventListener('click', async () => {
@@ -56,7 +59,7 @@ export async function showOnboarding(
     } else {
       // Save all shown screen IDs
       const state = await loadState();
-      const merged = Array.from(new Set([...state.seenScreenIds, ...screens.map(s => s.id)]));
+      const merged = Array.from(new Set([...state.seenScreenIds, ...screens.map((s) => s.id)]));
       await setState({ seenScreenIds: merged });
 
       overlay.classList.remove('active');

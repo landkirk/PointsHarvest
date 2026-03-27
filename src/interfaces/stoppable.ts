@@ -1,7 +1,9 @@
 import { getIsActivelyRunning } from '../util/state.js';
 
 export class StoppedError extends Error {
-  constructor() { super('Run stopped'); }
+  constructor() {
+    super('Run stopped');
+  }
 }
 
 export abstract class StoppableBase {
