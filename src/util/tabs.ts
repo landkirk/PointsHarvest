@@ -32,7 +32,9 @@ export async function waitForTabLoad(
 /** Close all tabs in the set and clear it. */
 export async function closeOwnedTabs(tabIds: Set<number>): Promise<void> {
   for (const tabId of tabIds) {
-    chrome.tabs.remove(tabId).catch(() => {});
+    chrome.tabs.remove(tabId).catch(() => {
+      /* tab may already be closed */
+    });
   }
   tabIds.clear();
 }

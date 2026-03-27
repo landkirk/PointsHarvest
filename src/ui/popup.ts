@@ -51,7 +51,9 @@ const failureList = document.getElementById('failure-list')!;
 // ── Setup warning banner ────────────────────────────────────────────────────
 
 btnOpenSettings.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'chrome://settings/content/popups' }).catch(() => {});
+  chrome.tabs.create({ url: 'chrome://settings/content/popups' }).catch(() => {
+    /* non-critical: user can open settings manually */
+  });
 });
 
 // ── Failure banner ─────────────────────────────────────────────────────────

@@ -125,7 +125,9 @@ class StartRun {
     await ctx.setState({ isRunning: false });
     await setHeaderState({ status });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
-    chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {});
+    chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {
+      /* popup may be closed */
+    });
   }
 }
 

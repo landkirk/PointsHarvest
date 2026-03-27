@@ -44,5 +44,7 @@ export async function dbg(type: DebugType, message: string, orchestrator?: strin
   log.push(entry);
   if (log.length > MAX_LOG_ENTRIES) log.shift();
   await setDebugState({ debugLog: log });
-  chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {});
+  chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {
+    /* popup may be closed */
+  });
 }
