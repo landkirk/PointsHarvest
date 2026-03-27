@@ -12,6 +12,8 @@ import { fetchActivities } from '../steps/fetch-activities.js';
 import type { Activity } from '../util/activity.js';
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
+const POLL_TIMEOUT_MS = 2 * 60 * 1000; // 2 min — poll is a single click
+const QUIZ_TIMEOUT_MS = 10 * 60 * 1000; // 10 min — quiz/test/puzzle
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
@@ -94,6 +96,7 @@ class CompleteDailySets extends OrchestratorBase {
 
     if (USER_ACTION_RE.test(title) || USER_ACTION_RE.test(description)) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
+      const isPoll = /\bpoll\b/i.test(title) || /\bpoll\b/i.test(description);
       await lingerOnTab.run(ctx, t.id!, {
         onResolve: (r) => {
           this.lingerResolve = r;
@@ -101,6 +104,7 @@ class CompleteDailySets extends OrchestratorBase {
         onTabId: (id) => {
           this.lingerTabId = id;
         },
+        timeoutMs: isPoll ? POLL_TIMEOUT_MS : QUIZ_TIMEOUT_MS,
       });
     } else {
       await lingerOnPage('daily set activity');
