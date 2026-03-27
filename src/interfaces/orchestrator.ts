@@ -187,7 +187,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
       .catch(async (err: unknown) => {
         await ctx.fail(
           'navigation',
-          `Card click message error for "${label}": ${(err as Error)?.message ?? String(err)}`,
+          `Card click message error for "${label}": ${err instanceof Error ? err.message : String(err)}`,
         );
         return null;
       });
