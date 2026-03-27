@@ -8,10 +8,22 @@ const VALIDATION_DELAY_MS = TIMEOUTS.VALIDATE_ACTIVITY;
 import type { Activity } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
-class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> {
+export const enum ValidationStatus {
+  Completed = 'completed',
+  Incomplete = 'incomplete',
+  Error = 'error',
+}
+
+export type ActivityValidationResult = { status: ValidationStatus };
+
+class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidationResult> {
   readonly name = 'validate-activity';
 
-  async run(ctx: Context, activity: Activity, rewardsTabId: number): Promise<boolean | null> {
+  async run(
+    ctx: Context,
+    activity: Activity,
+    rewardsTabId: number,
+  ): Promise<ActivityValidationResult> {
     await sleep(VALIDATION_DELAY_MS);
     const response = await chrome.tabs
       .sendMessage(rewardsTabId, {
@@ -25,20 +37,20 @@ class ValidateActivityStep extends StepBase<[Activity, number], boolean | null> 
 
     if (!response) {
       await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);
-      return null;
+      return { status: ValidationStatus.Error };
     }
 
     const { state } = response;
     if (state === CardState.Completed) {
       await ctx.dbg(DBG.SUCCESS, `Validated complete: "${label}"`);
-      return true;
+      return { status: ValidationStatus.Completed };
     }
     if (state === CardState.NotFound) {
       await ctx.dbg(DBG.WARN, `Not found during validation: "${label}"`);
-      return null;
+      return { status: ValidationStatus.Error };
     }
     await ctx.dbg(DBG.WARN, `Validation failed: state="${state}" — "${label}"`);
-    return false;
+    return { status: ValidationStatus.Incomplete };
   }
 }
 
