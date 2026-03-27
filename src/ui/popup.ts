@@ -1,9 +1,9 @@
 import { MSG_ACTION } from '../util/messaging.js';
+import type { AppMessage, DebugEntry, Failure } from '../util/messaging.js';
 import { CardState } from '../util/activity.js';
 import { PC_SEARCH_TYPE, setState } from '../util/state.js';
 import type { AppState, SearchCounter } from '../util/state.js';
-import type { ActivityScan, DebugEntry } from '../util/debug.js';
-import type { Failure } from '../util/failures.js';
+import type { ActivityScan } from '../util/debug.js';
 import type { MappedActivity } from '../util/activity.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
@@ -228,7 +228,7 @@ Promise.all([
   }
 });
 
-chrome.runtime.onMessage.addListener((msg): undefined => {
+chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     render({
       isRunning: true,
@@ -261,10 +261,10 @@ chrome.runtime.onMessage.addListener((msg): undefined => {
     });
   }
   if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
-    appendLogEntry(msg.entry as DebugEntry);
+    appendLogEntry(msg.entry);
   }
   if (msg.action === MSG_ACTION.FAILURE_ENTRY) {
-    appendFailure(msg.failure as Failure);
+    appendFailure(msg.failure);
   }
   if (msg.action === MSG_ACTION.LINGER_WAITING) {
     render({

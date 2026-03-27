@@ -2,7 +2,7 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
-import { ACTIVITY_TYPE } from '../util/messaging.js';
+import { ACTIVITY_TYPE } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';

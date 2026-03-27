@@ -2,14 +2,8 @@ import { MSG_ACTION } from './messaging.js';
 import { setState } from './state.js';
 import { dbg, DBG } from './debug.js';
 
-export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter' | 'setup';
-
-export interface Failure {
-  time: string;
-  category: FailureCategory;
-  message: string;
-  orchestrator?: string;
-}
+export type { FailureCategory, Failure } from './messaging.js';
+import type { Failure, FailureCategory } from './messaging.js';
 
 const MAX_FAILURES = 50;
 

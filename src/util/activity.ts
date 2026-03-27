@@ -1,12 +1,15 @@
 import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
 
+export const ACTIVITY_TYPE = {
+  DAILY_SET: 'dailySet',
+} as const;
+export type ActivityType = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];
+
 export interface ActivitiesResult {
   activities: Activity[];
   dailySets?: Activity[];
   loggedIn: boolean;
 }
-
-import type { ActivityType } from './messaging.js';
 
 export interface Activity {
   title: string;

@@ -2,7 +2,8 @@ import { MSG_ACTION } from './messaging.js';
 import { setDebugState } from './state.js';
 import type { CardState } from './activity.js';
 
-export type DebugType = 'info' | 'warn' | 'error' | 'success';
+export type { DebugType, DebugEntry } from './messaging.js';
+import type { DebugEntry, DebugType } from './messaging.js';
 
 export const DBG = {
   INFO: 'info',
@@ -10,13 +11,6 @@ export const DBG = {
   ERROR: 'error',
   SUCCESS: 'success',
 } as const satisfies Record<string, DebugType>;
-
-export interface DebugEntry {
-  time: string;
-  type: DebugType;
-  message: string;
-  orchestrator?: string;
-}
 
 export interface ActivityScanEntry {
   skipReason: CardState | null;

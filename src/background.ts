@@ -1,4 +1,5 @@
 import { MSG_ACTION } from './util/messaging.js';
+import type { AppMessage } from './util/messaging.js';
 import {
   loadState,
   resetState,
@@ -31,7 +32,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 
 // ── Message routing ────────────────────────────────────────────────────────
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START) {
     startRun.run(msg.skipWarmUp === true).then(() => sendResponse({ ok: true }));
     return true;
