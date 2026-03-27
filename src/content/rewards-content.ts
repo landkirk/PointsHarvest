@@ -14,6 +14,20 @@ import type { ActivityType } from '../util/activity.js';
 import type { Activity } from '../util/activity.js';
 import type { ActivityScan, ActivityScanEntry } from '../util/debug.js';
 
+const SELECTORS = {
+  DAILY_SETS_CONTAINER: '#daily-sets',
+  CARD_ACTIONABLE: 'a.ds-card-sec',
+  CARD_LOCKED: '.locked-card',
+  POINTS_EARNED: '[aria-label="Points you have earned"]',
+  POINTS_IN_PROGRESS: '[aria-label="Points in progress"]',
+  POINTS_WILL_EARN: '[aria-label="Points you will earn"]',
+  BI_TRACKED: '[data-bi-id]',
+  COUNTER_CARD: '.pointsBreakdownCard',
+  COUNTER_TITLE: '.title-detail p',
+  COUNTER_DETAIL: 'p.pointsDetail',
+  CARD_DESCRIPTION: '.contentContainer p',
+} as const;
+
 const SEARCH_ON_BING_RE = /search (?:on|using|with) bing/i;
 
 function countSkipped(entries: ActivityScanEntry[], reason: CardState): number {
@@ -38,11 +52,11 @@ let extractedDailySetEls: HTMLAnchorElement[] = [];
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
 function determineCardState(card: Element): CardState {
-  if (card.closest('.locked-card')) return CardState.Locked;
+  if (card.closest(SELECTORS.CARD_LOCKED)) return CardState.Locked;
   if (card.getAttribute('aria-disabled') === 'true') return CardState.Locked;
-  if (card.querySelector('[aria-label="Points you have earned"]')) return CardState.Completed;
-  if (card.querySelector('[aria-label="Points in progress"]')) return CardState.Actionable;
-  if (card.querySelector('[aria-label="Points you will earn"]')) return CardState.Actionable;
+  if (card.querySelector(SELECTORS.POINTS_EARNED)) return CardState.Completed;
+  if (card.querySelector(SELECTORS.POINTS_IN_PROGRESS)) return CardState.Actionable;
+  if (card.querySelector(SELECTORS.POINTS_WILL_EARN)) return CardState.Actionable;
   return CardState.Unknown;
 }
 
@@ -52,10 +66,13 @@ function extractDailySets(): {
   dailySetDebug: ActivityScan | null;
   dailySetEls: HTMLAnchorElement[];
 } {
-  const container = document.querySelector('#daily-sets');
-  if (!container) return { dailySets: [], dailySetDebug: null, dailySetEls: [] };
+  const container = document.querySelector(SELECTORS.DAILY_SETS_CONTAINER);
+  if (!container) {
+    console.warn('[rewards-content] Selector not found:', SELECTORS.DAILY_SETS_CONTAINER);
+    return { dailySets: [], dailySetDebug: null, dailySetEls: [] };
+  }
 
-  const els = Array.from(container.querySelectorAll('a.ds-card-sec'));
+  const els = Array.from(container.querySelectorAll(SELECTORS.CARD_ACTIONABLE));
 
   const actionable: Activity[] = [];
   const dailySetEls: HTMLAnchorElement[] = [];
@@ -94,12 +111,15 @@ function extractDailySets(): {
 function extractSearchCounters(): {
   searchCounters: { type: string; current: number; max: number }[];
 } {
-  const cards = Array.from(document.querySelectorAll('.pointsBreakdownCard'));
+  const cards = Array.from(document.querySelectorAll(SELECTORS.COUNTER_CARD));
+  if (cards.length === 0) {
+    console.warn('[rewards-content] Selector not found:', SELECTORS.COUNTER_CARD);
+  }
   const counters: { type: string; current: number; max: number }[] = [];
 
   for (const card of cards) {
-    const type = card.querySelector('.title-detail p')?.textContent?.trim() || '';
-    const rawText = card.querySelector('p.pointsDetail')?.textContent?.trim() || '';
+    const type = card.querySelector(SELECTORS.COUNTER_TITLE)?.textContent?.trim() || '';
+    const rawText = card.querySelector(SELECTORS.COUNTER_DETAIL)?.textContent?.trim() || '';
 
     // rawText example: "5 / 150"
     const parts = rawText.split('/');
@@ -123,9 +143,9 @@ function extractActivities(): {
 } {
   // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
   const allCards = [
-    ...document.querySelectorAll('.locked-card'),
-    ...Array.from(document.querySelectorAll('a.ds-card-sec')).filter(
-      (a) => !a.closest('.locked-card'),
+    ...document.querySelectorAll(SELECTORS.CARD_LOCKED),
+    ...Array.from(document.querySelectorAll(SELECTORS.CARD_ACTIONABLE)).filter(
+      (a) => !a.closest(SELECTORS.CARD_LOCKED),
     ),
   ];
 
@@ -137,7 +157,7 @@ function extractActivities(): {
     const ariaLabel = card.getAttribute('aria-label') || '';
     const cardText = card.textContent || '';
 
-    const parentBiId = card.closest('[data-bi-id]')?.getAttribute('data-bi-id') || '';
+    const parentBiId = card.closest(SELECTORS.BI_TRACKED)?.getAttribute('data-bi-id') || '';
     if (
       !SEARCH_ON_BING_RE.test(ariaLabel) &&
       !SEARCH_ON_BING_RE.test(cardText) &&
@@ -159,7 +179,7 @@ function extractActivities(): {
     const title = parts[0] || cardText.trim().slice(0, 60);
 
     // Description: prefer the <p> inside .contentContainer — clean "Search on Bing to/for …" text.
-    const descP = card.querySelector('.contentContainer p');
+    const descP = card.querySelector(SELECTORS.CARD_DESCRIPTION);
     const description = descP ? descP.textContent!.trim() : parts.slice(1).join(', ');
     const href = (card as HTMLAnchorElement).href || '';
 

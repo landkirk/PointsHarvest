@@ -4,11 +4,24 @@
 
 import { MSG_ACTION } from '../util/messaging.js';
 
+const SELECTORS = {
+  SEARCH_BOX: '#sb_form_q',
+  SEARCH_BOX_FALLBACK: 'textarea[name="q"]',
+  SEARCH_FORM: '#sb_form',
+} as const;
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action !== MSG_ACTION.PERFORM_SEARCH) return;
 
-  const textarea = document.querySelector<HTMLTextAreaElement>('#sb_form_q');
+  const textarea =
+    document.querySelector<HTMLTextAreaElement>(SELECTORS.SEARCH_BOX) ??
+    document.querySelector<HTMLTextAreaElement>(SELECTORS.SEARCH_BOX_FALLBACK);
   if (!textarea) {
+    console.warn(
+      '[search-content] Selector not found:',
+      SELECTORS.SEARCH_BOX,
+      '(fallback also failed)',
+    );
     sendResponse({ ok: false, error: 'search box not found' });
     return true;
   }
@@ -18,8 +31,10 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   // Dispatch input event so Bing's JS registers the value change.
   textarea.dispatchEvent(new InputEvent('input', { bubbles: true, data: msg.query as string }));
 
-  const form = textarea.closest('form') ?? document.querySelector<HTMLFormElement>('#sb_form');
+  const form =
+    textarea.closest('form') ?? document.querySelector<HTMLFormElement>(SELECTORS.SEARCH_FORM);
   if (!form) {
+    console.warn('[search-content] Selector not found:', SELECTORS.SEARCH_FORM);
     sendResponse({ ok: false, error: 'search form not found' });
     return true;
   }
