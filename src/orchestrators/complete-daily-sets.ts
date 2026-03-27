@@ -7,7 +7,7 @@ import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { lingerOnTab } from '../steps/linger-on-tab.js';
-import { validateActivity } from '../steps/validate-activity.js';
+import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import { fetchActivities } from '../steps/fetch-activities.js';
 import type { Activity } from '../util/activity.js';
 
@@ -113,7 +113,7 @@ class CompleteDailySets extends OrchestratorBase {
     }
     this.checkStopped();
     const validated = await validateActivity.run(ctx, activity, rewardsTabId);
-    return validated !== false;
+    return validated.status !== ValidationStatus.Incomplete;
   }
 
   private _resolveLinger(closeTab: boolean): void {

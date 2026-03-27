@@ -11,7 +11,7 @@ import { fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js'
 import { buildSearchList, findRetryQuery } from '../util/activity.js';
 import type { MappedActivity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
-import { validateActivity } from '../steps/validate-activity.js';
+import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   readonly name = 'Explore on Bing';
@@ -121,7 +121,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     this.closeTab(searchTab.id!);
     this.checkStopped();
 
-    return validateActivity.run(ctx, activity, this.rewardsTabId!);
+    const r = await validateActivity.run(ctx, activity, this.rewardsTabId!);
+    return r.status === ValidationStatus.Completed
+      ? true
+      : r.status === ValidationStatus.Incomplete
+        ? false
+        : null;
   }
 
   protected async _onStop(_ctx: Context): Promise<void> {
