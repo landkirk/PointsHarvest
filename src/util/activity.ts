@@ -3,29 +3,29 @@ import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
 export interface ActivitiesResult {
   activities: Activity[];
   dailySets?: Activity[];
-  loggedIn:   boolean;
+  loggedIn: boolean;
 }
 
 import type { ActivityType } from './messaging.js';
 
 export interface Activity {
-  title:         string;
-  description:   string;
+  title: string;
+  description: string;
   activityIndex: number;
   activityType?: ActivityType;
 }
 
 export interface MappedActivity extends Activity {
-  query:     string | null;
+  query: string | null;
   unmatched: boolean;
 }
 
 export const enum CardState {
   Actionable = 'actionable',
-  Completed  = 'completed',
-  Locked     = 'locked',
-  Unknown    = 'unknown',
-  NotFound   = 'not-found',
+  Completed = 'completed',
+  Locked = 'locked',
+  Unknown = 'unknown',
+  NotFound = 'not-found',
 }
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity

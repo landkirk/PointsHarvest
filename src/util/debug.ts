@@ -5,29 +5,29 @@ import type { CardState } from './activity.js';
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
 
 export const DBG = {
-  INFO:    'info',
-  WARN:    'warn',
-  ERROR:   'error',
+  INFO: 'info',
+  WARN: 'warn',
+  ERROR: 'error',
   SUCCESS: 'success',
 } as const satisfies Record<string, DebugType>;
 
 export interface DebugEntry {
-  time:         string;
-  type:         DebugType;
-  message:      string;
+  time: string;
+  type: DebugType;
+  message: string;
   orchestrator?: string;
 }
 
 export interface ActivityScanEntry {
   skipReason: CardState | null;
-  snippet:    string;
+  snippet: string;
 }
 
 export interface ActivityScan {
   actionableActivities: number;
-  skippedLocked:        number;
-  skippedCompleted:     number;
-  activities:           ActivityScanEntry[];
+  skippedLocked: number;
+  skippedCompleted: number;
+  activities: ActivityScanEntry[];
 }
 
 const MAX_LOG_ENTRIES = 100;
@@ -41,7 +41,12 @@ export function resetLog(): void {
 
 /** Appends a typed log entry, persists to storage, and notifies the popup. */
 export async function dbg(type: DebugType, message: string, orchestrator?: string): Promise<void> {
-  const entry: DebugEntry = { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type, message, orchestrator };
+  const entry: DebugEntry = {
+    time: new Date().toLocaleTimeString('en-US', { hour12: false }),
+    type,
+    message,
+    orchestrator,
+  };
   log.push(entry);
   if (log.length > MAX_LOG_ENTRIES) log.shift();
   await setDebugState({ debugLog: log });

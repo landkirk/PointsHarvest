@@ -4,7 +4,7 @@ import type { Context } from '../util/context.js';
 
 export interface LingerHooks {
   onResolve: (resolve: () => void) => void;
-  onTabId:   (tabId: number | null) => void;
+  onTabId: (tabId: number | null) => void;
 }
 
 // Waits for the user to complete a required action in the given tab.
@@ -23,7 +23,9 @@ class LingerOnTabStep extends StepBase<[number, LingerHooks]> {
     hooks.onTabId(tabId);
     await ctx.setState({ isLingering: true });
     chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {});
-    await new Promise<void>(resolve => { hooks.onResolve(resolve); });
+    await new Promise<void>((resolve) => {
+      hooks.onResolve(resolve);
+    });
     hooks.onTabId(null);
     await ctx.setState({ isLingering: false });
   }

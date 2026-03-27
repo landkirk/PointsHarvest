@@ -15,13 +15,16 @@ const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
-  private lingerTabId:   number | null = null;
+  private lingerTabId: number | null = null;
   private lingerResolve: (() => void) | null = null;
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
     const { dailySets = [], loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
-    if (!loggedIn) { await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping'); return; }
+    if (!loggedIn) {
+      await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping');
+      return;
+    }
 
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
 
@@ -52,7 +55,11 @@ class CompleteDailySets extends OrchestratorBase {
 
         this.checkStopped();
         await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
-        ctx.setHeaderMessage({ status: `Daily sets (${i + 1} / ${dailySets.length})`, completedSearches: i + 1, totalSearches: dailySets.length });
+        ctx.setHeaderMessage({
+          status: `Daily sets (${i + 1} / ${dailySets.length})`,
+          completedSearches: i + 1,
+          totalSearches: dailySets.length,
+        });
 
         if (i < dailySets.length - 1) {
           await lingerOnPage('between daily set activities');
@@ -74,7 +81,13 @@ class CompleteDailySets extends OrchestratorBase {
   ): Promise<boolean> {
     const { title, description } = activity;
     const label = title.slice(0, 60);
-    const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId, index, label, ACTIVITY_TYPE.DAILY_SET);
+    const t = await this.clickCardAndCaptureTab(
+      ctx,
+      rewardsTabId,
+      index,
+      label,
+      ACTIVITY_TYPE.DAILY_SET,
+    );
     if (!t) return false;
 
     this.checkStoppedOrCloseTab(t.id!);
@@ -82,8 +95,12 @@ class CompleteDailySets extends OrchestratorBase {
     if (USER_ACTION_RE.test(title) || USER_ACTION_RE.test(description)) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
       await lingerOnTab.run(ctx, t.id!, {
-        onResolve: r => { this.lingerResolve = r; },
-        onTabId:   id => { this.lingerTabId = id; },
+        onResolve: (r) => {
+          this.lingerResolve = r;
+        },
+        onTabId: (id) => {
+          this.lingerTabId = id;
+        },
       });
     } else {
       await lingerOnPage('daily set activity');

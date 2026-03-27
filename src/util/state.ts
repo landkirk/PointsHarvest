@@ -9,61 +9,61 @@ import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 export const PC_SEARCH_TYPE = 'pc search';
 
 export interface SearchCounter {
-  type:    string;
+  type: string;
   current: number;
-  max:     number;
+  max: number;
 }
 
 export interface AppHeaderState {
-  status:            string;
+  status: string;
   completedSearches: number;
-  totalSearches:     number;
-  lastSearchString:  string;
+  totalSearches: number;
+  lastSearchString: string;
 }
 
 export interface AppDebugState {
-  debugLog:      DebugEntry[];
-  domDebug:      ActivityScan | null;
+  debugLog: DebugEntry[];
+  domDebug: ActivityScan | null;
   dailySetDebug: ActivityScan | null;
 }
 
 export interface AppState {
-  isRunning:        boolean;
-  isLingering:      boolean;
-  currentIndex:     number;
-  lastRunDate:      string | null;
-  warmUpQueries:    string[];
-  searchCounters:   SearchCounter[];
+  isRunning: boolean;
+  isLingering: boolean;
+  currentIndex: number;
+  lastRunDate: string | null;
+  warmUpQueries: string[];
+  searchCounters: SearchCounter[];
   mappedActivities: MappedActivity[];
-  seenScreenIds:        string[];
+  seenScreenIds: string[];
   ignoredUpdateVersion: string | null;
-  skipWarmUp:           boolean;
-  failures:             Failure[];
-  header:           AppHeaderState;
-  debug:            AppDebugState;
+  skipWarmUp: boolean;
+  failures: Failure[];
+  header: AppHeaderState;
+  debug: AppDebugState;
 }
 
 export const INITIAL_STATE: AppState = {
-  isRunning:        false,
-  isLingering:      false,
-  currentIndex:     0,
-  lastRunDate:      null,
-  warmUpQueries:    [],
-  searchCounters:   [],
+  isRunning: false,
+  isLingering: false,
+  currentIndex: 0,
+  lastRunDate: null,
+  warmUpQueries: [],
+  searchCounters: [],
   mappedActivities: [],
-  seenScreenIds:        [],
+  seenScreenIds: [],
   ignoredUpdateVersion: null,
-  skipWarmUp:           false,
-  failures:             [],
+  skipWarmUp: false,
+  failures: [],
   header: {
-    status:            'idle',
+    status: 'idle',
     completedSearches: 0,
-    totalSearches:     0,
-    lastSearchString:  '',
+    totalSearches: 0,
+    lastSearchString: '',
   },
   debug: {
-    debugLog:      [],
-    domDebug:      null,
+    debugLog: [],
+    domDebug: null,
     dailySetDebug: null,
   },
 };
@@ -78,11 +78,19 @@ type AnyOrchestrator = OrchestratorBase<any[]>;
 let isActivelyRunning = false;
 let activeOrchestrator: AnyOrchestrator | null = null;
 
-export function getIsActivelyRunning(): boolean { return isActivelyRunning; }
-export function setIsActivelyRunning(value: boolean): void { isActivelyRunning = value; }
+export function getIsActivelyRunning(): boolean {
+  return isActivelyRunning;
+}
+export function setIsActivelyRunning(value: boolean): void {
+  isActivelyRunning = value;
+}
 
-export function getActiveOrchestrator(): AnyOrchestrator | null { return activeOrchestrator; }
-export function setActiveOrchestrator(instance: AnyOrchestrator | null): void { activeOrchestrator = instance; }
+export function getActiveOrchestrator(): AnyOrchestrator | null {
+  return activeOrchestrator;
+}
+export function setActiveOrchestrator(instance: AnyOrchestrator | null): void {
+  activeOrchestrator = instance;
+}
 
 /** Load from storage into cache. Returns the loaded state. */
 export async function loadState(): Promise<AppState> {
@@ -98,7 +106,10 @@ export async function setState(updates: Partial<AppState>): Promise<void> {
   await chrome.storage.local.set(updates);
 }
 
-async function setSubState<K extends 'header' | 'debug'>(key: K, updates: Partial<AppState[K]>): Promise<void> {
+async function setSubState<K extends 'header' | 'debug'>(
+  key: K,
+  updates: Partial<AppState[K]>,
+): Promise<void> {
   if (!cache) cache = { ...INITIAL_STATE };
   cache[key] = { ...cache[key], ...updates } as AppState[K];
   await chrome.storage.local.set({ [key]: cache[key] });
@@ -114,9 +125,9 @@ export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug',
  *  seenScreenIds and ignoredUpdateVersion are preserved by default — pass explicit overrides to wipe them (e.g. purge). */
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
   if (!cache) await loadState();
-  const seenScreenIds        = cache!.seenScreenIds;
+  const seenScreenIds = cache!.seenScreenIds;
   const ignoredUpdateVersion = cache!.ignoredUpdateVersion;
-  const skipWarmUp           = cache!.skipWarmUp;
+  const skipWarmUp = cache!.skipWarmUp;
   cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, skipWarmUp, ...overrides };
   await chrome.storage.local.set(cache);
 }

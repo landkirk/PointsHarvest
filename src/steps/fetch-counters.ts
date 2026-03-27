@@ -10,7 +10,7 @@ import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/state.js';
 
 const POLL_INTERVAL_MS = 1000;
-const MAX_POLLS        = 20;
+const MAX_POLLS = 20;
 
 class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null> {
   readonly name = 'fetch-counters';
@@ -23,16 +23,25 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
 
     for (let i = 0; i < MAX_POLLS; i++) {
       this.checkStopped();
-      const result = await chrome.tabs.sendMessage(breakdownTabId, { action: MSG_ACTION.GET_COUNTERS })
+      const result = await chrome.tabs
+        .sendMessage(breakdownTabId, { action: MSG_ACTION.GET_COUNTERS })
         .catch(() => null);
 
       if (result?.searchCounters?.length > 0) {
-        const valid: SearchCounter[] = result.searchCounters.filter((c: SearchCounter) => !Number.isNaN(c.current) && !Number.isNaN(c.max));
+        const valid: SearchCounter[] = result.searchCounters.filter(
+          (c: SearchCounter) => !Number.isNaN(c.current) && !Number.isNaN(c.max),
+        );
         if (valid.length < result.searchCounters.length) {
-          await ctx.dbg(DBG.WARN, `Dropped ${result.searchCounters.length - valid.length} counter(s) with NaN values`);
+          await ctx.dbg(
+            DBG.WARN,
+            `Dropped ${result.searchCounters.length - valid.length} counter(s) with NaN values`,
+          );
         }
         await ctx.setState({ searchCounters: valid });
-        await ctx.dbg(DBG.INFO, `Search counters: ${valid.map(c => `${c.type}: ${c.current}/${c.max}`).join(', ')}`);
+        await ctx.dbg(
+          DBG.INFO,
+          `Search counters: ${valid.map((c) => `${c.type}: ${c.current}/${c.max}`).join(', ')}`,
+        );
         return valid;
       }
 
