@@ -69,6 +69,12 @@ export const INITIAL_STATE: AppState = {
 };
 
 let cache: AppState | null = null;
+let writeQueue: Promise<void> = Promise.resolve();
+
+function enqueueWrite(fn: () => Promise<void>): Promise<void> {
+  writeQueue = writeQueue.then(fn);
+  return writeQueue;
+}
 
 // ── In-memory runtime state (not persisted) ────────────────────────────────
 
@@ -100,19 +106,23 @@ export async function loadState(): Promise<AppState> {
 }
 
 /** Write updates to both the cache and storage. */
-export async function setState(updates: Partial<AppState>): Promise<void> {
-  if (!cache) cache = { ...INITIAL_STATE };
-  Object.assign(cache, updates);
-  await chrome.storage.local.set(updates);
+export function setState(updates: Partial<AppState>): Promise<void> {
+  return enqueueWrite(() => {
+    if (!cache) cache = { ...INITIAL_STATE };
+    Object.assign(cache, updates);
+    return chrome.storage.local.set(updates);
+  });
 }
 
-async function setSubState<K extends 'header' | 'debug'>(
+function setSubState<K extends 'header' | 'debug'>(
   key: K,
   updates: Partial<AppState[K]>,
 ): Promise<void> {
-  if (!cache) cache = { ...INITIAL_STATE };
-  cache[key] = { ...cache[key], ...updates } as AppState[K];
-  await chrome.storage.local.set({ [key]: cache[key] });
+  return enqueueWrite(() => {
+    if (!cache) cache = { ...INITIAL_STATE };
+    cache[key] = { ...cache[key], ...updates } as AppState[K];
+    return chrome.storage.local.set({ [key]: cache[key] });
+  });
 }
 
 /** Write header-specific updates, merging into the header subobject. */
@@ -125,9 +135,11 @@ export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug',
  *  seenScreenIds and ignoredUpdateVersion are preserved by default — pass explicit overrides to wipe them (e.g. purge). */
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
   if (!cache) await loadState();
-  const seenScreenIds = cache!.seenScreenIds;
-  const ignoredUpdateVersion = cache!.ignoredUpdateVersion;
-  const skipWarmUp = cache!.skipWarmUp;
-  cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, skipWarmUp, ...overrides };
-  await chrome.storage.local.set(cache);
+  return enqueueWrite(() => {
+    const seenScreenIds = cache!.seenScreenIds;
+    const ignoredUpdateVersion = cache!.ignoredUpdateVersion;
+    const skipWarmUp = cache!.skipWarmUp;
+    cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, skipWarmUp, ...overrides };
+    return chrome.storage.local.set(cache!);
+  });
 }
