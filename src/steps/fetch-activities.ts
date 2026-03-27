@@ -3,11 +3,13 @@
 import { openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
+import type { AppMessage } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { setDebugState } from '../util/state.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 import type { ActivitiesResult } from '../util/activity.js';
+import type { ActivityScan } from '../util/debug.js';
 
 export type FetchActivitiesResult = ActivitiesResult & { rewardsTabId: number | null };
 
@@ -65,13 +67,12 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
       }
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const onMessage = (msg: any): undefined => {
+    const onMessage = (msg: AppMessage): undefined => {
       if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
       cleanup();
       setDebugState({
-        domDebug: msg.domDebug ?? null,
-        dailySetDebug: msg.dailySetDebug ?? null,
+        domDebug: (msg.domDebug ?? null) as ActivityScan | null,
+        dailySetDebug: (msg.dailySetDebug ?? null) as ActivityScan | null,
       }).catch(() => {});
       resolveLocal({
         activities: msg.activities,

@@ -6,8 +6,10 @@
 // "Search on Bing" activities are identified via aria-label on the card element.
 
 import { CardState } from '../util/activity.js';
-import { MSG_ACTION, ACTIVITY_TYPE } from '../util/messaging.js';
-import type { MsgAction, ActivityType } from '../util/messaging.js';
+import { MSG_ACTION } from '../util/messaging.js';
+import { ACTIVITY_TYPE } from '../util/activity.js';
+import type { AppMessage } from '../util/messaging.js';
+import type { ActivityType } from '../util/activity.js';
 import type { Activity } from '../util/activity.js';
 import type { ActivityScan, ActivityScanEntry } from '../util/debug.js';
 
@@ -251,41 +253,39 @@ function resolveEls(target: ActivityType | undefined): HTMLAnchorElement[] {
   return target === ACTIVITY_TYPE.DAILY_SET ? extractedDailySetEls : extractedCardEls;
 }
 
-chrome.runtime.onMessage.addListener(
-  (msg: { action: MsgAction; index?: number; target?: ActivityType }, _sender, sendResponse) => {
-    if (msg.action === MSG_ACTION.START_EXTRACT) {
-      waitAndExtract();
-      return undefined;
-    }
-
-    if (msg.action === MSG_ACTION.CLICK_CARD) {
-      const els = resolveEls(msg.target);
-      const card = els[msg.index!];
-      if (!card) {
-        sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
-        return true;
-      }
-      try {
-        card.click();
-        sendResponse({ clicked: true });
-      } catch (err) {
-        sendResponse({ clicked: false, error: String(err) });
-      }
-      return true;
-    }
-
-    if (msg.action === MSG_ACTION.GET_COUNTERS) {
-      const { searchCounters } = extractSearchCounters();
-      sendResponse({ searchCounters });
-      return true;
-    }
-
-    if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
-      const els = resolveEls(msg.target);
-      const card = els[msg.index!];
-      sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
-      return true;
-    }
+chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
+  if (msg.action === MSG_ACTION.START_EXTRACT) {
+    waitAndExtract();
     return undefined;
-  },
-);
+  }
+
+  if (msg.action === MSG_ACTION.CLICK_CARD) {
+    const els = resolveEls(msg.target);
+    const card = els[msg.index!];
+    if (!card) {
+      sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
+      return true;
+    }
+    try {
+      card.click();
+      sendResponse({ clicked: true });
+    } catch (err) {
+      sendResponse({ clicked: false, error: String(err) });
+    }
+    return true;
+  }
+
+  if (msg.action === MSG_ACTION.GET_COUNTERS) {
+    const { searchCounters } = extractSearchCounters();
+    sendResponse({ searchCounters });
+    return true;
+  }
+
+  if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
+    const els = resolveEls(msg.target);
+    const card = els[msg.index!];
+    sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
+    return true;
+  }
+  return undefined;
+});
