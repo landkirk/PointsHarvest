@@ -8,9 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run build          # Full build: type-check all src, emit non-content files via tsc, bundle content scripts via esbuild
 npm run watch          # Dev mode: watch tsc + watch esbuild in parallel
 npm run build:content  # Bundle content scripts only (esbuild → dist/content/)
+npm run lint           # Run ESLint + Prettier check on src/
+npm run lint:fix       # Auto-fix ESLint issues + reformat with Prettier
 ```
-
-No lint or test commands are configured.
 
 After building, load the `dist/` folder as an unpacked Chrome extension.
 

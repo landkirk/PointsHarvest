@@ -12,41 +12,41 @@ import { checkForUpdate } from '../util/update-check.js';
 // ── Generic activity debug view ─────────────────────────────────────────────
 
 interface ActivityDebugItem {
-  title:        string;
+  title: string;
   description?: string;
-  skipReason?:  CardState | null;
-  action?:      string;
+  skipReason?: CardState | null;
+  action?: string;
 }
 
 interface ActivityDebugData {
-  stats?:       { total: number; actionable: number; locked: number; completed: number };
-  items:        ActivityDebugItem[];
+  stats?: { total: number; actionable: number; locked: number; completed: number };
+  items: ActivityDebugItem[];
   emptyMessage: string;
-  queue?:       string[];
+  queue?: string[];
 }
 
-const dot          = document.getElementById('dot')!;
-const statusEl     = document.getElementById('status')!;
-const bar          = document.getElementById('progress-bar') as HTMLElement;
-const labelEl      = document.getElementById('progress-label')!;
-const btnStart     = document.getElementById('btn-start') as HTMLButtonElement;
-const btnStop      = document.getElementById('btn-stop') as HTMLElement;
-const btnDone      = document.getElementById('btn-done') as HTMLElement;
-const lastSearch   = document.getElementById('last-search')!;
+const dot = document.getElementById('dot')!;
+const statusEl = document.getElementById('status')!;
+const bar = document.getElementById('progress-bar') as HTMLElement;
+const labelEl = document.getElementById('progress-label')!;
+const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
+const btnStop = document.getElementById('btn-stop') as HTMLElement;
+const btnDone = document.getElementById('btn-done') as HTMLElement;
+const lastSearch = document.getElementById('last-search')!;
 const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
-const debugCheck   = document.getElementById('debug-check') as HTMLInputElement;
-const debugPanel   = document.getElementById('debug-panel')!;
-const btnPurge     = document.getElementById('btn-purge')!;
-const dbgWarmUp    = document.getElementById('dbg-warmup')!;
-const dbgExplore   = document.getElementById('dbg-explore')!;
-const dbgDaily     = document.getElementById('dbg-daily')!;
+const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
+const debugPanel = document.getElementById('debug-panel')!;
+const btnPurge = document.getElementById('btn-purge')!;
+const dbgWarmUp = document.getElementById('dbg-warmup')!;
+const dbgExplore = document.getElementById('dbg-explore')!;
+const dbgDaily = document.getElementById('dbg-daily')!;
 const dbgPcCounters = document.getElementById('dbg-pc-counters')!;
-const dbgLog       = document.getElementById('dbg-log')!;
-const setupBanner    = document.getElementById('setup-banner')!;
+const dbgLog = document.getElementById('dbg-log')!;
+const setupBanner = document.getElementById('setup-banner')!;
 const btnOpenSettings = document.getElementById('btn-open-settings') as HTMLButtonElement;
-const failureBanner  = document.getElementById('failure-banner')!;
+const failureBanner = document.getElementById('failure-banner')!;
 const failureSummary = document.getElementById('failure-summary')!;
-const failureList    = document.getElementById('failure-list')!;
+const failureList = document.getElementById('failure-list')!;
 
 // ── Setup warning banner ────────────────────────────────────────────────────
 
@@ -70,16 +70,29 @@ function renderFailures(failures: Failure[]): void {
     return;
   }
   let hasSetup = false;
-  const nonSetup = failures.filter(f => { if (f.category === 'setup') { hasSetup = true; return false; } return true; });
+  const nonSetup = failures.filter((f) => {
+    if (f.category === 'setup') {
+      hasSetup = true;
+      return false;
+    }
+    return true;
+  });
   if (hasSetup) setupBanner.style.display = 'block';
-  if (nonSetup.length === 0) { failureBanner.style.display = 'none'; failureList.innerHTML = ''; return; }
+  if (nonSetup.length === 0) {
+    failureBanner.style.display = 'none';
+    failureList.innerHTML = '';
+    return;
+  }
   failureBanner.style.display = 'block';
   updateFailureSummary(nonSetup.length);
-  failureList.innerHTML = nonSetup.map(f => failureItemHtml(f)).join('');
+  failureList.innerHTML = nonSetup.map((f) => failureItemHtml(f)).join('');
 }
 
 function appendFailure(f: Failure): void {
-  if (f.category === 'setup') { setupBanner.style.display = 'block'; return; }
+  if (f.category === 'setup') {
+    setupBanner.style.display = 'block';
+    return;
+  }
   failureBanner.style.display = 'block';
   const div = document.createElement('div');
   div.innerHTML = failureItemHtml(f);
@@ -100,31 +113,38 @@ failureSummary.addEventListener('click', () => {
 // ── Main UI ────────────────────────────────────────────────────────────────
 
 interface RenderState {
-  isRunning?:         boolean;
-  isLingering?:       boolean;
-  status?:            string;
+  isRunning?: boolean;
+  isLingering?: boolean;
+  status?: string;
   completedSearches?: number;
-  totalSearches?:     number;
-  lastSearchString?:         string;
+  totalSearches?: number;
+  lastSearchString?: string;
 }
 
-function render({ isRunning, isLingering, status, completedSearches, totalSearches, lastSearchString }: RenderState): void {
+function render({
+  isRunning,
+  isLingering,
+  status,
+  completedSearches,
+  totalSearches,
+  lastSearchString,
+}: RenderState): void {
   const completed = completedSearches || 0;
-  const total     = totalSearches || 0;
-  const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const isDone    = !isRunning && completed > 0 && completed >= total && total > 0;
+  const total = totalSearches || 0;
+  const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const isDone = !isRunning && completed > 0 && completed >= total && total > 0;
 
-  statusEl.textContent   = status || 'Idle';
-  bar.style.width        = pct + '%';
-  labelEl.textContent    = total > 0 ? `${completed} / ${total} searches` : '—';
+  statusEl.textContent = status || 'Idle';
+  bar.style.width = pct + '%';
+  labelEl.textContent = total > 0 ? `${completed} / ${total} searches` : '—';
   lastSearch.textContent = lastSearchString ? `Last: ${lastSearchString}` : '';
 
   dot.className = 'dot';
-  if (isLingering)     dot.classList.add('waiting');
-  else if (isRunning)  dot.classList.add('running');
-  else if (isDone)     dot.classList.add('done');
+  if (isLingering) dot.classList.add('waiting');
+  else if (isRunning) dot.classList.add('running');
+  else if (isDone) dot.classList.add('done');
 
-  btnStart.disabled     = !!isRunning;
+  btnStart.disabled = !!isRunning;
   btnStop.style.display = isRunning ? 'block' : 'none';
   btnDone.style.display = isLingering ? 'block' : 'none';
 }
@@ -145,21 +165,26 @@ function initPopup(): void {
   mainEl.style.display = '';
   chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
     if (!state) return;
-    if (!state.isRunning) { renderState(state); return; }
-    chrome.runtime.sendMessage({ action: MSG_ACTION.PING }).then((response: { running: boolean }) => {
-      if (!response?.running) {
-        const stoppedHeader = { ...state.header, status: 'Stopped' };
-        chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
-        state = { ...state, isRunning: false, header: stoppedHeader };
-      }
+    if (!state.isRunning) {
       renderState(state);
-    });
+      return;
+    }
+    chrome.runtime
+      .sendMessage({ action: MSG_ACTION.PING })
+      .then((response: { running: boolean }) => {
+        if (!response?.running) {
+          const stoppedHeader = { ...state.header, status: 'Stopped' };
+          chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
+          state = { ...state, isRunning: false, header: stoppedHeader };
+        }
+        renderState(state);
+      });
   });
 }
 
 function showPendingOrInit(state: AppState): void {
-  const seen    = new Set(state.seenScreenIds ?? []);
-  const pending = SCREENS.filter(s => !seen.has(s.id));
+  const seen = new Set(state.seenScreenIds ?? []);
+  const pending = SCREENS.filter((s) => !seen.has(s.id));
   if (pending.length > 0) {
     showOnboarding(pending, initPopup);
   } else {
@@ -171,14 +196,18 @@ Promise.all([
   chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }) as Promise<AppState>,
   checkForUpdate(),
 ]).then(async ([state, updateResult]) => {
-  if (!state) { initPopup(); return; }
+  if (!state) {
+    initPopup();
+    return;
+  }
   const updateStatusEl = document.getElementById('update-status')!;
   if (updateResult === null) {
     updateStatusEl.textContent = 'Update check failed or timed out';
   } else if (updateResult.hasUpdate) {
-    updateStatusEl.textContent = state.ignoredUpdateVersion === updateResult.latestVersion
-      ? `Update v${updateResult.latestVersion} ignored`
-      : `Update available: v${updateResult.latestVersion} (installed: v${updateResult.installedVersion})`;
+    updateStatusEl.textContent =
+      state.ignoredUpdateVersion === updateResult.latestVersion
+        ? `Update v${updateResult.latestVersion} ignored`
+        : `Update available: v${updateResult.latestVersion} (installed: v${updateResult.installedVersion})`;
   } else {
     updateStatusEl.textContent = `Up to date: v${updateResult.installedVersion}`;
   }
@@ -202,11 +231,11 @@ Promise.all([
 chrome.runtime.onMessage.addListener((msg): undefined => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     render({
-      isRunning:         true,
-      status:            msg.status,
+      isRunning: true,
+      status: msg.status,
       completedSearches: msg.completedSearches,
-      totalSearches:     msg.totalSearches,
-      lastSearchString:  msg.lastSearchString,
+      totalSearches: msg.totalSearches,
+      lastSearchString: msg.lastSearchString,
     });
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
@@ -217,8 +246,16 @@ chrome.runtime.onMessage.addListener((msg): undefined => {
   if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
       if (state) {
-        renderActivitySection(dbgExplore, exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]), LIST_SIZE.LARGE);
-        renderActivitySection(dbgDaily, dailySetsToActivityData(state.debug.dailySetDebug), LIST_SIZE.MEDIUM);
+        renderActivitySection(
+          dbgExplore,
+          exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]),
+          LIST_SIZE.LARGE,
+        );
+        renderActivitySection(
+          dbgDaily,
+          dailySetsToActivityData(state.debug.dailySetDebug),
+          LIST_SIZE.MEDIUM,
+        );
         renderPcCounters(state.searchCounters);
       }
     });
@@ -230,7 +267,11 @@ chrome.runtime.onMessage.addListener((msg): undefined => {
     appendFailure(msg.failure as Failure);
   }
   if (msg.action === MSG_ACTION.LINGER_WAITING) {
-    render({ isRunning: true, isLingering: true, status: 'Action required — complete the activity in the tab' });
+    render({
+      isRunning: true,
+      isLingering: true,
+      status: 'Action required — complete the activity in the tab',
+    });
   }
 });
 
@@ -259,7 +300,7 @@ btnPurge.addEventListener('click', () => {
 
 // ── Debug panel ────────────────────────────────────────────────────────────
 
-document.querySelectorAll('.dbg-section h2').forEach(h2 => {
+document.querySelectorAll('.dbg-section h2').forEach((h2) => {
   h2.addEventListener('click', () => h2.closest('.dbg-section')!.classList.toggle('collapsed'));
 });
 
@@ -277,17 +318,29 @@ debugCheck.addEventListener('change', () => {
 });
 
 function clearDebug(): void {
-  dbgWarmUp.innerHTML     = '<div class="dbg-empty">Run the extension to see warm-up queries.</div>';
-  renderActivitySection(dbgExplore, { items: [], emptyMessage: 'Run the extension to see extraction results.' }, LIST_SIZE.LARGE);
-  renderActivitySection(dbgDaily,   { items: [], emptyMessage: 'Run the extension to see results.' }, LIST_SIZE.MEDIUM);
+  dbgWarmUp.innerHTML = '<div class="dbg-empty">Run the extension to see warm-up queries.</div>';
+  renderActivitySection(
+    dbgExplore,
+    { items: [], emptyMessage: 'Run the extension to see extraction results.' },
+    LIST_SIZE.LARGE,
+  );
+  renderActivitySection(
+    dbgDaily,
+    { items: [], emptyMessage: 'Run the extension to see results.' },
+    LIST_SIZE.MEDIUM,
+  );
   dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
-  dbgLog.innerHTML        = '<div class="dbg-empty">No events yet.</div>';
+  dbgLog.innerHTML = '<div class="dbg-empty">No events yet.</div>';
 }
 
 function renderDebug({ debug, searchCounters, mappedActivities, warmUpQueries }: AppState): void {
   renderWarmUp(warmUpQueries);
-  renderActivitySection(dbgExplore, exploreToActivityData(debug.domDebug, mappedActivities as MappedActivity[]), LIST_SIZE.LARGE);
-  renderActivitySection(dbgDaily,   dailySetsToActivityData(debug.dailySetDebug), LIST_SIZE.MEDIUM);
+  renderActivitySection(
+    dbgExplore,
+    exploreToActivityData(debug.domDebug, mappedActivities as MappedActivity[]),
+    LIST_SIZE.LARGE,
+  );
+  renderActivitySection(dbgDaily, dailySetsToActivityData(debug.dailySetDebug), LIST_SIZE.MEDIUM);
   renderPcCounters(searchCounters);
   renderLog(debug.debugLog);
 }
@@ -297,7 +350,11 @@ function renderDebug({ debug, searchCounters, mappedActivities, warmUpQueries }:
 type ListSize = 'small' | 'medium' | 'large';
 const LIST_SIZE = { SMALL: 'small', MEDIUM: 'medium', LARGE: 'large' } as const;
 
-function renderActivitySection(container: HTMLElement, data: ActivityDebugData, listSize: ListSize = LIST_SIZE.LARGE): void {
+function renderActivitySection(
+  container: HTMLElement,
+  data: ActivityDebugData,
+  listSize: ListSize = LIST_SIZE.LARGE,
+): void {
   let html = '';
 
   if (data.stats) {
@@ -314,18 +371,26 @@ function renderActivitySection(container: HTMLElement, data: ActivityDebugData, 
   if (data.items.length === 0) {
     html += `<div class="dbg-list dbg-list--${listSize}"><div class="dbg-empty">${esc(data.emptyMessage)}</div></div>`;
   } else {
-    html += `<div class="dbg-list dbg-list--${listSize}">` + data.items.map(item => `
+    html +=
+      `<div class="dbg-list dbg-list--${listSize}">` +
+      data.items
+        .map(
+          (item) => `
       <div class="dbg-card" data-status="${esc(item.skipReason ?? CardState.Actionable)}">
         <div class="card-title${item.skipReason ? ' skipped' : ''}">${esc(item.title)}</div>
         ${item.description ? `<div class="card-desc">${esc(item.description)}</div>` : ''}
-        ${item.skipReason
-          ? `<div class="card-skip card-skip--${esc(item.skipReason)}">Skipped: ${esc(item.skipReason)}</div>`
-          : item.action
-            ? `<div class="card-query" title="${esc(item.action)}">→ ${esc(item.action)}</div>`
-            : ''
+        ${
+          item.skipReason
+            ? `<div class="card-skip card-skip--${esc(item.skipReason)}">Skipped: ${esc(item.skipReason)}</div>`
+            : item.action
+              ? `<div class="card-query" title="${esc(item.action)}">→ ${esc(item.action)}</div>`
+              : ''
         }
       </div>
-    `).join('') + '</div>';
+    `,
+        )
+        .join('') +
+      '</div>';
   }
 
   if (data.queue !== undefined) {
@@ -345,9 +410,9 @@ function renderActivitySection(container: HTMLElement, data: ActivityDebugData, 
       const list = container.querySelector<HTMLElement>('.dbg-list');
       if (!list) return;
 
-      const next = (filter === 'all' || list.dataset.activeFilter === filter) ? '' : filter;
+      const next = filter === 'all' || list.dataset.activeFilter === filter ? '' : filter;
       list.dataset.activeFilter = next;
-      container.querySelectorAll<HTMLElement>('[data-filter]').forEach(s => {
+      container.querySelectorAll<HTMLElement>('[data-filter]').forEach((s) => {
         s.classList.toggle('filter-active', !!next && s.dataset.filter === next);
       });
     });
@@ -356,36 +421,48 @@ function renderActivitySection(container: HTMLElement, data: ActivityDebugData, 
 
 // ── Adapters: map state to ActivityDebugData ────────────────────────────────
 
-function buildScanStats(scan: ActivityScan): { total: number; actionable: number; locked: number; completed: number } {
+function buildScanStats(scan: ActivityScan): {
+  total: number;
+  actionable: number;
+  locked: number;
+  completed: number;
+} {
   return {
-    total:      scan.actionableActivities + scan.activities.length,
+    total: scan.actionableActivities + scan.activities.length,
     actionable: scan.actionableActivities,
-    locked:     scan.skippedLocked,
-    completed:  scan.skippedCompleted,
+    locked: scan.skippedLocked,
+    completed: scan.skippedCompleted,
   };
 }
 
-function exploreToActivityData(scan: ActivityScan | null, mappedActivities: MappedActivity[]): ActivityDebugData {
+function exploreToActivityData(
+  scan: ActivityScan | null,
+  mappedActivities: MappedActivity[],
+): ActivityDebugData {
   if (!scan && mappedActivities.length === 0) {
-    return { items: [], emptyMessage: 'Run the extension to see extraction results.', queue: undefined };
+    return {
+      items: [],
+      emptyMessage: 'Run the extension to see extraction results.',
+      queue: undefined,
+    };
   }
 
   const items: ActivityDebugItem[] = [
-    ...mappedActivities.map(a => ({
-      title:       a.title || '(no title)',
+    ...mappedActivities.map((a) => ({
+      title: a.title || '(no title)',
       description: a.description || undefined,
-      skipReason:  a.unmatched ? CardState.Unknown : null,
-      action:      a.unmatched ? undefined : a.query ?? undefined,
+      skipReason: a.unmatched ? CardState.Unknown : null,
+      action: a.unmatched ? undefined : (a.query ?? undefined),
     })),
-    ...(scan?.activities ?? []).map(c => ({
-      title:      c.snippet,
+    ...(scan?.activities ?? []).map((c) => ({
+      title: c.snippet,
       skipReason: c.skipReason,
     })),
   ];
 
   const stats = scan ? buildScanStats(scan) : undefined;
 
-  const queue = mappedActivities.filter(m => m.query).map(m => m.query as string);
+  const queue = mappedActivities.filter((m) => m.query).map((m) => m.query as string);
 
   return { stats, items, emptyMessage: 'No activity cards found.', queue };
 }
@@ -395,8 +472,8 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
     return { items: [], emptyMessage: 'Run the extension to see results.' };
   }
 
-  const items: ActivityDebugItem[] = scan.activities.map(t => ({
-    title:      t.snippet || '(no title)',
+  const items: ActivityDebugItem[] = scan.activities.map((t) => ({
+    title: t.snippet || '(no title)',
     skipReason: t.skipReason,
   }));
 
@@ -405,13 +482,25 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
 
-function queryListHtml(queries: string[], emptyMessage: string, size: ListSize = LIST_SIZE.LARGE): string {
+function queryListHtml(
+  queries: string[],
+  emptyMessage: string,
+  size: ListSize = LIST_SIZE.LARGE,
+): string {
   if (!queries || queries.length === 0) {
     return `<div class="dbg-list dbg-list--${size}"><div class="dbg-empty">${esc(emptyMessage)}</div></div>`;
   }
-  return `<div class="dbg-list dbg-list--${size}">` + queries.map((q, i) => `
+  return (
+    `<div class="dbg-list dbg-list--${size}">` +
+    queries
+      .map(
+        (q, i) => `
     <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
-  `).join('') + '</div>';
+  `,
+      )
+      .join('') +
+    '</div>'
+  );
 }
 
 // ── Warm-Up Searches ───────────────────────────────────────────────────────
@@ -421,9 +510,13 @@ function renderWarmUp(queries: string[]): void {
     dbgWarmUp.innerHTML = `<div class="dbg-empty">Run the extension to see warm-up queries.</div>`;
     return;
   }
-  dbgWarmUp.innerHTML = queries.map((q, i) => `
+  dbgWarmUp.innerHTML = queries
+    .map(
+      (q, i) => `
     <div class="dbg-queue-item"><span class="idx">${i + 1}.</span>${esc(q)}</div>
-  `).join('');
+  `,
+    )
+    .join('');
 }
 
 // ── PC Search Farming ──────────────────────────────────────────────────────
@@ -433,11 +526,13 @@ function renderPcCounters(searchCounters: SearchCounter[]): void {
     dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
     return;
   }
-  dbgPcCounters.innerHTML = searchCounters.map(c => {
-    const isPC = c.type.toLowerCase() === PC_SEARCH_TYPE;
-    const cls  = isPC ? ' class="pc-active"' : '';
-    return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
-  }).join('');
+  dbgPcCounters.innerHTML = searchCounters
+    .map((c) => {
+      const isPC = c.type.toLowerCase() === PC_SEARCH_TYPE;
+      const cls = isPC ? ' class="pc-active"' : '';
+      return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
+    })
+    .join('');
 }
 
 // ── Event Log ──────────────────────────────────────────────────────────────

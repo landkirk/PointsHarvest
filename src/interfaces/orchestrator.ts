@@ -18,7 +18,12 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
 
   /** Closes tabId then throws StoppedError if stopped; no-op otherwise. */
   protected checkStoppedOrCloseTab(tabId: number): void {
-    try { this.checkStopped(); } catch (e) { this.closeTab(tabId); throw e; }
+    try {
+      this.checkStopped();
+    } catch (e) {
+      this.closeTab(tabId);
+      throw e;
+    }
   }
 
   /** Resolves pending tab load, runs subclass cleanup, and closes owned tabs. */
@@ -69,7 +74,13 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     await ctx.dbg(DBG.WARN, opts.retryLogMessage);
 
     try {
-      await this.retryAfterLinger(ctx, opts.lingerLabel, retryFn, opts.failCategory, opts.failMessage);
+      await this.retryAfterLinger(
+        ctx,
+        opts.lingerLabel,
+        retryFn,
+        opts.failCategory,
+        opts.failMessage,
+      );
     } catch {
       if (opts.retryNavFailMessage) await ctx.fail('navigation', opts.retryNavFailMessage);
       return false;
@@ -95,7 +106,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   }
 
   /** Subclass-specific cleanup called by stop(). Override when needed. */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   protected async _onStop(_ctx: Context): Promise<void> {}
 
   onTabUpdated(tabId: number, changeInfo: { status?: string }): void {
@@ -114,7 +125,6 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onTabRemoved(_tabId: number): void {}
 
   onUserActionComplete(): void {}
@@ -124,7 +134,11 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   }
 
   /** Open a tab, wait for it to load, check stopped (closing tab if so), and return it. */
-  protected async openTabAndWait(url: string, active = true, timeoutMs = 30000): Promise<chrome.tabs.Tab> {
+  protected async openTabAndWait(
+    url: string,
+    active = true,
+    timeoutMs = 30000,
+  ): Promise<chrome.tabs.Tab> {
     const tab = await this.openManagedTab(url, active);
     await this.waitForTabLoad(tab.id!, timeoutMs);
     this.checkStoppedOrCloseTab(tab.id!);
@@ -145,7 +159,9 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   }
 
   protected async captureNextTab(timeoutMs = 10000): Promise<chrome.tabs.Tab | null> {
-    const capturePromise = new Promise<chrome.tabs.Tab | null>(resolve => { this.captureNextTabResolve = resolve; });
+    const capturePromise = new Promise<chrome.tabs.Tab | null>((resolve) => {
+      this.captureNextTabResolve = resolve;
+    });
     try {
       return await Promise.race([capturePromise, sleep(timeoutMs).then(() => null)]);
     } finally {
@@ -166,18 +182,31 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     const msg: Record<string, unknown> = { action: MSG_ACTION.CLICK_CARD, index };
     if (target !== undefined) msg.target = target;
 
-    const clickResult = await chrome.tabs.sendMessage(rewardsTabId, msg)
-      .catch(async (err: unknown) => { await ctx.fail('navigation', `Card click message error for "${label}": ${(err as Error)?.message ?? String(err)}`); return null; });
+    const clickResult = await chrome.tabs
+      .sendMessage(rewardsTabId, msg)
+      .catch(async (err: unknown) => {
+        await ctx.fail(
+          'navigation',
+          `Card click message error for "${label}": ${(err as Error)?.message ?? String(err)}`,
+        );
+        return null;
+      });
 
     if (!clickResult?.clicked) {
       this.captureNextTabResolve?.(null);
-      await ctx.fail('navigation', `Card click failed for "${label}": ${clickResult?.error ?? 'no response'}`);
+      await ctx.fail(
+        'navigation',
+        `Card click failed for "${label}": ${clickResult?.error ?? 'no response'}`,
+      );
       return null;
     }
 
     const tab = await captureTabPromise;
     if (!tab) {
-      await ctx.fail('setup', `Chrome blocked the activity tab from opening ("${label}"). To fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → rewards.bing.com`);
+      await ctx.fail(
+        'setup',
+        `Chrome blocked the activity tab from opening ("${label}"). To fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → rewards.bing.com`,
+      );
       return null;
     }
 

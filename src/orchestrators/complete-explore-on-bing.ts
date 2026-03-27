@@ -24,14 +24,20 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
     this.rewardsTabId = rewardsTabId;
     if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
-    await ctx.dbg(DBG.INFO, `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`);
+    await ctx.dbg(
+      DBG.INFO,
+      `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`,
+    );
 
     const mapped = buildSearchList(activities);
     await ctx.setState({ mappedActivities: mapped });
     chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {});
 
-    const unmapped = mapped.filter(m => m.unmatched).length;
-    await ctx.dbg(DBG.INFO, `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`);
+    const unmapped = mapped.filter((m) => m.unmatched).length;
+    await ctx.dbg(
+      DBG.INFO,
+      `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`,
+    );
 
     await ctx.setState({ currentIndex: startIndex });
     await setHeaderState({ totalSearches: mapped.length, completedSearches: startIndex });
@@ -43,7 +49,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         const { query, title } = mapped[i];
 
         if (!query) {
-          await ctx.dbg(DBG.WARN, `Skipping card ${i + 1} — no query could be generated for "${title}"`);
+          await ctx.dbg(
+            DBG.WARN,
+            `Skipping card ${i + 1} — no query could be generated for "${title}"`,
+          );
           continue;
         }
 
@@ -71,7 +80,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
         this.checkStopped();
 
-        ctx.setHeaderMessage({ status: `Running (${completed} / ${mapped.length})`, completedSearches: completed, totalSearches: mapped.length, lastSearchString: query });
+        ctx.setHeaderMessage({
+          status: `Running (${completed} / ${mapped.length})`,
+          completedSearches: completed,
+          totalSearches: mapped.length,
+          lastSearchString: query,
+        });
 
         if (i < mapped.length - 1) {
           await lingerOnPage('between explore on bing searches');
@@ -92,7 +106,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     index: number,
     query: string,
   ): Promise<boolean | null> {
-    const searchTab = await this.clickCardAndCaptureTab(ctx, this.rewardsTabId!, index, activity.title);
+    const searchTab = await this.clickCardAndCaptureTab(
+      ctx,
+      this.rewardsTabId!,
+      index,
+      activity.title,
+    );
     if (!searchTab) return null;
 
     chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {});

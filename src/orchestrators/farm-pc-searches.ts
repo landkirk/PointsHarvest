@@ -16,7 +16,7 @@ import { fetchCounters } from '../steps/fetch-counters.js';
 const MAX_NO_PROGRESS = 3;
 
 function findPcCounter(counters: SearchCounter[] | null | undefined): SearchCounter | undefined {
-  return counters?.find(c => c.type.toLowerCase() === PC_SEARCH_TYPE);
+  return counters?.find((c) => c.type.toLowerCase() === PC_SEARCH_TYPE);
 }
 
 class FarmPcSearches extends OrchestratorBase {
@@ -61,7 +61,10 @@ class FarmPcSearches extends OrchestratorBase {
     }
 
     if (counter.current >= counter.max) {
-      await ctx.dbg(DBG.INFO, `PC Search already at cap (${counter.current}/${counter.max}), skipping`);
+      await ctx.dbg(
+        DBG.INFO,
+        `PC Search already at cap (${counter.current}/${counter.max}), skipping`,
+      );
       return;
     }
 
@@ -94,19 +97,29 @@ class FarmPcSearches extends OrchestratorBase {
       this.checkStopped();
 
       const updated = await fetchCounters.run(ctx, this.breakdownTabId);
-      if (updated === null) { await ctx.fail('counter', 'PC farm aborted: counter fetch failed'); return; }
+      if (updated === null) {
+        await ctx.fail('counter', 'PC farm aborted: counter fetch failed');
+        return;
+      }
       const updatedCounter = findPcCounter(updated);
       const newCurrent = updatedCounter?.current ?? current;
 
       if (newCurrent > current) {
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
-        ctx.setHeaderMessage({ status: 'Farming PC searches…', completedSearches: newCurrent / PC_SEARCH_POINTS_PER_SEARCH, totalSearches: max / PC_SEARCH_POINTS_PER_SEARCH });
+        ctx.setHeaderMessage({
+          status: 'Farming PC searches…',
+          completedSearches: newCurrent / PC_SEARCH_POINTS_PER_SEARCH,
+          totalSearches: max / PC_SEARCH_POINTS_PER_SEARCH,
+        });
         noProgressCount = 0;
       } else {
         noProgressCount++;
         await ctx.dbg(DBG.WARN, `No progress ${noProgressCount}/${MAX_NO_PROGRESS}`);
         if (noProgressCount >= MAX_NO_PROGRESS) {
-          await ctx.fail('search', `PC farm aborted: no progress after ${MAX_NO_PROGRESS} searches`);
+          await ctx.fail(
+            'search',
+            `PC farm aborted: no progress after ${MAX_NO_PROGRESS} searches`,
+          );
           return;
         }
       }

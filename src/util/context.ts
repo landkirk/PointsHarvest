@@ -25,10 +25,12 @@ export function createContext(): Context {
     },
     setHeaderMessage(payload: ProgressPayload): void {
       const headerUpdate: Parameters<typeof setHeaderState>[0] = {};
-      if (payload.status            !== undefined) headerUpdate.status            = payload.status;
-      if (payload.completedSearches !== undefined) headerUpdate.completedSearches = payload.completedSearches;
-      if (payload.totalSearches     !== undefined) headerUpdate.totalSearches     = payload.totalSearches;
-      if (payload.lastSearchString  !== undefined) headerUpdate.lastSearchString  = payload.lastSearchString;
+      if (payload.status !== undefined) headerUpdate.status = payload.status;
+      if (payload.completedSearches !== undefined)
+        headerUpdate.completedSearches = payload.completedSearches;
+      if (payload.totalSearches !== undefined) headerUpdate.totalSearches = payload.totalSearches;
+      if (payload.lastSearchString !== undefined)
+        headerUpdate.lastSearchString = payload.lastSearchString;
       if (Object.keys(headerUpdate).length) setHeaderState(headerUpdate).catch(() => {});
       chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload }).catch(() => {});
     },

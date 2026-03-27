@@ -1,10 +1,10 @@
 const LATEST_VERSION_URL = 'https://r2.pointsharvest.com/latest-version.txt';
-const FETCH_TIMEOUT_MS   = 1000;
+const FETCH_TIMEOUT_MS = 1000;
 
 export interface UpdateCheckResult {
-  hasUpdate:        boolean;
-  latestVersion:    string;  // e.g. "1.7.2"
-  installedVersion: string;  // e.g. "1.7.1"
+  hasUpdate: boolean;
+  latestVersion: string; // e.g. "1.7.2"
+  installedVersion: string; // e.g. "1.7.1"
 }
 
 /** Compare two semver strings (e.g. "1.7.2" vs "1.7.1").
@@ -33,13 +33,13 @@ export async function checkForUpdate(): Promise<UpdateCheckResult | null> {
     const res = await fetch(LATEST_VERSION_URL, { signal: controller.signal });
     if (!res.ok) return null;
 
-    const text          = (await res.text()).trim();
+    const text = (await res.text()).trim();
     const latestVersion = text.replace(/^v/, '');
 
     if (!/^\d+(\.\d+)*$/.test(latestVersion)) return null;
 
     return {
-      hasUpdate:        compareSemver(latestVersion, installedVersion) > 0,
+      hasUpdate: compareSemver(latestVersion, installedVersion) > 0,
       latestVersion,
       installedVersion,
     };
