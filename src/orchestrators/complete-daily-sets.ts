@@ -27,8 +27,9 @@ class CompleteDailySets extends OrchestratorBase {
       await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping');
       return;
     }
+    if (!rewardsTabId) return;
 
-    if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
+    this.openedTabIds.add(rewardsTabId);
 
     try {
       if (dailySets.length === 0) {
@@ -44,7 +45,7 @@ class CompleteDailySets extends OrchestratorBase {
         const label = dailySets[i].title.slice(0, 60);
         await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
 
-        const attempt = () => this.attemptActivity(ctx, rewardsTabId!, dailySets[i], i);
+        const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i], i);
         const succeeded = await this.executeActivityWithValidation(ctx, attempt, attempt, {
           retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
           lingerLabel: 'daily set activity retry',
@@ -92,12 +93,12 @@ class CompleteDailySets extends OrchestratorBase {
     );
     if (!t) return false;
 
-    this.checkStoppedOrCloseTab(t.id!);
+    this.checkStoppedOrCloseTab(t.id);
 
     if (USER_ACTION_RE.test(title) || USER_ACTION_RE.test(description)) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
       const isPoll = /\bpoll\b/i.test(title) || /\bpoll\b/i.test(description);
-      await lingerOnTab.run(ctx, t.id!, {
+      await lingerOnTab.run(ctx, t.id, {
         onResolve: (r) => {
           this.lingerResolve = r;
         },
@@ -108,8 +109,8 @@ class CompleteDailySets extends OrchestratorBase {
       });
     } else {
       await lingerOnPage('daily set activity');
-      this.checkStoppedOrCloseTab(t.id!);
-      this.closeTab(t.id!);
+      this.checkStoppedOrCloseTab(t.id);
+      this.closeTab(t.id);
     }
     this.checkStopped();
     const validated = await validateActivity.run(ctx, activity, rewardsTabId);

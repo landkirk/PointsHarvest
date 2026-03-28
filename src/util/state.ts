@@ -136,10 +136,15 @@ export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug',
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
   if (!cache) await loadState();
   return enqueueWrite(() => {
-    const seenScreenIds = cache!.seenScreenIds;
-    const ignoredUpdateVersion = cache!.ignoredUpdateVersion;
-    const skipWarmUp = cache!.skipWarmUp;
-    cache = { ...INITIAL_STATE, seenScreenIds, ignoredUpdateVersion, skipWarmUp, ...overrides };
-    return chrome.storage.local.set(cache!);
+    const { seenScreenIds, ignoredUpdateVersion, skipWarmUp } = cache ?? { ...INITIAL_STATE };
+    const newState = {
+      ...INITIAL_STATE,
+      seenScreenIds,
+      ignoredUpdateVersion,
+      skipWarmUp,
+      ...overrides,
+    };
+    cache = newState;
+    return chrome.storage.local.set(newState);
   });
 }

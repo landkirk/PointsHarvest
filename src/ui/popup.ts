@@ -15,18 +15,18 @@ import { renderFailures, appendFailure } from './failure-banner.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
-const dot = document.getElementById('dot')!;
-const statusEl = document.getElementById('status')!;
+const dot = document.getElementById('dot') as HTMLElement;
+const statusEl = document.getElementById('status') as HTMLElement;
 const bar = document.getElementById('progress-bar') as HTMLElement;
-const labelEl = document.getElementById('progress-label')!;
+const labelEl = document.getElementById('progress-label') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
-const lastSearch = document.getElementById('last-search')!;
+const lastSearch = document.getElementById('last-search') as HTMLElement;
 const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
 const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
-const debugPanel = document.getElementById('debug-panel')!;
-const btnPurge = document.getElementById('btn-purge')!;
+const debugPanel = document.getElementById('debug-panel') as HTMLElement;
+const btnPurge = document.getElementById('btn-purge') as HTMLElement;
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
@@ -118,7 +118,7 @@ Promise.all([
     initPopup();
     return;
   }
-  const updateStatusEl = document.getElementById('update-status')!;
+  const updateStatusEl = document.getElementById('update-status') as HTMLElement;
   if (updateResult === null) {
     updateStatusEl.textContent = 'Update check failed or timed out';
   } else if (updateResult.hasUpdate) {
@@ -210,7 +210,9 @@ btnPurge.addEventListener('click', () => {
 // ── Debug panel toggle ──────────────────────────────────────────────────────
 
 document.querySelectorAll('.dbg-section h2').forEach((h2) => {
-  h2.addEventListener('click', () => h2.closest('.dbg-section')!.classList.toggle('collapsed'));
+  h2.addEventListener('click', () =>
+    (h2.closest('.dbg-section') as HTMLElement).classList.toggle('collapsed'),
+  );
 });
 
 skipWarmUpCheck.addEventListener('change', () => {

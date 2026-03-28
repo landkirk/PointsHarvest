@@ -138,18 +138,22 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     url: string,
     active = true,
     timeoutMs = 30000,
-  ): Promise<chrome.tabs.Tab> {
+  ): Promise<chrome.tabs.Tab & { id: number }> {
     const tab = await this.openManagedTab(url, active);
-    await this.waitForTabLoad(tab.id!, timeoutMs);
-    this.checkStoppedOrCloseTab(tab.id!);
+    await this.waitForTabLoad(tab.id, timeoutMs);
+    this.checkStoppedOrCloseTab(tab.id);
     return tab;
   }
 
   /** Open a tab, track it in openedTabIds, and return it. */
-  protected async openManagedTab(url: string, active = false): Promise<chrome.tabs.Tab> {
+  protected async openManagedTab(
+    url: string,
+    active = false,
+  ): Promise<chrome.tabs.Tab & { id: number }> {
     const tab = await openTab(url, active);
-    this.openedTabIds.add(tab.id!);
-    return tab;
+    if (tab.id === undefined) throw new Error('Opened tab has no ID');
+    this.openedTabIds.add(tab.id);
+    return tab as chrome.tabs.Tab & { id: number };
   }
 
   /** Close a tab and remove it from openedTabIds. */
@@ -178,7 +182,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     index: number,
     label: string,
     target?: string,
-  ): Promise<chrome.tabs.Tab | null> {
+  ): Promise<(chrome.tabs.Tab & { id: number }) | null> {
     const captureTabPromise = this.captureNextTab();
 
     const msg: Record<string, unknown> = { action: MSG_ACTION.CLICK_CARD, index };
@@ -212,7 +216,8 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
       return null;
     }
 
-    this.openedTabIds.add(tab.id!);
-    return tab;
+    if (tab.id === undefined) throw new Error('Captured tab has no ID');
+    this.openedTabIds.add(tab.id);
+    return tab as chrome.tabs.Tab & { id: number };
   }
 }
