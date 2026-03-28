@@ -24,6 +24,9 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
     activity: Activity,
     rewardsTabId: number,
   ): Promise<ActivityValidationResult> {
+    chrome.tabs.update(rewardsTabId, { active: true }).catch(() => {
+      /* non-critical: tab may have closed */
+    });
     await sleep(VALIDATION_DELAY_MS);
     const response = await chrome.tabs
       .sendMessage(rewardsTabId, {
