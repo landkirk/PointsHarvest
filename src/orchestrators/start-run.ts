@@ -130,6 +130,23 @@ class StartRun {
     chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {
       /* popup may be closed */
     });
+    const iconUrl = await this._iconDataUrl();
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl,
+      title: success ? 'PointsHarvest — Done!' : 'PointsHarvest — Failed',
+      message: status,
+    });
+  }
+
+  private async _iconDataUrl(): Promise<string> {
+    const buf = await fetch(chrome.runtime.getURL('icons/icon1024.png')).then((r) =>
+      r.arrayBuffer(),
+    );
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return `data:image/png;base64,${btoa(binary)}`;
   }
 }
 
