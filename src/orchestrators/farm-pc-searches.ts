@@ -27,7 +27,8 @@ class FarmPcSearches extends OrchestratorBase {
     const ownBreakdownTab = !this.breakdownTabId;
     if (ownBreakdownTab) {
       const tab = await openTab(REWARDS_BREAKDOWN_URL, false);
-      this.breakdownTabId = tab.id!;
+      if (tab.id === undefined) throw new Error('Breakdown tab has no ID');
+      this.breakdownTabId = tab.id;
     }
 
     this.checkStopped();
@@ -93,8 +94,8 @@ class FarmPcSearches extends OrchestratorBase {
 
       const tab = await this.openTabAndWait('https://www.bing.com');
 
-      await performSearch.run(ctx, tab.id!, query);
-      this.closeTab(tab.id!);
+      await performSearch.run(ctx, tab.id, query);
+      this.closeTab(tab.id);
       this.checkStopped();
 
       await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES);

@@ -108,24 +108,21 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     index: number,
     query: string,
   ): Promise<boolean | null> {
-    const searchTab = await this.clickCardAndCaptureTab(
-      ctx,
-      this.rewardsTabId!,
-      index,
-      activity.title,
-    );
+    const rewardsTabId = this.rewardsTabId;
+    if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
+    const searchTab = await this.clickCardAndCaptureTab(ctx, rewardsTabId, index, activity.title);
     if (!searchTab) return null;
 
-    chrome.tabs.update(searchTab.id!, { active: true }).catch(() => {
+    chrome.tabs.update(searchTab.id, { active: true }).catch(() => {
       /* non-critical: tab may have closed before we activated it */
     });
-    await this.waitForTabLoad(searchTab.id!, 30000);
-    this.checkStoppedOrCloseTab(searchTab.id!);
-    await performSearch.run(ctx, searchTab.id!, query);
-    this.closeTab(searchTab.id!);
+    await this.waitForTabLoad(searchTab.id, 30000);
+    this.checkStoppedOrCloseTab(searchTab.id);
+    await performSearch.run(ctx, searchTab.id, query);
+    this.closeTab(searchTab.id);
     this.checkStopped();
 
-    const r = await validateActivity.run(ctx, activity, this.rewardsTabId!);
+    const r = await validateActivity.run(ctx, activity, rewardsTabId);
     return r.status === ValidationStatus.Completed
       ? true
       : r.status === ValidationStatus.Incomplete

@@ -23,11 +23,11 @@ interface ActivityDebugData {
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
-const dbgWarmUp = document.getElementById('dbg-warmup')!;
-const dbgExplore = document.getElementById('dbg-explore')!;
-const dbgDaily = document.getElementById('dbg-daily')!;
-const dbgPcCounters = document.getElementById('dbg-pc-counters')!;
-const dbgLog = document.getElementById('dbg-log')!;
+const dbgWarmUp = document.getElementById('dbg-warmup') as HTMLElement;
+const dbgExplore = document.getElementById('dbg-explore') as HTMLElement;
+const dbgDaily = document.getElementById('dbg-daily') as HTMLElement;
+const dbgPcCounters = document.getElementById('dbg-pc-counters') as HTMLElement;
+const dbgLog = document.getElementById('dbg-log') as HTMLElement;
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export function appendLogEntry(entry: DebugEntry): void {
   if (empty) empty.remove();
   const div = document.createElement('div');
   div.innerHTML = entryHtml(entry);
-  dbgLog.appendChild(div.firstElementChild!);
+  dbgLog.appendChild(div.firstElementChild as Element);
   dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
@@ -145,7 +145,7 @@ function renderActivitySection(
     container.addEventListener('click', (e) => {
       const span = (e.target as Element).closest<HTMLElement>('[data-filter]');
       if (!span) return;
-      const filter = span.dataset.filter!;
+      const filter = span.dataset.filter ?? '';
       const list = container.querySelector<HTMLElement>('.dbg-list');
       if (!list) return;
 
