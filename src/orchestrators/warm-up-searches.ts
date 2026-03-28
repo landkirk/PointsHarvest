@@ -26,8 +26,8 @@ class WarmUpSearches extends OrchestratorBase {
       const query = queries[i];
       const tab = await this.openTabAndWait('https://www.bing.com');
 
-      await performSearch.run(ctx, tab.id!, query);
-      this.closeTab(tab.id!);
+      await performSearch.run(ctx, tab.id, query);
+      this.closeTab(tab.id);
       this.checkStopped();
 
       await ctx.dbg(DBG.INFO, `Warm-up: ${i + 1}/${WARMUP_COUNT}`);

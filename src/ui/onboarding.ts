@@ -12,11 +12,11 @@ export async function showOnboarding(
   wrap.innerHTML = html;
   document.body.appendChild(wrap);
 
-  const overlay = document.getElementById('onboarding-overlay')!;
-  const titleEl = overlay.querySelector<HTMLElement>('.ob-title')!;
-  const bodyEl = overlay.querySelector<HTMLElement>('.ob-body')!;
-  const counterEl = overlay.querySelector<HTMLElement>('.ob-step-counter')!;
-  const dotsEl = overlay.querySelector<HTMLElement>('.ob-dots')!;
+  const overlay = document.getElementById('onboarding-overlay') as HTMLElement;
+  const titleEl = overlay.querySelector<HTMLElement>('.ob-title') as HTMLElement;
+  const bodyEl = overlay.querySelector<HTMLElement>('.ob-body') as HTMLElement;
+  const counterEl = overlay.querySelector<HTMLElement>('.ob-step-counter') as HTMLElement;
+  const dotsEl = overlay.querySelector<HTMLElement>('.ob-dots') as HTMLElement;
   const backBtn = document.getElementById('ob-back') as HTMLButtonElement;
   const nextBtn = document.getElementById('ob-next') as HTMLButtonElement;
 

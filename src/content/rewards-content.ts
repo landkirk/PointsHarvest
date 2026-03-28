@@ -180,7 +180,7 @@ function extractActivities(): {
 
     // Description: prefer the <p> inside .contentContainer — clean "Search on Bing to/for …" text.
     const descP = card.querySelector(SELECTORS.CARD_DESCRIPTION);
-    const description = descP ? descP.textContent!.trim() : parts.slice(1).join(', ');
+    const description = descP ? (descP.textContent ?? '').trim() : parts.slice(1).join(', ');
     const href = (card as HTMLAnchorElement).href || '';
 
     if (!href) continue;
@@ -282,7 +282,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
 
   if (msg.action === MSG_ACTION.CLICK_CARD) {
     const els = resolveEls(msg.target);
-    const card = els[msg.index!];
+    const card = els[msg.index];
     if (!card) {
       sendResponse({ clicked: false, error: `no card at index ${msg.index}` });
       return true;
@@ -304,7 +304,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
 
   if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
     const els = resolveEls(msg.target);
-    const card = els[msg.index!];
+    const card = els[msg.index];
     sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
     return true;
   }

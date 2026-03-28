@@ -3,11 +3,11 @@ import { esc } from './debug-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
-const setupBanner = document.getElementById('setup-banner')!;
+const setupBanner = document.getElementById('setup-banner') as HTMLElement;
 const btnOpenSettings = document.getElementById('btn-open-settings') as HTMLButtonElement;
-const failureBanner = document.getElementById('failure-banner')!;
-const failureSummary = document.getElementById('failure-summary')!;
-const failureList = document.getElementById('failure-list')!;
+const failureBanner = document.getElementById('failure-banner') as HTMLElement;
+const failureSummary = document.getElementById('failure-summary') as HTMLElement;
+const failureList = document.getElementById('failure-list') as HTMLElement;
 
 // ── Setup warning banner ────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ export function appendFailure(f: Failure): void {
   failureBanner.style.display = 'block';
   const div = document.createElement('div');
   div.innerHTML = failureItemHtml(f);
-  failureList.appendChild(div.firstElementChild!);
+  failureList.appendChild(div.firstElementChild as Element);
   updateFailureSummary(failureList.children.length);
 }
 

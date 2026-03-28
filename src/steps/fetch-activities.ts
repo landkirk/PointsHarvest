@@ -39,7 +39,8 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
       return { ...EMPTY_ACTIVITIES, rewardsTabId: null };
     }
 
-    const rewardsTabId = rewardsTab.id!;
+    if (rewardsTab.id === undefined) throw new Error('Rewards tab has no ID');
+    const rewardsTabId = rewardsTab.id;
 
     function cleanup(): void {
       clearTimeout(timeout);

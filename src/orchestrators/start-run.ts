@@ -20,6 +20,8 @@ import { CompleteDailySets } from './complete-daily-sets.js';
 import { FarmPcSearches } from './farm-pc-searches.js';
 import { WarmUpSearches } from './warm-up-searches.js';
 
+type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
+
 interface RunOptions {
   today: string;
   lastRunDate: string | null;
@@ -96,7 +98,7 @@ class StartRun {
 
   private async _runOrchestrator(
     ctx: Context,
-    orchestrator: OrchestratorBase<any[]>,
+    orchestrator: AnyOrchestrator,
     run: () => Promise<void>,
   ): Promise<void> {
     if (!getIsActivelyRunning()) return;
