@@ -1,4 +1,4 @@
-import type { PhaseKey, PhaseProgress, PhaseProgressMap } from './state.js';
+import type { PhaseKey, PhaseProgress, PhaseProgressMap, PhasePointsMap } from './state.js';
 
 export type { PhaseKey, PhaseProgressMap };
 
@@ -7,6 +7,7 @@ export interface ProgressPayload {
   activePhase?: PhaseKey | null;
   phaseProgress?: PhaseProgress;
   phases?: PhaseProgressMap;
+  phasePoints?: Partial<PhasePointsMap>;
 }
 
 // ── Debug payload types ────────────────────────────────────────────────────
@@ -92,6 +93,8 @@ export type AppMessage =
       dailySetDebug?: unknown;
       alreadyCompletedCount?: number;
       dailyAlreadyCompletedCount?: number;
+      alreadyCompletedPoints?: number;
+      dailyAlreadyCompletedPoints?: number;
     }
   | { action: typeof MSG_ACTION.CLICK_CARD; index: number; target?: ActivityType }
   | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; index: number; target?: ActivityType }

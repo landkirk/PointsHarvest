@@ -293,6 +293,12 @@
       .phase-row.done .phase-bar {
         background: #22c55e;
       }
+      .phase-earned {
+        font-size: 10px;
+        color: #888;
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
 
       .last-search {
         font-size: 11px;
@@ -449,6 +455,17 @@
         font-size: 10px;
         margin-top: 2px;
       }
+      .dbg-card .card-points {
+        color: #888;
+        font-size: 10px;
+        margin-top: 2px;
+      }
+
+      .dbg-run-stat {
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 4px;
+      }
 
       .dbg-queue-item {
         padding: 2px 0;
@@ -550,7 +567,7 @@
   </head>
   <body>
     <div id="main" style="display: none">
-      <h1><span class="dot" id="dot"></span> PointsHarvest</h1>
+      <h1><span class="dot" id="dot"></span> PointsHarvest<span id="total-pts" style="margin-left: auto; font-size: 12px; font-weight: 500; color: #aaa;"></span></h1>
       <div
         id="update-status"
         style="font-size: 11px; color: #666; margin-bottom: 8px; margin-top: -8px"
@@ -565,16 +582,19 @@
           <span class="phase-label">Explore on Bing</span>
           <span class="phase-count"></span>
           <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+          <span class="phase-earned"></span>
         </div>
         <div class="phase-row" id="phase-daily">
           <span class="phase-label">Daily Sets</span>
           <span class="phase-count"></span>
           <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+          <span class="phase-earned"></span>
         </div>
         <div class="phase-row" id="phase-farm">
           <span class="phase-label">PC Searches</span>
           <span class="phase-count"></span>
           <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+          <span class="phase-earned"></span>
         </div>
       </div>
       <div id="setup-banner" style="display: none">

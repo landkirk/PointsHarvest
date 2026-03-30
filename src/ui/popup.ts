@@ -1,7 +1,7 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
-import { PHASE, setState } from '../util/state.js';
-import type { AppState } from '../util/state.js';
+import { PHASE, PHASE_TIME_LABEL, setState } from '../util/state.js';
+import type { AppState, PhasePointsMap } from '../util/state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
@@ -35,6 +35,16 @@ const phaseBarEls: Record<PhaseKey, HTMLElement> = {
   daily: phaseEls.daily.querySelector('.phase-bar') as HTMLElement,
   farm: phaseEls.farm.querySelector('.phase-bar') as HTMLElement,
 };
+const totalPtsEl = document.getElementById('total-pts') as HTMLElement;
+const phaseEarnedEls: Record<PhaseKey, HTMLElement> = {
+  explore: phaseEls.explore.querySelector('.phase-earned') as HTMLElement,
+  daily: phaseEls.daily.querySelector('.phase-earned') as HTMLElement,
+  farm: phaseEls.farm.querySelector('.phase-earned') as HTMLElement,
+};
+
+function phaseEarnedLabel(phase: PhaseKey, pts: number): string {
+  return `+${pts} pts ${PHASE_TIME_LABEL[phase]}`;
+}
 
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
@@ -52,10 +62,29 @@ interface RenderState {
   headerMessage?: string;
   activePhase?: PhaseKey | null;
   phases?: PhaseProgressMap | null;
+  phasePoints?: Partial<PhasePointsMap> | null;
 }
 
 function hasAnyPhases(phases: PhaseProgressMap | null | undefined): boolean {
   return !!phases && Object.values(phases).some((p) => p !== null);
+}
+
+function renderPhasePoints(phasePoints: Partial<PhasePointsMap> | null | undefined): void {
+  for (const key of Object.values(PHASE) as PhaseKey[]) {
+    const pts = phasePoints?.[key] ?? 0;
+    phaseEarnedEls[key].textContent = pts > 0 ? phaseEarnedLabel(key, pts) : '';
+  }
+  const weekPts = phasePoints?.explore ?? 0;
+  const todayPts = (phasePoints?.daily ?? 0) + (phasePoints?.farm ?? 0);
+  if (weekPts > 0 && todayPts > 0) {
+    totalPtsEl.textContent = `+${weekPts} explore (wk) · +${todayPts} today`;
+  } else if (weekPts > 0) {
+    totalPtsEl.textContent = `+${weekPts} explore (wk)`;
+  } else if (todayPts > 0) {
+    totalPtsEl.textContent = `+${todayPts} today`;
+  } else {
+    totalPtsEl.textContent = '';
+  }
 }
 
 function renderPhases(phases: PhaseProgressMap | null | undefined, activePhase?: PhaseKey): void {
@@ -86,6 +115,7 @@ function render({
   headerMessage,
   activePhase,
   phases,
+  phasePoints,
 }: RenderState): void {
   const activeProgress = activePhase ? (phases?.[activePhase] ?? null) : null;
   const completed = activeProgress?.done ?? 0;
@@ -107,6 +137,7 @@ function render({
   btnDone.style.display = isLingering ? 'block' : 'none';
 
   renderPhases(phases, activePhase ?? undefined);
+  renderPhasePoints(phasePoints);
 }
 
 // Load state on open. If storage says running, ping to confirm the service worker
@@ -197,6 +228,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
       headerMessage: msg.headerMessage,
       activePhase: msg.activePhase,
       phases: msg.phases,
+      phasePoints: msg.phasePoints,
     });
   }
   if (msg.action === MSG_ACTION.COMPLETE) {

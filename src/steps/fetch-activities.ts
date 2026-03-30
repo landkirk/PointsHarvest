@@ -88,6 +88,8 @@ class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
         loggedIn: msg.loggedIn !== false,
         alreadyCompletedCount: msg.alreadyCompletedCount ?? 0,
         dailyAlreadyCompletedCount: msg.dailyAlreadyCompletedCount ?? 0,
+        alreadyCompletedPoints: msg.alreadyCompletedPoints ?? 0,
+        dailyAlreadyCompletedPoints: msg.dailyAlreadyCompletedPoints ?? 0,
       });
     };
 

@@ -26,7 +26,15 @@ const SELECTORS = {
   COUNTER_TITLE: '.title-detail p',
   COUNTER_DETAIL: 'p.pointsDetail',
   CARD_DESCRIPTION: '.contentContainer p',
+  POINTS_VALUE: '.pointsString',
 } as const;
+
+function parseCardPoints(card: Element): number | undefined {
+  const raw = card.querySelector(SELECTORS.POINTS_VALUE)?.textContent?.trim();
+  if (!raw) return undefined;
+  const n = parseInt(raw, 10);
+  return isNaN(n) ? undefined : n;
+}
 
 const SEARCH_ON_BING_RE = /search (?:on|using|with) bing/i;
 
@@ -85,17 +93,19 @@ function extractDailySets(): {
     const snippet = ariaLabel.slice(0, 80);
 
     if (!href) continue;
+    const pts = parseCardPoints(el);
     if (state !== CardState.Actionable) {
-      activities.push({ skipReason: state, snippet });
+      activities.push({ skipReason: state, snippet, points: pts });
       continue;
     }
 
-    activities.push({ snippet, skipReason: null });
+    activities.push({ snippet, skipReason: null, points: pts });
     actionable.push({
       title: ariaLabel,
       description: el.textContent?.trim().slice(0, 120) || '',
       activityIndex: dailySetEls.length,
       activityType: ACTIVITY_TYPE.DAILY_SET,
+      points: pts,
     });
     dailySetEls.push(el as HTMLAnchorElement);
   }
@@ -166,9 +176,10 @@ function extractActivities(): {
       continue;
 
     const snippet = (ariaLabel || cardText.trim()).slice(0, 120);
+    const pts = parseCardPoints(card);
     const state = determineCardState(card);
     if (state !== CardState.Actionable) {
-      skipped.push({ skipReason: state, snippet });
+      skipped.push({ skipReason: state, snippet, points: pts });
       continue;
     }
 
@@ -184,7 +195,7 @@ function extractActivities(): {
     const href = (card as HTMLAnchorElement).href || '';
 
     if (!href) continue;
-    activities.push({ title, description, activityIndex: cardEls.length });
+    activities.push({ title, description, activityIndex: cardEls.length, points: pts });
     cardEls.push(card as HTMLAnchorElement);
   }
 
@@ -254,6 +265,12 @@ function waitAndExtract(): void {
     ) {
       extractedCardEls = cardEls;
       extractedDailySetEls = dailySetEls;
+
+      const alreadyCompletedPoints = domDebug.activities.reduce(
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum), 0);
+      const dailyAlreadyCompletedPoints = (dailySetDebug?.activities ?? []).reduce(
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum), 0);
+
       chrome.runtime.sendMessage({
         action: MSG_ACTION.ACTIVITIES_FOUND,
         activities,
@@ -262,6 +279,8 @@ function waitAndExtract(): void {
         dailySetDebug,
         alreadyCompletedCount: domDebug.skippedCompleted,
         dailyAlreadyCompletedCount: dailySetDebug?.skippedCompleted ?? 0,
+        alreadyCompletedPoints,
+        dailyAlreadyCompletedPoints,
         loggedIn: true,
       });
     } else {
