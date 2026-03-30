@@ -24,11 +24,11 @@ class CompleteDailySets extends OrchestratorBase {
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
     const {
-      dailySets = [],
+      dailySets,
       loggedIn,
       rewardsTabId,
-      dailyAlreadyCompletedCount = 0,
-      dailyAlreadyCompletedPoints = 0,
+      dailyAlreadyCompletedCount,
+      dailyAlreadyCompletedPoints,
     } = await fetchActivities.run(ctx);
     if (!loggedIn) {
       await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping');
@@ -71,7 +71,7 @@ class CompleteDailySets extends OrchestratorBase {
         });
         if (!succeeded) continue;
 
-        earnedPts += dailySets[i].points ?? 0;
+        earnedPts += dailySets[i].points;
         this.checkStopped();
         await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
         ctx.updateHeader({

@@ -7,12 +7,12 @@ export type ActivityType = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];
 
 export interface ActivitiesResult {
   activities: Activity[];
-  dailySets?: Activity[];
+  dailySets: Activity[];
   loggedIn: boolean;
-  alreadyCompletedCount?: number;
-  dailyAlreadyCompletedCount?: number;
-  alreadyCompletedPoints?: number;
-  dailyAlreadyCompletedPoints?: number;
+  alreadyCompletedCount: number;
+  dailyAlreadyCompletedCount: number;
+  alreadyCompletedPoints: number;
+  dailyAlreadyCompletedPoints: number;
 }
 
 export interface Activity {
@@ -20,7 +20,7 @@ export interface Activity {
   description: string;
   activityIndex: number;
   activityType?: ActivityType;
-  points?: number;
+  points: number;
 }
 
 export interface MappedActivity extends Activity {

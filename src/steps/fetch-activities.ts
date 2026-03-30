@@ -20,7 +20,15 @@ export class NotLoggedInError extends Error {
   }
 }
 
-const EMPTY_ACTIVITIES: ActivitiesResult = { activities: [], dailySets: [], loggedIn: true };
+const EMPTY_ACTIVITIES: ActivitiesResult = {
+  activities: [],
+  dailySets: [],
+  loggedIn: true,
+  alreadyCompletedCount: 0,
+  dailyAlreadyCompletedCount: 0,
+  alreadyCompletedPoints: 0,
+  dailyAlreadyCompletedPoints: 0,
+};
 
 class FetchActivitiesStep extends StepBase<[], FetchActivitiesResult> {
   readonly name = 'fetch-activities';
