@@ -70,7 +70,7 @@ class FarmPcSearches extends OrchestratorBase {
         DBG.INFO,
         `PC Search already at cap (${counter.current}/${counter.max}), skipping`,
       );
-      ctx.updateHeader({
+      await ctx.updateHeader({
         headerMessage: `Farming PC searches (${counter.max} / ${counter.max})`,
         activePhase: PHASE.FARM,
         phaseProgress: { done: counter.max, total: counter.max },
@@ -84,7 +84,7 @@ class FarmPcSearches extends OrchestratorBase {
     let current = counter.current;
     let max = counter.max;
 
-    ctx.updateHeader({
+    await ctx.updateHeader({
       headerMessage: `Farming PC searches (${current} / ${max})`,
       activePhase: PHASE.FARM,
       phaseProgress: { done: current, total: max },
@@ -124,7 +124,7 @@ class FarmPcSearches extends OrchestratorBase {
       if (newCurrent > current) {
         currentPoints = updatedCounter?.currentPoints ?? currentPoints;
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
-        ctx.updateHeader({
+        await ctx.updateHeader({
           headerMessage: `Farming PC searches (${newCurrent} / ${max})`,
           activePhase: PHASE.FARM,
           phaseProgress: { done: newCurrent, total: max },
