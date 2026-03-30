@@ -51,7 +51,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     await ctx.setState({ currentIndex: startIndex });
     const phaseTotal = alreadyCompletedCount + mapped.length;
     let earnedPts = alreadyCompletedPoints;
-    ctx.updateHeader({
+    await ctx.updateHeader({
       headerMessage: `Explore on Bing (${alreadyCompletedCount + startIndex} / ${phaseTotal})`,
       activePhase: PHASE.EXPLORE,
       phaseProgress: { done: alreadyCompletedCount + startIndex, total: phaseTotal },
@@ -73,7 +73,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         }
 
         const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-        ctx.updateHeader({
+        await ctx.updateHeader({
           headerMessage: `Searching: "${label}"`,
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
@@ -101,7 +101,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
         this.checkStopped();
 
-        ctx.updateHeader({
+        await ctx.updateHeader({
           headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },

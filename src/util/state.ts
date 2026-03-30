@@ -150,19 +150,44 @@ export function setState(updates: Partial<AppState>): Promise<void> {
   });
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return value != null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Deep-merge one level: plain object values are spread into the existing
+ *  value so callers can pass e.g. `{ phasePoints: { daily: 5 } }` without
+ *  clobbering sibling keys. Arrays and primitives replace outright. */
 function setSubState<K extends 'header' | 'debug'>(
   key: K,
   updates: Partial<AppState[K]>,
 ): Promise<void> {
   return enqueueWrite(() => {
     const c = ensureCache();
-    c[key] = { ...c[key], ...updates } as AppState[K];
+    const current = c[key];
+    const merged: Record<string, unknown> = { ...current };
+    for (const [k, v] of Object.entries(updates)) {
+      const cur = merged[k];
+      if (isPlainObject(v) && isPlainObject(cur)) {
+        merged[k] = { ...cur, ...v };
+      } else {
+        merged[k] = v;
+      }
+    }
+    c[key] = merged as unknown as AppState[K];
     return chrome.storage.local.set({ [key]: c[key] });
   });
 }
 
+export type HeaderStateUpdate = Partial<
+  Omit<AppHeaderState, 'phases' | 'phasePoints'> & {
+    phases: Partial<PhaseProgressMap>;
+    phasePoints: Partial<PhasePointsMap>;
+  }
+>;
+
 /** Write header-specific updates, merging into the header subobject. */
-export const setHeaderState = (u: Partial<AppHeaderState>) => setSubState('header', u);
+export const setHeaderState = (u: HeaderStateUpdate) =>
+  setSubState('header', u as Partial<AppHeaderState>);
 
 /** Read current header state from cache (or initial if not yet loaded). */
 export function getHeaderState(): AppHeaderState {
