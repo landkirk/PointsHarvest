@@ -29,11 +29,11 @@ const SELECTORS = {
   POINTS_VALUE: '.pointsString',
 } as const;
 
-function parseCardPoints(card: Element): number | undefined {
+function parseCardPoints(card: Element): number {
   const raw = card.querySelector(SELECTORS.POINTS_VALUE)?.textContent?.trim();
-  if (!raw) return undefined;
+  if (!raw) return 0;
   const n = parseInt(raw, 10);
-  return isNaN(n) ? undefined : n;
+  return isNaN(n) ? 0 : n;
 }
 
 const SEARCH_ON_BING_RE = /search (?:on|using|with) bing/i;
@@ -267,11 +267,11 @@ function waitAndExtract(): void {
       extractedDailySetEls = dailySetEls;
 
       const alreadyCompletedPoints = domDebug.activities.reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum),
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points) : sum),
         0,
       );
       const dailyAlreadyCompletedPoints = (dailySetDebug?.activities ?? []).reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum),
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points) : sum),
         0,
       );
 
