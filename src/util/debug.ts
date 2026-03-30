@@ -15,7 +15,7 @@ export const DBG = {
 export interface ActivityScanEntry {
   skipReason: CardState | null;
   snippet: string;
-  points?: number;
+  points: number;
 }
 
 export interface ActivityScan {

@@ -24,8 +24,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
       activities,
       loggedIn,
       rewardsTabId,
-      alreadyCompletedCount = 0,
-      alreadyCompletedPoints = 0,
+      alreadyCompletedCount,
+      alreadyCompletedPoints,
     } = await fetchActivities.run(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
@@ -95,7 +95,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         );
         if (!succeeded) continue;
 
-        earnedPts += mapped[i].points ?? 0;
+        earnedPts += mapped[i].points;
         const completed = i + 1;
         await ctx.setState({ currentIndex: i });
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
