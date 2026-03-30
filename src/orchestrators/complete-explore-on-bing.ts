@@ -73,13 +73,16 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
         });
-        await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
+        await ctx.dbg(
+          DBG.INFO,
+          `[${mapped[i].id}] [${i + 1}/${mapped.length}] Clicking card: "${title}"`,
+        );
 
         const retryQuery = findRetryQuery(query);
         const succeeded = await this.executeActivityWithValidation(
           ctx,
-          () => this.runSearchForActivity(ctx, mapped[i], i, query),
-          retryQuery ? () => this.runSearchForActivity(ctx, mapped[i], i, retryQuery) : null,
+          () => this.runSearchForActivity(ctx, mapped[i], query),
+          retryQuery ? () => this.runSearchForActivity(ctx, mapped[i], retryQuery) : null,
           {
             retryLogMessage: `Validation failed — retrying with lookup query: "${retryQuery}"`,
             lingerLabel: 'explore on bing validation retry',
@@ -93,7 +96,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         earnedPts += mapped[i].points;
         const completed = i + 1;
         await ctx.setState({ currentIndex: i });
-        await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
+        await ctx.dbg(
+          DBG.SUCCESS,
+          `[${mapped[i].id}] Search ${completed}/${mapped.length} complete`,
+        );
         this.checkStopped();
 
         await ctx.updateHeader({
@@ -119,12 +125,16 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
   private async runSearchForActivity(
     ctx: Context,
     activity: MappedActivity,
-    index: number,
     query: string,
   ): Promise<boolean | null> {
     const rewardsTabId = this.rewardsTabId;
     if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
-    const searchTab = await this.clickCardAndCaptureTab(ctx, rewardsTabId, index, activity.title);
+    const searchTab = await this.clickCardAndCaptureTab(
+      ctx,
+      rewardsTabId,
+      activity.id,
+      activity.title,
+    );
     if (!searchTab) return null;
 
     chrome.tabs.update(searchTab.id, { active: true }).catch(() => {

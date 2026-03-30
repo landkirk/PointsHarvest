@@ -13,6 +13,7 @@ export const DBG = {
 } as const satisfies Record<string, DebugType>;
 
 export interface ActivityScanEntry {
+  id: string;
   skipReason: CardState | null;
   snippet: string;
   points: number;
