@@ -234,6 +234,66 @@
         color: #bbb;
       }
 
+      /* ── Phase rows ── */
+      #phase-rows {
+        display: none;
+        margin-bottom: 14px;
+      }
+      #phase-rows.visible {
+        display: block;
+      }
+      .phase-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+      .phase-row:last-child {
+        margin-bottom: 0;
+      }
+      .phase-label {
+        font-size: 11px;
+        color: #aaa;
+        width: 108px;
+        flex-shrink: 0;
+      }
+      .phase-row.active .phase-label {
+        color: #ddd;
+      }
+      .phase-row.done .phase-label {
+        color: #22c55e;
+      }
+      .phase-count {
+        font-size: 11px;
+        color: #888;
+        width: 42px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .phase-row.active .phase-count {
+        color: #bbb;
+      }
+      .phase-row.done .phase-count {
+        color: #22c55e;
+      }
+      .phase-bar-wrap {
+        flex: 1;
+        background: #1a1a1a;
+        border-radius: 3px;
+        height: 4px;
+        overflow: hidden;
+      }
+      .phase-bar {
+        height: 100%;
+        background: #3b82f6;
+        border-radius: 3px;
+        transition: width 0.4s ease;
+        width: 0%;
+      }
+      .phase-row.done .phase-bar {
+        background: #22c55e;
+      }
+
       .last-search {
         font-size: 11px;
         color: #999;
@@ -500,6 +560,23 @@
         <div class="progress-bar" id="progress-bar"></div>
       </div>
       <div class="progress-label" id="progress-label">—</div>
+      <div id="phase-rows">
+        <div class="phase-row" id="phase-explore">
+          <span class="phase-label">Explore on Bing</span>
+          <span class="phase-count"></span>
+          <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+        </div>
+        <div class="phase-row" id="phase-daily">
+          <span class="phase-label">Daily Sets</span>
+          <span class="phase-count"></span>
+          <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+        </div>
+        <div class="phase-row" id="phase-farm">
+          <span class="phase-label">PC Searches</span>
+          <span class="phase-count"></span>
+          <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+        </div>
+      </div>
       <div id="setup-banner" style="display: none">
         <div id="setup-msg">Chrome is blocking activity tabs from opening.</div>
         <div id="setup-instructions">

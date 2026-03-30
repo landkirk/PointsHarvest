@@ -6,6 +6,7 @@ import { ACTIVITY_TYPE } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { PHASE } from '../util/state.js';
 import { lingerOnTab } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import { fetchActivities } from '../steps/fetch-activities.js';
@@ -22,7 +23,7 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const { dailySets = [], loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
+    const { dailySets = [], loggedIn, rewardsTabId, dailyAlreadyCompletedCount = 0 } = await fetchActivities.run(ctx);
     if (!loggedIn) {
       await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping');
       return;
@@ -32,8 +33,10 @@ class CompleteDailySets extends OrchestratorBase {
     this.openedTabIds.add(rewardsTabId);
 
     try {
+      const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
       if (dailySets.length === 0) {
         await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
+        ctx.updateHeader({ activePhase: PHASE.DAILY, phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal } });
         return;
       }
 
@@ -58,10 +61,10 @@ class CompleteDailySets extends OrchestratorBase {
 
         this.checkStopped();
         await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
-        ctx.setHeaderMessage({
-          status: `Daily sets (${i + 1} / ${dailySets.length})`,
-          completedSearches: i + 1,
-          totalSearches: dailySets.length,
+        ctx.updateHeader({
+          headerMessage: `Daily sets (${dailyAlreadyCompletedCount + i + 1} / ${dailyPhaseTotal})`,
+          activePhase: PHASE.DAILY,
+          phaseProgress: { done: dailyAlreadyCompletedCount + i + 1, total: dailyPhaseTotal },
         });
 
         if (i < dailySets.length - 1) {
@@ -70,6 +73,7 @@ class CompleteDailySets extends OrchestratorBase {
         }
       }
 
+      ctx.updateHeader({ activePhase: PHASE.DAILY, phaseProgress: { done: dailyPhaseTotal, total: dailyPhaseTotal } });
       await ctx.dbg(DBG.SUCCESS, 'All daily set activities complete');
     } finally {
       if (rewardsTabId) this.closeTab(rewardsTabId);
