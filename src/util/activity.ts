@@ -9,6 +9,8 @@ export interface ActivitiesResult {
   activities: Activity[];
   dailySets?: Activity[];
   loggedIn: boolean;
+  alreadyCompletedCount?: number;
+  dailyAlreadyCompletedCount?: number;
 }
 
 export interface Activity {

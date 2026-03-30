@@ -260,6 +260,8 @@ function waitAndExtract(): void {
         domDebug,
         dailySets,
         dailySetDebug,
+        alreadyCompletedCount: domDebug.skippedCompleted,
+        dailyAlreadyCompletedCount: dailySetDebug?.skippedCompleted ?? 0,
         loggedIn: true,
       });
     } else {

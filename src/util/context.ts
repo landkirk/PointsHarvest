@@ -1,4 +1,4 @@
-import { setState, setHeaderState, getActiveOrchestrator } from './state.js';
+import { setState, setHeaderState as persistHeaderState, getHeaderState, getActiveOrchestrator } from './state.js';
 import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
@@ -10,7 +10,7 @@ export interface Context {
   setState: (updates: Partial<AppState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
-  setHeaderMessage: (payload: ProgressPayload) => void;
+  updateHeader: (payload: ProgressPayload) => void;
 }
 
 export function createContext(): Context {
@@ -22,19 +22,20 @@ export function createContext(): Context {
     fail(category: FailureCategory, message: string): Promise<void> {
       return fail(category, message, getActiveOrchestrator()?.name);
     },
-    setHeaderMessage(payload: ProgressPayload): void {
-      const headerUpdate: Parameters<typeof setHeaderState>[0] = {};
-      if (payload.status !== undefined) headerUpdate.status = payload.status;
-      if (payload.completedSearches !== undefined)
-        headerUpdate.completedSearches = payload.completedSearches;
-      if (payload.totalSearches !== undefined) headerUpdate.totalSearches = payload.totalSearches;
-      if (payload.lastSearchString !== undefined)
-        headerUpdate.lastSearchString = payload.lastSearchString;
+    updateHeader(payload: ProgressPayload): void {
+      const headerUpdate: Parameters<typeof persistHeaderState>[0] = {};
+      if (payload.headerMessage !== undefined) headerUpdate.headerMessage = payload.headerMessage;
+      if (payload.activePhase !== undefined) headerUpdate.activePhase = payload.activePhase;
+      if (payload.activePhase != null && payload.phaseProgress !== undefined) {
+        const current = getHeaderState();
+        headerUpdate.phases = { ...current.phases, [payload.activePhase]: payload.phaseProgress };
+      }
       if (Object.keys(headerUpdate).length)
-        setHeaderState(headerUpdate).catch(() => {
+        persistHeaderState(headerUpdate).catch(() => {
           /* non-critical: UI display state */
         });
-      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload }).catch(() => {
+      const phases = headerUpdate.phases ?? getHeaderState().phases;
+      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases }).catch(() => {
         /* popup may be closed */
       });
     },

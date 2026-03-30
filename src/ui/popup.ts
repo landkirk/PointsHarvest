@@ -1,6 +1,6 @@
 import { MSG_ACTION } from '../util/messaging.js';
-import type { AppMessage } from '../util/messaging.js';
-import { setState } from '../util/state.js';
+import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
+import { PHASE, setState } from '../util/state.js';
 import type { AppState } from '../util/state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
@@ -19,6 +19,23 @@ const dot = document.getElementById('dot') as HTMLElement;
 const statusEl = document.getElementById('status') as HTMLElement;
 const bar = document.getElementById('progress-bar') as HTMLElement;
 const labelEl = document.getElementById('progress-label') as HTMLElement;
+const phaseRowsEl = document.getElementById('phase-rows') as HTMLElement;
+const phaseEls: Record<PhaseKey, HTMLElement> = {
+  explore: document.getElementById('phase-explore') as HTMLElement,
+  daily: document.getElementById('phase-daily') as HTMLElement,
+  farm: document.getElementById('phase-farm') as HTMLElement,
+};
+const phaseCountEls: Record<PhaseKey, HTMLElement> = {
+  explore: phaseEls.explore.querySelector('.phase-count') as HTMLElement,
+  daily: phaseEls.daily.querySelector('.phase-count') as HTMLElement,
+  farm: phaseEls.farm.querySelector('.phase-count') as HTMLElement,
+};
+const phaseBarEls: Record<PhaseKey, HTMLElement> = {
+  explore: phaseEls.explore.querySelector('.phase-bar') as HTMLElement,
+  daily: phaseEls.daily.querySelector('.phase-bar') as HTMLElement,
+  farm: phaseEls.farm.querySelector('.phase-bar') as HTMLElement,
+};
+
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
@@ -33,28 +50,55 @@ const btnPurge = document.getElementById('btn-purge') as HTMLElement;
 interface RenderState {
   isRunning?: boolean;
   isLingering?: boolean;
-  status?: string;
-  completedSearches?: number;
-  totalSearches?: number;
+  headerMessage?: string;
+  activePhase?: PhaseKey | null;
   lastSearchString?: string;
+  phases?: PhaseProgressMap | null;
+}
+
+function hasAnyPhases(phases: PhaseProgressMap | null | undefined): boolean {
+  return !!phases && Object.values(phases).some((p) => p !== null);
+}
+
+function renderPhases(phases: PhaseProgressMap | null | undefined, activePhase?: PhaseKey): void {
+  phaseRowsEl.classList.toggle('visible', hasAnyPhases(phases));
+
+  for (const key of Object.values(PHASE) as PhaseKey[]) {
+    const el = phaseEls[key];
+    const p = phases?.[key] ?? null;
+    const isDone = p !== null && p.done >= p.total && p.total > 0;
+    const isActive = activePhase === key;
+    el.classList.toggle('done', isDone);
+    el.classList.toggle('active', isActive && !isDone);
+
+    if (p) {
+      const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
+      phaseCountEls[key].textContent = `${p.done}/${p.total}`;
+      phaseBarEls[key].style.width = pct + '%';
+    } else {
+      phaseCountEls[key].textContent = '';
+      phaseBarEls[key].style.width = '0%';
+    }
+  }
 }
 
 function render({
   isRunning,
   isLingering,
-  status,
-  completedSearches,
-  totalSearches,
+  headerMessage,
+  activePhase,
   lastSearchString,
+  phases,
 }: RenderState): void {
-  const completed = completedSearches || 0;
-  const total = totalSearches || 0;
+  const activeProgress = activePhase ? (phases?.[activePhase] ?? null) : null;
+  const completed = activeProgress?.done ?? 0;
+  const total = activeProgress?.total ?? 0;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const isDone = !isRunning && completed > 0 && completed >= total && total > 0;
+  const isDone = !isRunning && hasAnyPhases(phases);
 
-  statusEl.textContent = status || 'Idle';
+  statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
-  labelEl.textContent = total > 0 ? `${completed} / ${total} searches` : '—';
+  labelEl.textContent = total > 0 ? `${completed} / ${total}` : '—';
   lastSearch.textContent = lastSearchString ? `Last: ${lastSearchString}` : '';
 
   dot.className = 'dot';
@@ -65,6 +109,8 @@ function render({
   btnStart.disabled = !!isRunning;
   btnStop.style.display = isRunning ? 'block' : 'none';
   btnDone.style.display = isLingering ? 'block' : 'none';
+
+  renderPhases(phases, activePhase ?? undefined);
 }
 
 // Load state on open. If storage says running, ping to confirm the service worker
@@ -91,7 +137,7 @@ function initPopup(): void {
       .sendMessage({ action: MSG_ACTION.PING })
       .then((response: { running: boolean }) => {
         if (!response?.running) {
-          const stoppedHeader = { ...state.header, status: 'Stopped' };
+          const stoppedHeader = { ...state.header, headerMessage: 'Stopped', activePhase: null };
           chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
           state = { ...state, isRunning: false, header: stoppedHeader };
         }
@@ -152,10 +198,10 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     render({
       isRunning: true,
-      status: msg.status,
-      completedSearches: msg.completedSearches,
-      totalSearches: msg.totalSearches,
+      headerMessage: msg.headerMessage,
+      activePhase: msg.activePhase,
       lastSearchString: msg.lastSearchString,
+      phases: msg.phases,
     });
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
@@ -178,7 +224,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
     render({
       isRunning: true,
       isLingering: true,
-      status: 'Action required — complete the activity in the tab',
+      headerMessage: 'Action required — complete the activity in the tab',
     });
   }
 });
@@ -188,19 +234,19 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
 btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
   chrome.runtime.sendMessage({ action: MSG_ACTION.START, skipWarmUp: skipWarmUpCheck.checked });
-  render({ isRunning: true, status: 'Starting…', completedSearches: 0, totalSearches: 0 });
+  render({ isRunning: true, headerMessage: 'Starting…', activePhase: null, phases: { explore: null, daily: null, farm: null } });
   renderFailures([]);
   if (debugCheck.checked) clearDebug();
 });
 
 btnStop.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.STOP });
-  render({ isRunning: false, status: 'Stopped' });
+  render({ isRunning: false, headerMessage: 'Stopped' });
 });
 
 btnDone.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.USER_ACTION_COMPLETE });
-  render({ isRunning: true, isLingering: false, status: 'Resuming…' });
+  render({ isRunning: true, isLingering: false, headerMessage: 'Resuming…' });
 });
 
 btnPurge.addEventListener('click', () => {

@@ -35,14 +35,14 @@ class StartRun {
     const today = new Date().toDateString();
     const state = await loadState();
     const { lastRunDate, currentIndex } = state;
-    const { completedSearches } = state.header;
+    const completedSearches = state.header.phases?.explore?.done ?? 0;
     const alreadyDone =
       lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
     resetLog();
     resetFailures();
     await resetState({ isRunning: true, lastRunDate: today });
-    await setHeaderState({ status: 'Starting...' });
+    await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 
     setIsActivelyRunning(true);
     const ctx = createContext();
@@ -125,7 +125,7 @@ class StartRun {
   ): Promise<void> {
     setIsActivelyRunning(false);
     await ctx.setState({ isRunning: false });
-    await setHeaderState({ status });
+    await setHeaderState({ headerMessage: status, activePhase: null });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
     chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {
       /* popup may be closed */

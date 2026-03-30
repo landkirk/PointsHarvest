@@ -14,11 +14,29 @@ export interface SearchCounter {
   max: number;
 }
 
+export const PHASE = {
+  EXPLORE: 'explore',
+  DAILY: 'daily',
+  FARM: 'farm',
+} as const;
+
+export type PhaseKey = (typeof PHASE)[keyof typeof PHASE];
+
+export interface PhaseProgress {
+  done: number;
+  total: number;
+}
+
+export interface PhaseProgressMap {
+  explore: PhaseProgress | null;
+  daily: PhaseProgress | null;
+  farm: PhaseProgress | null;
+}
+
 export interface AppHeaderState {
-  status: string;
-  completedSearches: number;
-  totalSearches: number;
-  lastSearchString: string;
+  headerMessage: string;
+  activePhase: PhaseKey | null;
+  phases: PhaseProgressMap;
 }
 
 export interface AppDebugState {
@@ -56,10 +74,9 @@ export const INITIAL_STATE: AppState = {
   skipWarmUp: false,
   failures: [],
   header: {
-    status: 'idle',
-    completedSearches: 0,
-    totalSearches: 0,
-    lastSearchString: '',
+    headerMessage: 'idle',
+    activePhase: null,
+    phases: { explore: null, daily: null, farm: null },
   },
   debug: {
     debugLog: [],
@@ -127,6 +144,11 @@ function setSubState<K extends 'header' | 'debug'>(
 
 /** Write header-specific updates, merging into the header subobject. */
 export const setHeaderState = (u: Partial<AppHeaderState>) => setSubState('header', u);
+
+/** Read current header state from cache (or initial if not yet loaded). */
+export function getHeaderState(): AppHeaderState {
+  return cache?.header ?? INITIAL_STATE.header;
+}
 
 /** Write debug-specific updates, merging into the debug subobject. */
 export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
