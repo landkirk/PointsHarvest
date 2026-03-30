@@ -31,7 +31,9 @@ Popup (Start button)
 
 ### Key Layers
 
-**Orchestrators** (`src/orchestrators/`) — Top-level coordinators that own the run lifecycle. `OrchestratorBase` (`src/interfaces/orchestrator.ts`) provides shared tab tracking, load-waiting logic, and `clickCardAndCaptureTab` — a shared helper that sends `CLICK_CARD` to the rewards content script and captures the new tab via `captureNextTab`.
+**Managers** (`src/managers/`) — Top-level run lifecycle controllers. `start-run.ts` fires the orchestrator chain as fire-and-forget; `stop-run.ts` cancels an active run and closes all opened tabs.
+
+**Orchestrators** (`src/orchestrators/`) — Phase executors called by managers. `OrchestratorBase` (`src/interfaces/orchestrator.ts`) provides shared tab tracking, load-waiting logic, and `clickCardAndCaptureTab` — a shared helper that sends `CLICK_CARD` to the rewards content script and captures the new tab via `captureNextTab`.
 
 **Steps** (`src/steps/`) — Reusable async routines called by orchestrators: `fetch-activities`, `fetch-counters`, `perform-search`, `linger-on-tab`, `validate-activity`.
 
@@ -40,8 +42,9 @@ Popup (Start button)
 - `search-content.ts` — Runs on `www.bing.com`; handles `PERFORM_SEARCH` message, fills and submits the search box.
 
 **State** (`src/util/state.ts`) — Split into two layers:
-- Persistent: `chrome.storage.local` — survives service worker restarts (run date, progress index, search queue, debug logs, `skipWarmUp` preference).
+- Persistent: `chrome.storage.local` — survives service worker restarts (run date, progress index, search queue, debug logs, `skipWarmUp` preference). All writes are serialized through `enqueueWrite()` to prevent race conditions.
 - Runtime: In-memory only (`isActivelyRunning`, `activeOrchestrator`) — reset on SW restart. Popup pings background to detect stale "running" state.
+- Phase progress and points are tracked in `header.phases` / `header.phasePoints` using `PHASE` constants (`explore`, `daily`, `farm`) and read by the popup for per-phase progress bars.
 
 **Timing** (`src/util/timing.ts`) — All delays use `randMs(min, max)` with triangular distribution. `TIMING.LINGER_ON_PAGE` (5–7s) is the standard dwell preset used between actions.
 

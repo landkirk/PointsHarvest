@@ -49,7 +49,7 @@ The extension tracks the last run date and progress:
 - If you run it today and complete all searches, it shows "Done for today!" and won't run again until tomorrow
 - If interrupted mid-run, it resumes from where it left off (same day only)
 - Each new day, the date check resets and you can run it again
-- The popup shows real-time progress with a status indicator, progress bar, and the current search being performed
+- The popup shows real-time progress with per-phase progress bars (Explore, Daily Sets, PC Search) and earned points for each phase
 
 ## How it works
 
@@ -68,9 +68,10 @@ src/                  Source files (edit these)
     onboarding.html   First-run onboarding UI
     onboarding.ts     Onboarding logic
     screens/          HTML fragments shown in onboarding (ToS, Bing warning, changelog)
-  orchestrators/
+  managers/
     start-run.ts           Top-level run coordinator (fire-and-forget from background)
     stop-run.ts            Cancels an active run and closes all opened tabs
+  orchestrators/
     complete-explore-on-bing.ts  Iterates mapped cards, clicks each, runs searches
     complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
@@ -83,7 +84,7 @@ src/                  Source files (edit these)
   util/
     activity.ts       Activity/MappedActivity types, CardState enum, buildSearchList()
     config.ts         URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
-    context.ts        createContext() — bundles session/setState/dbg for orchestrators
+    context.ts        createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
     debug.ts          Logging helpers and debug type definitions
     messaging.ts      MSG_ACTION constants and MsgAction type
     search-queries.ts PC_SEARCH_QUERIES pool used by farm-pc-searches
@@ -104,7 +105,7 @@ dist/                 Compiled output — loaded by Chrome at runtime
 [User clicks Start]
        │
        ▼
-orchestrators/start-run.js loads state, resets session,
+managers/start-run.js loads state, resets session,
 fires _executeRun (fire-and-forget)
        │
        ▼
@@ -144,7 +145,8 @@ if not at cap, run searches until cap reached or no progress after 3 tries
        │
        ▼
 Rewards tab closed; status set to "Done for today!"
-Progress updates sent to popup in real time throughout
+Per-phase progress (Explore, Daily Sets, PC Search) and point totals
+sent to popup in real time throughout
 ```
 
 ### Query generation
