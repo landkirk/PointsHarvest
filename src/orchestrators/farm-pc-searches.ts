@@ -72,6 +72,7 @@ class FarmPcSearches extends OrchestratorBase {
       );
       const farmTotal = Math.floor(counter.max / PC_SEARCH_POINTS_PER_SEARCH);
       ctx.updateHeader({
+        headerMessage: `Farming PC searches (${farmTotal} / ${farmTotal})`,
         activePhase: PHASE.FARM,
         phaseProgress: { done: farmTotal, total: farmTotal },
       });
@@ -80,11 +81,16 @@ class FarmPcSearches extends OrchestratorBase {
 
     await ctx.dbg(DBG.INFO, `PC farm started: ${counter.current}/${counter.max}`);
 
-    ctx.updateHeader({ headerMessage: 'Farming PC searches…', activePhase: PHASE.FARM });
-
     let current = counter.current;
     let max = counter.max;
+    const currentSearchCount = Math.floor(current / PC_SEARCH_POINTS_PER_SEARCH);
     let farmTotal = Math.floor(max / PC_SEARCH_POINTS_PER_SEARCH);
+
+    ctx.updateHeader({
+      headerMessage: `Farming PC searches (${currentSearchCount} / ${farmTotal})`,
+      activePhase: PHASE.FARM,
+      phaseProgress: { done: currentSearchCount, total: farmTotal },
+    });
     let noProgressCount = 0;
     const shuffled = shuffleArray(PC_SEARCH_QUERIES);
     let shuffleIndex = 0;
@@ -118,10 +124,11 @@ class FarmPcSearches extends OrchestratorBase {
       if (newCurrent > current) {
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
         farmTotal = Math.floor(max / PC_SEARCH_POINTS_PER_SEARCH);
+        const newSearchCount = Math.floor(newCurrent / PC_SEARCH_POINTS_PER_SEARCH);
         ctx.updateHeader({
-          headerMessage: 'Farming PC searches…',
+          headerMessage: `Farming PC searches (${newSearchCount} / ${farmTotal})`,
           activePhase: PHASE.FARM,
-          phaseProgress: { done: Math.floor(newCurrent / PC_SEARCH_POINTS_PER_SEARCH), total: farmTotal },
+          phaseProgress: { done: newSearchCount, total: farmTotal },
         });
         noProgressCount = 0;
       } else {
