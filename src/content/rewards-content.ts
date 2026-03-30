@@ -157,7 +157,7 @@ function extractActivities(): {
     ...Array.from(document.querySelectorAll(SELECTORS.CARD_ACTIONABLE)).filter(
       (a) => !a.closest(SELECTORS.CARD_LOCKED),
     ),
-  ];
+  ].filter((card) => !card.closest(SELECTORS.DAILY_SETS_CONTAINER));
 
   const activities: Activity[] = [];
   const cardEls: HTMLAnchorElement[] = [];
