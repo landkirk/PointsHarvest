@@ -14,7 +14,7 @@ class WarmUpSearches extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     await ctx.dbg(DBG.INFO, 'Warm-up: starting');
-    ctx.updateHeader({ headerMessage: `Warming up (0 / ${WARMUP_COUNT})` });
+    await ctx.updateHeader({ headerMessage: `Warming up (0 / ${WARMUP_COUNT})` });
 
     const shuffled = shuffleArray(WARMUP_SEARCH_QUERIES);
     const queries = shuffled.slice(0, WARMUP_COUNT);
@@ -31,7 +31,7 @@ class WarmUpSearches extends OrchestratorBase {
       this.checkStopped();
 
       await ctx.dbg(DBG.INFO, `Warm-up: ${i + 1}/${WARMUP_COUNT}`);
-      ctx.updateHeader({ headerMessage: `Warming up (${i + 1} / ${WARMUP_COUNT})` });
+      await ctx.updateHeader({ headerMessage: `Warming up (${i + 1} / ${WARMUP_COUNT})` });
     }
 
     await ctx.dbg(DBG.SUCCESS, 'Warm-up complete');

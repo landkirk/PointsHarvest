@@ -1,6 +1,6 @@
 import {
   setState,
-  setHeaderState as persistHeaderState,
+  setHeaderState,
   getHeaderState,
   getActiveOrchestrator,
 } from './state.js';
@@ -15,7 +15,7 @@ export interface Context {
   setState: (updates: Partial<AppState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
-  updateHeader: (payload: ProgressPayload) => void;
+  updateHeader: (payload: ProgressPayload) => Promise<void>;
 }
 
 export function createContext(): Context {
@@ -27,23 +27,20 @@ export function createContext(): Context {
     fail(category: FailureCategory, message: string): Promise<void> {
       return fail(category, message, getActiveOrchestrator()?.name);
     },
-    updateHeader(payload: ProgressPayload): void {
-      const headerUpdate: Parameters<typeof persistHeaderState>[0] = {};
+    async updateHeader(payload: ProgressPayload): Promise<void> {
+      const headerUpdate: Parameters<typeof setHeaderState>[0] = {};
       if (payload.headerMessage !== undefined) headerUpdate.headerMessage = payload.headerMessage;
       if (payload.activePhase !== undefined) headerUpdate.activePhase = payload.activePhase;
-      const current = getHeaderState();
       if (payload.activePhase != null && payload.phaseProgress !== undefined) {
-        headerUpdate.phases = { ...current.phases, [payload.activePhase]: payload.phaseProgress };
+        headerUpdate.phases = { [payload.activePhase]: payload.phaseProgress };
       }
       if (payload.phasePoints !== undefined) {
-        headerUpdate.phasePoints = { ...current.phasePoints, ...payload.phasePoints };
+        headerUpdate.phasePoints = payload.phasePoints;
       }
-      if (Object.keys(headerUpdate).length)
-        persistHeaderState(headerUpdate).catch(() => {
-          /* non-critical: UI display state */
-        });
-      const phases = headerUpdate.phases ?? current.phases;
-      const phasePoints = headerUpdate.phasePoints ?? current.phasePoints;
+      if (Object.keys(headerUpdate).length) await setHeaderState(headerUpdate);
+
+      // Cache is now up-to-date — read merged state for broadcast.
+      const { phases, phasePoints } = getHeaderState();
       chrome.runtime
         .sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases, phasePoints })
         .catch(() => {
