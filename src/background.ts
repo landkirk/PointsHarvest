@@ -6,8 +6,8 @@ import {
   getActiveOrchestrator,
   getIsActivelyRunning,
 } from './util/state.js';
-import { StartRun } from './orchestrators/start-run.js';
-import { StopRun } from './orchestrators/stop-run.js';
+import { StartRun } from './managers/start-run.js';
+import { StopRun } from './managers/stop-run.js';
 
 const startRun = new StartRun();
 const stopRun = new StopRun();

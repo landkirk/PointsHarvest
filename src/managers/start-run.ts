@@ -15,10 +15,10 @@ import type { Context } from '../util/context.js';
 import { StoppedError } from '../interfaces/orchestrator.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
-import { CompleteExploreOnBing } from './complete-explore-on-bing.js';
-import { CompleteDailySets } from './complete-daily-sets.js';
-import { FarmPcSearches } from './farm-pc-searches.js';
-import { WarmUpSearches } from './warm-up-searches.js';
+import { CompleteExploreOnBing } from '../orchestrators/complete-explore-on-bing.js';
+import { CompleteDailySets } from '../orchestrators/complete-daily-sets.js';
+import { FarmPcSearches } from '../orchestrators/farm-pc-searches.js';
+import { WarmUpSearches } from '../orchestrators/warm-up-searches.js';
 
 type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
 
