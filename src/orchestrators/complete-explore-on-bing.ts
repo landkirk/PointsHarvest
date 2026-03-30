@@ -96,7 +96,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
-          lastSearchString: query,
         });
 
         if (i < mapped.length - 1) {
