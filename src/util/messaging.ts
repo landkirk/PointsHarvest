@@ -6,7 +6,6 @@ export interface ProgressPayload {
   headerMessage?: string;
   activePhase?: PhaseKey | null;
   phaseProgress?: PhaseProgress;
-  lastSearchString?: string;
   phases?: PhaseProgressMap;
 }
 

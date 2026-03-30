@@ -39,7 +39,6 @@ const phaseBarEls: Record<PhaseKey, HTMLElement> = {
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
-const lastSearch = document.getElementById('last-search') as HTMLElement;
 const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
 const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
 const debugPanel = document.getElementById('debug-panel') as HTMLElement;
@@ -52,7 +51,6 @@ interface RenderState {
   isLingering?: boolean;
   headerMessage?: string;
   activePhase?: PhaseKey | null;
-  lastSearchString?: string;
   phases?: PhaseProgressMap | null;
 }
 
@@ -87,7 +85,6 @@ function render({
   isLingering,
   headerMessage,
   activePhase,
-  lastSearchString,
   phases,
 }: RenderState): void {
   const activeProgress = activePhase ? (phases?.[activePhase] ?? null) : null;
@@ -99,7 +96,6 @@ function render({
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
   labelEl.textContent = total > 0 ? `${completed} / ${total}` : '—';
-  lastSearch.textContent = lastSearchString ? `Last: ${lastSearchString}` : '';
 
   dot.className = 'dot';
   if (isLingering) dot.classList.add('waiting');
@@ -200,7 +196,6 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
       isRunning: true,
       headerMessage: msg.headerMessage,
       activePhase: msg.activePhase,
-      lastSearchString: msg.lastSearchString,
       phases: msg.phases,
     });
   }
