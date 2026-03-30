@@ -16,9 +16,9 @@ export interface ActivitiesResult {
 }
 
 export interface Activity {
+  id: string;
   title: string;
   description: string;
-  activityIndex: number;
   activityType?: ActivityType;
   points: number;
 }
@@ -65,10 +65,10 @@ export function findRetryQuery(query: string): string | null {
 
 // Maps each activity to a query (may be null if none could be generated).
 export function buildSearchList(activities: Activity[]): MappedActivity[] {
-  return activities.map(({ title, description, activityIndex, activityType, points }) => {
+  return activities.map(({ id, title, description, activityType, points }) => {
     const query = generateSearchQuery(title, description);
     return query
-      ? { title, description, activityIndex, activityType, points, query, unmatched: false }
-      : { title, description, activityIndex, activityType, points, query: null, unmatched: true };
+      ? { id, title, description, activityType, points, query, unmatched: false }
+      : { id, title, description, activityType, points, query: null, unmatched: true };
   });
 }
