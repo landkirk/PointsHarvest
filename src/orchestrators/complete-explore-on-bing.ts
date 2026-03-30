@@ -20,7 +20,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
   async run(ctx: Context, startIndex: number): Promise<void> {
     this.checkStopped();
-    const { activities, loggedIn, rewardsTabId, alreadyCompletedCount = 0 } = await fetchActivities.run(ctx);
+    const { activities, loggedIn, rewardsTabId, alreadyCompletedCount = 0, alreadyCompletedPoints = 0 } = await fetchActivities.run(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
     this.rewardsTabId = rewardsTabId;
@@ -44,10 +44,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
     await ctx.setState({ currentIndex: startIndex });
     const phaseTotal = alreadyCompletedCount + mapped.length;
+    let earnedPts = alreadyCompletedPoints;
     ctx.updateHeader({
       headerMessage: `Explore on Bing (${alreadyCompletedCount + startIndex} / ${phaseTotal})`,
       activePhase: PHASE.EXPLORE,
       phaseProgress: { done: alreadyCompletedCount + startIndex, total: phaseTotal },
+      phasePoints: { explore: earnedPts },
     });
 
     try {
@@ -87,6 +89,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         );
         if (!succeeded) continue;
 
+        earnedPts += mapped[i].points ?? 0;
         const completed = i + 1;
         await ctx.setState({ currentIndex: i });
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
@@ -96,6 +99,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
           headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
+          phasePoints: { explore: earnedPts },
         });
 
         if (i < mapped.length - 1) {

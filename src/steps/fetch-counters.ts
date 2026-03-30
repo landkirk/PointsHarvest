@@ -8,6 +8,7 @@ import { DBG } from '../util/debug.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/state.js';
+import { PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
 
 const POLL_INTERVAL_MS = TIMEOUTS.FETCH_COUNTERS_POLL;
 const MAX_POLLS = TIMEOUTS.FETCH_COUNTERS_MAX_POLLS;
@@ -28,9 +29,15 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
         .catch(() => null);
 
       if (result?.searchCounters?.length > 0) {
-        const valid: SearchCounter[] = result.searchCounters.filter(
-          (c: SearchCounter) => !Number.isNaN(c.current) && !Number.isNaN(c.max),
-        );
+        const valid: SearchCounter[] = result.searchCounters
+          .filter((c: SearchCounter) => !Number.isNaN(c.current) && !Number.isNaN(c.max))
+          .map((c: SearchCounter) => ({
+            type: c.type,
+            current: Math.floor(c.current / PC_SEARCH_POINTS_PER_SEARCH),
+            max: Math.floor(c.max / PC_SEARCH_POINTS_PER_SEARCH),
+            currentPoints: c.current,
+            maxPoints: c.max,
+          }));
         if (valid.length < result.searchCounters.length) {
           await ctx.dbg(
             DBG.WARN,

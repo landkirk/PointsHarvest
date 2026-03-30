@@ -11,6 +11,8 @@ export interface ActivitiesResult {
   loggedIn: boolean;
   alreadyCompletedCount?: number;
   dailyAlreadyCompletedCount?: number;
+  alreadyCompletedPoints?: number;
+  dailyAlreadyCompletedPoints?: number;
 }
 
 export interface Activity {
@@ -18,6 +20,7 @@ export interface Activity {
   description: string;
   activityIndex: number;
   activityType?: ActivityType;
+  points?: number;
 }
 
 export interface MappedActivity extends Activity {
@@ -62,10 +65,10 @@ export function findRetryQuery(query: string): string | null {
 
 // Maps each activity to a query (may be null if none could be generated).
 export function buildSearchList(activities: Activity[]): MappedActivity[] {
-  return activities.map(({ title, description, activityIndex, activityType }) => {
+  return activities.map(({ title, description, activityIndex, activityType, points }) => {
     const query = generateSearchQuery(title, description);
     return query
-      ? { title, description, activityIndex, activityType, query, unmatched: false }
-      : { title, description, activityIndex, activityType, query: null, unmatched: true };
+      ? { title, description, activityIndex, activityType, points, query, unmatched: false }
+      : { title, description, activityIndex, activityType, points, query: null, unmatched: true };
   });
 }

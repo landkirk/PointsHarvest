@@ -1,6 +1,6 @@
 import { CardState } from '../util/activity.js';
-import { PC_SEARCH_TYPE } from '../util/state.js';
-import type { AppState, SearchCounter } from '../util/state.js';
+import { PC_SEARCH_TYPE, PHASE, PHASE_TIME_LABEL } from '../util/state.js';
+import type { AppState, PhaseKey, SearchCounter } from '../util/state.js';
 import type { ActivityScan } from '../util/debug.js';
 import type { MappedActivity } from '../util/activity.js';
 import type { DebugEntry } from '../util/messaging.js';
@@ -12,6 +12,7 @@ interface ActivityDebugItem {
   description?: string;
   skipReason?: CardState | null;
   action?: string;
+  points?: number;
 }
 
 interface ActivityDebugData {
@@ -63,17 +64,22 @@ export function appendLogEntry(entry: DebugEntry): void {
 }
 
 export function renderActivitiesAndCounters(state: AppState): void {
+  const phasePoints = state.header.phasePoints;
   renderActivitySection(
     dbgExplore,
     exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]),
     LIST_SIZE.LARGE,
+    phasePoints[PHASE.EXPLORE],
+    PHASE.EXPLORE,
   );
   renderActivitySection(
     dbgDaily,
     dailySetsToActivityData(state.debug.dailySetDebug),
     LIST_SIZE.MEDIUM,
+    phasePoints[PHASE.DAILY],
+    PHASE.DAILY,
   );
-  renderPcCounters(state.searchCounters);
+  renderPcCounters(state.searchCounters, phasePoints[PHASE.FARM]);
 }
 
 export function esc(str: string): string {
@@ -93,8 +99,14 @@ function renderActivitySection(
   container: HTMLElement,
   data: ActivityDebugData,
   listSize: ListSize = LIST_SIZE.LARGE,
+  pts?: number,
+  phase?: PhaseKey,
 ): void {
   let html = '';
+
+  if (pts !== undefined && pts > 0) {
+    html += `<div class="dbg-run-stat">+${pts} pts ${esc(phase ? PHASE_TIME_LABEL[phase] : '')}</div>`;
+  }
 
   if (data.stats) {
     const { total, actionable, locked, completed } = data.stats;
@@ -125,6 +137,7 @@ function renderActivitySection(
               ? `<div class="card-query" title="${esc(item.action)}">→ ${esc(item.action)}</div>`
               : ''
         }
+        ${item.points !== undefined ? `<div class="card-points">${item.points} pts</div>` : ''}
       </div>
     `,
         )
@@ -192,10 +205,12 @@ function exploreToActivityData(
       description: a.description || undefined,
       skipReason: a.unmatched ? CardState.Unknown : null,
       action: a.unmatched ? undefined : (a.query ?? undefined),
+      points: a.points,
     })),
     ...(scan?.activities ?? []).map((c) => ({
       title: c.snippet,
       skipReason: c.skipReason,
+      points: c.points,
     })),
   ];
 
@@ -214,6 +229,7 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
   const items: ActivityDebugItem[] = scan.activities.map((t) => ({
     title: t.snippet || '(no title)',
     skipReason: t.skipReason,
+    points: t.points,
   }));
 
   return { stats: buildScanStats(scan), items, emptyMessage: 'No daily set activities found.' };
@@ -254,18 +270,25 @@ function renderWarmUp(queries: string[]): void {
 
 // ── PC Search Farming ──────────────────────────────────────────────────────
 
-function renderPcCounters(searchCounters: SearchCounter[]): void {
+function renderPcCounters(searchCounters: SearchCounter[], pts?: number): void {
+  let html = '';
+  if (pts !== undefined && pts > 0) {
+    html += `<div class="dbg-run-stat">+${pts} pts today</div>`;
+  }
   if (searchCounters.length === 0) {
-    dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
+    html += '<div class="dbg-empty">No counter data yet.</div>';
+    dbgPcCounters.innerHTML = html;
     return;
   }
-  dbgPcCounters.innerHTML = searchCounters
-    .map((c) => {
-      const isPC = c.type.toLowerCase() === PC_SEARCH_TYPE;
-      const cls = isPC ? ' class="pc-active"' : '';
-      return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
-    })
-    .join('');
+  dbgPcCounters.innerHTML =
+    html +
+    searchCounters
+      .map((c) => {
+        const isPC = c.type.toLowerCase() === PC_SEARCH_TYPE;
+        const cls = isPC ? ' class="pc-active"' : '';
+        return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
+      })
+      .join('');
 }
 
 // ── Event Log ──────────────────────────────────────────────────────────────

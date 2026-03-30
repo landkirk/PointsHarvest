@@ -1,6 +1,6 @@
 // Farms daily PC search points by running searches until the cap is reached.
 
-import { REWARDS_BREAKDOWN_URL, PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
+import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { shuffleArray } from '../util/array.js';
 import { lingerOnPage, TIMING } from '../util/timing.js';
@@ -70,11 +70,11 @@ class FarmPcSearches extends OrchestratorBase {
         DBG.INFO,
         `PC Search already at cap (${counter.current}/${counter.max}), skipping`,
       );
-      const farmTotal = Math.floor(counter.max / PC_SEARCH_POINTS_PER_SEARCH);
       ctx.updateHeader({
-        headerMessage: `Farming PC searches (${farmTotal} / ${farmTotal})`,
+        headerMessage: `Farming PC searches (${counter.max} / ${counter.max})`,
         activePhase: PHASE.FARM,
-        phaseProgress: { done: farmTotal, total: farmTotal },
+        phaseProgress: { done: counter.max, total: counter.max },
+        phasePoints: { farm: counter.currentPoints },
       });
       return;
     }
@@ -83,14 +83,14 @@ class FarmPcSearches extends OrchestratorBase {
 
     let current = counter.current;
     let max = counter.max;
-    const currentSearchCount = Math.floor(current / PC_SEARCH_POINTS_PER_SEARCH);
-    let farmTotal = Math.floor(max / PC_SEARCH_POINTS_PER_SEARCH);
 
     ctx.updateHeader({
-      headerMessage: `Farming PC searches (${currentSearchCount} / ${farmTotal})`,
+      headerMessage: `Farming PC searches (${current} / ${max})`,
       activePhase: PHASE.FARM,
-      phaseProgress: { done: currentSearchCount, total: farmTotal },
+      phaseProgress: { done: current, total: max },
+      phasePoints: { farm: counter.currentPoints },
     });
+    let currentPoints = counter.currentPoints;
     let noProgressCount = 0;
     const shuffled = shuffleArray(PC_SEARCH_QUERIES);
     let shuffleIndex = 0;
@@ -122,13 +122,13 @@ class FarmPcSearches extends OrchestratorBase {
       const newCurrent = updatedCounter?.current ?? current;
 
       if (newCurrent > current) {
+        currentPoints = updatedCounter?.currentPoints ?? currentPoints;
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
-        farmTotal = Math.floor(max / PC_SEARCH_POINTS_PER_SEARCH);
-        const newSearchCount = Math.floor(newCurrent / PC_SEARCH_POINTS_PER_SEARCH);
         ctx.updateHeader({
-          headerMessage: `Farming PC searches (${newSearchCount} / ${farmTotal})`,
+          headerMessage: `Farming PC searches (${newCurrent} / ${max})`,
           activePhase: PHASE.FARM,
-          phaseProgress: { done: newSearchCount, total: farmTotal },
+          phaseProgress: { done: newCurrent, total: max },
+          phasePoints: { farm: currentPoints },
         });
         noProgressCount = 0;
       } else {

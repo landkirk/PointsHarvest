@@ -26,16 +26,20 @@ export function createContext(): Context {
       const headerUpdate: Parameters<typeof persistHeaderState>[0] = {};
       if (payload.headerMessage !== undefined) headerUpdate.headerMessage = payload.headerMessage;
       if (payload.activePhase !== undefined) headerUpdate.activePhase = payload.activePhase;
+      const current = getHeaderState();
       if (payload.activePhase != null && payload.phaseProgress !== undefined) {
-        const current = getHeaderState();
         headerUpdate.phases = { ...current.phases, [payload.activePhase]: payload.phaseProgress };
+      }
+      if (payload.phasePoints !== undefined) {
+        headerUpdate.phasePoints = { ...current.phasePoints, ...payload.phasePoints };
       }
       if (Object.keys(headerUpdate).length)
         persistHeaderState(headerUpdate).catch(() => {
           /* non-critical: UI display state */
         });
-      const phases = headerUpdate.phases ?? getHeaderState().phases;
-      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases }).catch(() => {
+      const phases = headerUpdate.phases ?? current.phases;
+      const phasePoints = headerUpdate.phasePoints ?? current.phasePoints;
+      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases, phasePoints }).catch(() => {
         /* popup may be closed */
       });
     },
