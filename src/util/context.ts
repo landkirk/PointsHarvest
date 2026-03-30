@@ -1,9 +1,4 @@
-import {
-  setState,
-  setHeaderState,
-  getHeaderState,
-  getActiveOrchestrator,
-} from './state.js';
+import { setState, setHeaderState, getHeaderState, getActiveOrchestrator } from './state.js';
 import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';

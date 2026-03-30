@@ -267,11 +267,11 @@ function waitAndExtract(): void {
       extractedDailySetEls = dailySetEls;
 
       const alreadyCompletedPoints = domDebug.activities.reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points) : sum),
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + e.points : sum),
         0,
       );
       const dailyAlreadyCompletedPoints = (dailySetDebug?.activities ?? []).reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points) : sum),
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + e.points : sum),
         0,
       );
 
