@@ -267,9 +267,13 @@ function waitAndExtract(): void {
       extractedDailySetEls = dailySetEls;
 
       const alreadyCompletedPoints = domDebug.activities.reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum), 0);
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum),
+        0,
+      );
       const dailyAlreadyCompletedPoints = (dailySetDebug?.activities ?? []).reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum), 0);
+        (sum, e) => (e.skipReason === CardState.Completed ? sum + (e.points ?? 0) : sum),
+        0,
+      );
 
       chrome.runtime.sendMessage({
         action: MSG_ACTION.ACTIVITIES_FOUND,

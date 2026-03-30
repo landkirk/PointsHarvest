@@ -1,5 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
-import { setDebugState } from './state.js';
+import { setDebugState, getDebugLog } from './state.js';
 import type { CardState } from './activity.js';
 
 export type { DebugType, DebugEntry } from './messaging.js';
@@ -27,13 +27,6 @@ export interface ActivityScan {
 
 const MAX_LOG_ENTRIES = 100;
 
-let log: DebugEntry[] = [];
-
-/** Clears the in-memory log (call at the start of each run). */
-export function resetLog(): void {
-  log = [];
-}
-
 /** Appends a typed log entry, persists to storage, and notifies the popup. */
 export async function dbg(type: DebugType, message: string, orchestrator?: string): Promise<void> {
   const entry: DebugEntry = {
@@ -42,7 +35,7 @@ export async function dbg(type: DebugType, message: string, orchestrator?: strin
     message,
     orchestrator,
   };
-  log.push(entry);
+  const log = [...getDebugLog(), entry];
   if (log.length > MAX_LOG_ENTRIES) log.shift();
   await setDebugState({ debugLog: log });
   chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {
