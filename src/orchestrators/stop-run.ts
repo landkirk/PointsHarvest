@@ -11,7 +11,7 @@ class StopRun {
   async run(): Promise<void> {
     setIsActivelyRunning(false);
     await setState({ isRunning: false });
-    await setHeaderState({ status: 'Stopped' });
+    await setHeaderState({ headerMessage: 'Stopped', activePhase: null });
     await dbg(DBG.WARN, 'Run stopped by user');
     await getActiveOrchestrator()?.stop(createContext());
   }

@@ -14,7 +14,7 @@ class WarmUpSearches extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     await ctx.dbg(DBG.INFO, 'Warm-up: starting');
-    ctx.setHeaderMessage({ status: 'Warming up…' });
+    ctx.updateHeader({ headerMessage: 'Warming up…' });
 
     const shuffled = shuffleArray(WARMUP_SEARCH_QUERIES);
     const queries = shuffled.slice(0, WARMUP_COUNT);

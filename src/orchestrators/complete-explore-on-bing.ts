@@ -6,7 +6,8 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { setHeaderState } from '../util/state.js';
+import { PHASE } from '../util/state.js';
+
 import { fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
 import { buildSearchList, findRetryQuery } from '../util/activity.js';
 import type { MappedActivity } from '../util/activity.js';
@@ -19,7 +20,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
   async run(ctx: Context, startIndex: number): Promise<void> {
     this.checkStopped();
-    const { activities, loggedIn, rewardsTabId } = await fetchActivities.run(ctx);
+    const { activities, loggedIn, rewardsTabId, alreadyCompletedCount = 0 } = await fetchActivities.run(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
     this.rewardsTabId = rewardsTabId;
@@ -42,7 +43,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
     );
 
     await ctx.setState({ currentIndex: startIndex });
-    await setHeaderState({ totalSearches: mapped.length, completedSearches: startIndex });
+    const phaseTotal = alreadyCompletedCount + mapped.length;
+    ctx.updateHeader({ activePhase: PHASE.EXPLORE, phaseProgress: { done: alreadyCompletedCount + startIndex, total: phaseTotal } });
 
     try {
       for (let i = startIndex; i < mapped.length; i++) {
@@ -59,7 +61,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         }
 
         const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-        ctx.setHeaderMessage({ status: `Searching: "${label}"` });
+        ctx.updateHeader({ headerMessage: `Searching: "${label}"` });
         await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
         const retryQuery = findRetryQuery(query);
@@ -82,10 +84,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         await ctx.dbg(DBG.SUCCESS, `Search ${completed}/${mapped.length} complete`);
         this.checkStopped();
 
-        ctx.setHeaderMessage({
-          status: `Running (${completed} / ${mapped.length})`,
-          completedSearches: completed,
-          totalSearches: mapped.length,
+        ctx.updateHeader({
+          headerMessage: `Running (${alreadyCompletedCount + completed} / ${phaseTotal})`,
+          activePhase: PHASE.EXPLORE,
+          phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
           lastSearchString: query,
         });
 
