@@ -179,13 +179,13 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
   protected async clickCardAndCaptureTab(
     ctx: Context,
     rewardsTabId: number,
-    index: number,
+    id: string,
     label: string,
     target?: string,
   ): Promise<(chrome.tabs.Tab & { id: number }) | null> {
     const captureTabPromise = this.captureNextTab();
 
-    const msg: Record<string, unknown> = { action: MSG_ACTION.CLICK_CARD, index };
+    const msg: Record<string, unknown> = { action: MSG_ACTION.CLICK_CARD, id };
     if (target !== undefined) msg.target = target;
 
     const clickResult = await chrome.tabs

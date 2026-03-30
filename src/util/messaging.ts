@@ -96,8 +96,8 @@ export type AppMessage =
       alreadyCompletedPoints?: number;
       dailyAlreadyCompletedPoints?: number;
     }
-  | { action: typeof MSG_ACTION.CLICK_CARD; index: number; target?: ActivityType }
-  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; index: number; target?: ActivityType }
+  | { action: typeof MSG_ACTION.CLICK_CARD; id: string; target?: ActivityType }
+  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; id: string; target?: ActivityType }
   | { action: typeof MSG_ACTION.GET_COUNTERS }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string };

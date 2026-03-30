@@ -58,9 +58,12 @@ class CompleteDailySets extends OrchestratorBase {
         this.checkStopped();
 
         const label = dailySets[i].title.slice(0, 60);
-        await ctx.dbg(DBG.INFO, `[Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`);
+        await ctx.dbg(
+          DBG.INFO,
+          `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
+        );
 
-        const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i], i);
+        const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
         const succeeded = await this.executeActivityWithValidation(ctx, attempt, attempt, {
           retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
           lingerLabel: 'daily set activity retry',
@@ -73,7 +76,10 @@ class CompleteDailySets extends OrchestratorBase {
 
         earnedPts += dailySets[i].points;
         this.checkStopped();
-        await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
+        await ctx.dbg(
+          DBG.SUCCESS,
+          `[${dailySets[i].id}] Daily set activity ${i + 1}/${dailySets.length} complete`,
+        );
         await ctx.updateHeader({
           headerMessage: `Daily sets (${dailyAlreadyCompletedCount + i + 1} / ${dailyPhaseTotal})`,
           activePhase: PHASE.DAILY,
@@ -103,14 +109,13 @@ class CompleteDailySets extends OrchestratorBase {
     ctx: Context,
     rewardsTabId: number,
     activity: Activity,
-    index: number,
   ): Promise<boolean> {
     const { title, description } = activity;
     const label = title.slice(0, 60);
     const t = await this.clickCardAndCaptureTab(
       ctx,
       rewardsTabId,
-      index,
+      activity.id,
       label,
       ACTIVITY_TYPE.DAILY_SET,
     );

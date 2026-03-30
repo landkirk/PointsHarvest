@@ -8,6 +8,7 @@ import type { DebugEntry } from '../util/messaging.js';
 // ── Generic activity debug view ─────────────────────────────────────────────
 
 interface ActivityDebugItem {
+  id?: string;
   title: string;
   description?: string;
   skipReason?: CardState | null;
@@ -128,7 +129,7 @@ function renderActivitySection(
         .map(
           (item) => `
       <div class="dbg-card" data-status="${esc(item.skipReason ?? CardState.Actionable)}">
-        <div class="card-title${item.skipReason ? ' skipped' : ''}">${esc(item.title)}</div>
+        <div class="card-title${item.skipReason ? ' skipped' : ''}">${item.id ? `<span class="card-id">${esc(item.id)}</span> ` : ''}${esc(item.title)}</div>
         ${item.description ? `<div class="card-desc">${esc(item.description)}</div>` : ''}
         ${
           item.skipReason
@@ -201,6 +202,7 @@ function exploreToActivityData(
 
   const items: ActivityDebugItem[] = [
     ...mappedActivities.map((a) => ({
+      id: a.id,
       title: a.title || '(no title)',
       description: a.description || undefined,
       skipReason: a.unmatched ? CardState.Unknown : null,
@@ -227,6 +229,7 @@ function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
   }
 
   const items: ActivityDebugItem[] = scan.activities.map((t) => ({
+    id: t.id,
     title: t.snippet || '(no title)',
     skipReason: t.skipReason,
     points: t.points,

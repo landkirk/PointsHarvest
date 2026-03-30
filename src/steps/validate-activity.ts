@@ -31,12 +31,12 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
     const response = await chrome.tabs
       .sendMessage(rewardsTabId, {
         action: MSG_ACTION.VALIDATE_ACTIVITY,
-        index: activity.activityIndex,
+        id: activity.id,
         target: activity.activityType,
       })
       .catch(() => null);
 
-    const label = activity.title.slice(0, 60);
+    const label = `[${activity.id}] ${activity.title.slice(0, 60)}`;
 
     if (!response) {
       await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);
