@@ -1,4 +1,9 @@
-import { setState, setHeaderState as persistHeaderState, getHeaderState, getActiveOrchestrator } from './state.js';
+import {
+  setState,
+  setHeaderState as persistHeaderState,
+  getHeaderState,
+  getActiveOrchestrator,
+} from './state.js';
 import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
@@ -39,9 +44,11 @@ export function createContext(): Context {
         });
       const phases = headerUpdate.phases ?? current.phases;
       const phasePoints = headerUpdate.phasePoints ?? current.phasePoints;
-      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases, phasePoints }).catch(() => {
-        /* popup may be closed */
-      });
+      chrome.runtime
+        .sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases, phasePoints })
+        .catch(() => {
+          /* popup may be closed */
+        });
     },
   };
 }

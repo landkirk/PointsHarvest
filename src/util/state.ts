@@ -134,11 +134,18 @@ export async function loadState(): Promise<AppState> {
   return cache;
 }
 
+function ensureCache(): AppState {
+  if (!cache) {
+    console.warn('setState/setSubState called before loadState() — using INITIAL_STATE');
+    cache = { ...INITIAL_STATE };
+  }
+  return cache;
+}
+
 /** Write updates to both the cache and storage. */
 export function setState(updates: Partial<AppState>): Promise<void> {
   return enqueueWrite(() => {
-    if (!cache) cache = { ...INITIAL_STATE };
-    Object.assign(cache, updates);
+    Object.assign(ensureCache(), updates);
     return chrome.storage.local.set(updates);
   });
 }
@@ -148,9 +155,9 @@ function setSubState<K extends 'header' | 'debug'>(
   updates: Partial<AppState[K]>,
 ): Promise<void> {
   return enqueueWrite(() => {
-    if (!cache) cache = { ...INITIAL_STATE };
-    cache[key] = { ...cache[key], ...updates } as AppState[K];
-    return chrome.storage.local.set({ [key]: cache[key] });
+    const c = ensureCache();
+    c[key] = { ...c[key], ...updates } as AppState[K];
+    return chrome.storage.local.set({ [key]: c[key] });
   });
 }
 
@@ -164,6 +171,16 @@ export function getHeaderState(): AppHeaderState {
 
 /** Write debug-specific updates, merging into the debug subobject. */
 export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
+
+/** Read current debug log from cache. */
+export function getDebugLog(): DebugEntry[] {
+  return cache?.debug.debugLog ?? [];
+}
+
+/** Read current failures from cache. */
+export function getFailures(): Failure[] {
+  return cache?.failures ?? [];
+}
 
 /** Reset all persistent state to initial values, with optional overrides applied atomically.
  *  seenScreenIds and ignoredUpdateVersion are preserved by default — pass explicit overrides to wipe them (e.g. purge). */

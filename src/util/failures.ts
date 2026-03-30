@@ -1,17 +1,11 @@
 import { MSG_ACTION } from './messaging.js';
-import { setState } from './state.js';
+import { setState, getFailures } from './state.js';
 import { dbg, DBG } from './debug.js';
 
 export type { FailureCategory, Failure } from './messaging.js';
 import type { Failure, FailureCategory } from './messaging.js';
 
 const MAX_FAILURES = 50;
-
-let failures: Failure[] = [];
-
-export function resetFailures(): void {
-  failures = [];
-}
 
 /** Records a user-facing soft failure. Also writes a ERROR entry to the debug log. */
 export async function fail(
@@ -26,9 +20,9 @@ export async function fail(
     message,
     orchestrator,
   };
-  failures.push(entry);
+  const failures = [...getFailures(), entry];
   if (failures.length > MAX_FAILURES) failures.shift();
-  await setState({ failures: [...failures] });
+  await setState({ failures });
   chrome.runtime.sendMessage({ action: MSG_ACTION.FAILURE_ENTRY, failure: entry }).catch(() => {
     /* popup may be closed */
   });
