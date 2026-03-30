@@ -12,6 +12,8 @@ export interface SearchCounter {
   type: string;
   current: number;
   max: number;
+  currentPoints: number;
+  maxPoints: number;
 }
 
 export const PHASE = {
@@ -21,6 +23,12 @@ export const PHASE = {
 } as const;
 
 export type PhaseKey = (typeof PHASE)[keyof typeof PHASE];
+
+export const PHASE_TIME_LABEL: Record<PhaseKey, string> = {
+  explore: 'this week',
+  daily: 'today',
+  farm: 'today',
+};
 
 export interface PhaseProgress {
   done: number;
@@ -33,10 +41,13 @@ export interface PhaseProgressMap {
   farm: PhaseProgress | null;
 }
 
+export type PhasePointsMap = Record<PhaseKey, number>;
+
 export interface AppHeaderState {
   headerMessage: string;
   activePhase: PhaseKey | null;
   phases: PhaseProgressMap;
+  phasePoints: PhasePointsMap;
 }
 
 export interface AppDebugState {
@@ -77,6 +88,7 @@ export const INITIAL_STATE: AppState = {
     headerMessage: 'idle',
     activePhase: null,
     phases: { explore: null, daily: null, farm: null },
+    phasePoints: { explore: 0, daily: 0, farm: 0 },
   },
   debug: {
     debugLog: [],

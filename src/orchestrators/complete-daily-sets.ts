@@ -23,7 +23,7 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const { dailySets = [], loggedIn, rewardsTabId, dailyAlreadyCompletedCount = 0 } = await fetchActivities.run(ctx);
+    const { dailySets = [], loggedIn, rewardsTabId, dailyAlreadyCompletedCount = 0, dailyAlreadyCompletedPoints = 0 } = await fetchActivities.run(ctx);
     if (!loggedIn) {
       await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping');
       return;
@@ -34,13 +34,15 @@ class CompleteDailySets extends OrchestratorBase {
 
     try {
       const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
+      let earnedPts = dailyAlreadyCompletedPoints;
+      ctx.updateHeader({
+        headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
+        activePhase: PHASE.DAILY,
+        phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal },
+        phasePoints: { daily: earnedPts },
+      });
       if (dailySets.length === 0) {
         await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
-        ctx.updateHeader({
-          headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
-          activePhase: PHASE.DAILY,
-          phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal },
-        });
         return;
       }
 
@@ -63,12 +65,14 @@ class CompleteDailySets extends OrchestratorBase {
         });
         if (!succeeded) continue;
 
+        earnedPts += dailySets[i].points ?? 0;
         this.checkStopped();
         await ctx.dbg(DBG.SUCCESS, `Daily set activity ${i + 1}/${dailySets.length} complete`);
         ctx.updateHeader({
           headerMessage: `Daily sets (${dailyAlreadyCompletedCount + i + 1} / ${dailyPhaseTotal})`,
           activePhase: PHASE.DAILY,
           phaseProgress: { done: dailyAlreadyCompletedCount + i + 1, total: dailyPhaseTotal },
+          phasePoints: { daily: earnedPts },
         });
 
         if (i < dailySets.length - 1) {
@@ -81,6 +85,7 @@ class CompleteDailySets extends OrchestratorBase {
         headerMessage: `Daily sets (${dailyPhaseTotal} / ${dailyPhaseTotal})`,
         activePhase: PHASE.DAILY,
         phaseProgress: { done: dailyPhaseTotal, total: dailyPhaseTotal },
+        phasePoints: { daily: earnedPts },
       });
       await ctx.dbg(DBG.SUCCESS, 'All daily set activities complete');
     } finally {
