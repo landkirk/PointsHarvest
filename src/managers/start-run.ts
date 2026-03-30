@@ -1,6 +1,5 @@
 import { MSG_ACTION } from '../util/messaging.js';
-import { resetLog, DBG } from '../util/debug.js';
-import { resetFailures } from '../util/failures.js';
+import { DBG } from '../util/debug.js';
 import {
   loadState,
   resetState,
@@ -39,8 +38,6 @@ class StartRun {
     const alreadyDone =
       lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
-    resetLog();
-    resetFailures();
     await resetState({ isRunning: true, lastRunDate: today });
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 

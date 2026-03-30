@@ -1,6 +1,6 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
-import { PHASE, PHASE_TIME_LABEL, setState } from '../util/state.js';
+import { PHASE, PHASE_TIME_LABEL, setState, setHeaderState } from '../util/state.js';
 import type { AppState, PhasePointsMap } from '../util/state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
@@ -165,7 +165,8 @@ function initPopup(): void {
       .then((response: { running: boolean }) => {
         if (!response?.running) {
           const stoppedHeader = { ...state.header, headerMessage: 'Stopped', activePhase: null };
-          chrome.storage.local.set({ isRunning: false, header: stoppedHeader });
+          setState({ isRunning: false });
+          setHeaderState(stoppedHeader);
           state = { ...state, isRunning: false, header: stoppedHeader };
         }
         renderState(state);
@@ -261,7 +262,12 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
 btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
   chrome.runtime.sendMessage({ action: MSG_ACTION.START, skipWarmUp: skipWarmUpCheck.checked });
-  render({ isRunning: true, headerMessage: 'Starting…', activePhase: null, phases: { explore: null, daily: null, farm: null } });
+  render({
+    isRunning: true,
+    headerMessage: 'Starting…',
+    activePhase: null,
+    phases: { explore: null, daily: null, farm: null },
+  });
   renderFailures([]);
   if (debugCheck.checked) clearDebug();
 });
@@ -289,7 +295,7 @@ document.querySelectorAll('.dbg-section h2').forEach((h2) => {
 });
 
 skipWarmUpCheck.addEventListener('change', () => {
-  chrome.storage.local.set({ skipWarmUp: skipWarmUpCheck.checked });
+  setState({ skipWarmUp: skipWarmUpCheck.checked });
 });
 
 debugCheck.addEventListener('change', () => {
