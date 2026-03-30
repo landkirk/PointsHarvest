@@ -1,5 +1,5 @@
 import { CardState } from '../util/activity.js';
-import { PC_SEARCH_TYPE, PHASE, PHASE_TIME_LABEL } from '../util/state.js';
+import { PHASE, PHASE_TIME_LABEL } from '../util/state.js';
 import type { AppState, PhaseKey, SearchCounter } from '../util/state.js';
 import type { ActivityScan } from '../util/debug.js';
 import type { MappedActivity } from '../util/activity.js';
@@ -283,11 +283,7 @@ function renderPcCounters(searchCounters: SearchCounter[], pts?: number): void {
   dbgPcCounters.innerHTML =
     html +
     searchCounters
-      .map((c) => {
-        const isPC = c.type.toLowerCase() === PC_SEARCH_TYPE;
-        const cls = isPC ? ' class="pc-active"' : '';
-        return `<span${cls} title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`;
-      })
+      .map((c) => `<span title="${esc(c.type)}">${esc(c.type)}: ${c.current}/${c.max}</span>`)
       .join('');
 }
 
