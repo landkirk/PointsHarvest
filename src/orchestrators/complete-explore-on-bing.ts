@@ -20,13 +20,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
   async run(ctx: Context, startIndex: number): Promise<void> {
     this.checkStopped();
-    const {
-      activities,
-      loggedIn,
-      rewardsTabId,
-      alreadyCompletedCount,
-      alreadyCompletedPoints,
-    } = await fetchActivities.run(ctx);
+    const { activities, loggedIn, rewardsTabId, alreadyCompletedCount, alreadyCompletedPoints } =
+      await fetchActivities.run(ctx);
     if (!loggedIn) throw new NotLoggedInError();
 
     this.rewardsTabId = rewardsTabId;
