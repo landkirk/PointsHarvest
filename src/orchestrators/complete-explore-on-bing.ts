@@ -44,7 +44,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
     await ctx.setState({ currentIndex: startIndex });
     const phaseTotal = alreadyCompletedCount + mapped.length;
-    ctx.updateHeader({ activePhase: PHASE.EXPLORE, phaseProgress: { done: alreadyCompletedCount + startIndex, total: phaseTotal } });
+    ctx.updateHeader({
+      headerMessage: `Explore on Bing (${alreadyCompletedCount + startIndex} / ${phaseTotal})`,
+      activePhase: PHASE.EXPLORE,
+      phaseProgress: { done: alreadyCompletedCount + startIndex, total: phaseTotal },
+    });
 
     try {
       for (let i = startIndex; i < mapped.length; i++) {
@@ -61,7 +65,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         }
 
         const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-        ctx.updateHeader({ headerMessage: `Searching: "${label}"` });
+        ctx.updateHeader({
+          headerMessage: `Searching: "${label}"`,
+          activePhase: PHASE.EXPLORE,
+          phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
+        });
         await ctx.dbg(DBG.INFO, `[${i + 1}/${mapped.length}] Clicking card: "${title}"`);
 
         const retryQuery = findRetryQuery(query);
@@ -85,7 +93,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
         this.checkStopped();
 
         ctx.updateHeader({
-          headerMessage: `Running (${alreadyCompletedCount + completed} / ${phaseTotal})`,
+          headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
           lastSearchString: query,

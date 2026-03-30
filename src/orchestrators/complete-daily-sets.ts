@@ -36,7 +36,11 @@ class CompleteDailySets extends OrchestratorBase {
       const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
       if (dailySets.length === 0) {
         await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
-        ctx.updateHeader({ activePhase: PHASE.DAILY, phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal } });
+        ctx.updateHeader({
+          headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
+          activePhase: PHASE.DAILY,
+          phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal },
+        });
         return;
       }
 
@@ -73,7 +77,11 @@ class CompleteDailySets extends OrchestratorBase {
         }
       }
 
-      ctx.updateHeader({ activePhase: PHASE.DAILY, phaseProgress: { done: dailyPhaseTotal, total: dailyPhaseTotal } });
+      ctx.updateHeader({
+        headerMessage: `Daily sets (${dailyPhaseTotal} / ${dailyPhaseTotal})`,
+        activePhase: PHASE.DAILY,
+        phaseProgress: { done: dailyPhaseTotal, total: dailyPhaseTotal },
+      });
       await ctx.dbg(DBG.SUCCESS, 'All daily set activities complete');
     } finally {
       if (rewardsTabId) this.closeTab(rewardsTabId);
