@@ -115,7 +115,6 @@ const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 const POLL_TIMEOUT_MS = 2 * 60 * 1000; // 2 min — poll is a single click
 const QUIZ_TIMEOUT_MS = 10 * 60 * 1000; // 10 min — quiz/test/puzzle
 
-/** Enriches each activity with user-action metadata derived from its title/description. */
 export function enrichUserActions(activities: Activity[]): Activity[] {
   for (const activity of activities) {
     const needsAction =
@@ -128,7 +127,6 @@ export function enrichUserActions(activities: Activity[]): Activity[] {
   return activities;
 }
 
-/** Enriches each activity with a generated search query and fallback query (may be null if none could be generated). */
 export function enrichSearchQueries(activities: Activity[]): Activity[] {
   for (const activity of activities) {
     const q = generateSearchQuery(activity.title, activity.description);
