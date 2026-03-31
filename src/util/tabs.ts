@@ -29,12 +29,17 @@ export async function waitForTabLoad(
   state.pendingTabId = null;
 }
 
+/** Remove a single tab, ignoring errors if it's already closed. */
+export function removeTab(tabId: number): void {
+  chrome.tabs.remove(tabId).catch(() => {
+    /* tab may already be closed */
+  });
+}
+
 /** Close all tabs in the set and clear it. */
 export async function closeOwnedTabs(tabIds: Set<number>): Promise<void> {
   for (const tabId of tabIds) {
-    chrome.tabs.remove(tabId).catch(() => {
-      /* tab may already be closed */
-    });
+    removeTab(tabId);
   }
   tabIds.clear();
 }

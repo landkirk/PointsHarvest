@@ -1,10 +1,9 @@
-import { openTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { TIMEOUTS } from '../util/timing.js';
-import { setState } from '../util/state.js';
+import { setState, loadState } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { classifyCard, CardState, ACTIVITY_TYPE } from '../util/activity.js';
 import type { RawCard, Activity, ActivityState } from '../util/activity.js';
@@ -35,18 +34,12 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
 
-    let rewardsTab: chrome.tabs.Tab;
-    try {
-      rewardsTab = await openTab(REWARDS_URL, false);
-    } catch {
-      await ctx.fail('navigation', 'Failed to open rewards tab');
+    const rewardsTabId = (await loadState()).rewardsTabId;
+    if (!rewardsTabId) {
+      await ctx.fail('navigation', 'Rewards tab not open — cannot extract activities');
       await setState({ activityState: this.emptyResult(null) });
       return;
     }
-
-    if (rewardsTab.id === undefined) throw new Error('Rewards tab has no ID');
-    const rewardsTabId = rewardsTab.id;
-    this.openedTabIds.add(rewardsTabId);
 
     const result = await this.waitForExtraction(ctx, rewardsTabId);
 

@@ -129,6 +129,22 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
 
   onUserActionComplete(): void {}
 
+  protected async assertRewardsTabExists(
+    ctx: Context,
+    rewardsTabId: number,
+    phase: string,
+  ): Promise<boolean> {
+    const exists = await chrome.tabs.get(rewardsTabId).then(
+      () => true,
+      () => false,
+    );
+    if (!exists) {
+      await ctx.fail('navigation', `Rewards tab no longer exists — cannot run ${phase}`);
+      return false;
+    }
+    return true;
+  }
+
   protected waitForTabLoad(tabId: number, timeoutMs = 30000): Promise<void> {
     return waitForTabLoad(tabId, this.tabLoadState, timeoutMs);
   }
