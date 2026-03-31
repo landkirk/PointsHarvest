@@ -5,14 +5,11 @@
 // Actionable cards are <a class="ds-card-sec"> elements; locked cards are <div class="locked-card">.
 // "Search on Bing" activities are identified via aria-label on the card element.
 
-import { CardState } from '../util/activity.js';
+import { CardState, CARD_SOURCE } from '../util/activity.js';
 import { TIMEOUTS } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
-import { ACTIVITY_TYPE } from '../util/activity.js';
 import type { AppMessage } from '../util/messaging.js';
-import type { ActivityType } from '../util/activity.js';
-import type { Activity } from '../util/activity.js';
-import type { ActivityScan, ActivityScanEntry } from '../util/debug.js';
+import type { RawCard } from '../util/activity.js';
 
 const SELECTORS = {
   DAILY_SETS_CONTAINER: '#daily-sets',
@@ -36,26 +33,11 @@ function parseCardPoints(card: Element): number {
   return isNaN(n) ? 0 : n;
 }
 
-const SEARCH_ON_BING_RE = /search (?:on|using|with) bing/i;
-
-function countSkipped(entries: ActivityScanEntry[], reason: CardState): number {
-  return entries.filter((a) => a.skipReason === reason).length;
-}
-
-function buildActivityScan(entries: ActivityScanEntry[], actionableCount: number): ActivityScan {
-  return {
-    actionableActivities: actionableCount,
-    skippedLocked: countSkipped(entries, CardState.Locked),
-    skippedCompleted: countSkipped(entries, CardState.Completed),
-    activities: entries,
-  };
-}
 const MAX_WAIT_MS = TIMEOUTS.REWARDS_DOM_MAX_WAIT;
 const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_DOM_POLL;
 
 // Card elements retained after extraction so they can be clicked on demand.
-const extractedCardEls = new Map<string, HTMLAnchorElement>();
-const extractedDailySetEls = new Map<string, HTMLAnchorElement>();
+const extractedEls = new Map<string, HTMLAnchorElement>();
 
 // Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
 // In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
@@ -68,54 +50,80 @@ function determineCardState(card: Element): CardState {
   return CardState.Unknown;
 }
 
-// Returns { dailySets, dailySetDebug, dailySetEls }
-function extractDailySets(): {
-  dailySets: Activity[];
-  dailySetDebug: ActivityScan | null;
-  dailySetEls: Map<string, HTMLAnchorElement>;
+function extractAllCards(): {
+  cards: RawCard[];
+  hasDailySection: boolean;
+  cardEls: Map<string, HTMLAnchorElement>;
 } {
-  const container = document.querySelector(SELECTORS.DAILY_SETS_CONTAINER);
-  if (!container) {
-    console.warn('[rewards-content] Selector not found:', SELECTORS.DAILY_SETS_CONTAINER);
-    return { dailySets: [], dailySetDebug: null, dailySetEls: new Map() };
-  }
+  const cards: RawCard[] = [];
+  const cardEls = new Map<string, HTMLAnchorElement>();
 
-  const els = Array.from(container.querySelectorAll(SELECTORS.CARD_ACTIONABLE));
+  // ── Explore section (main cards, excluding daily-sets container) ──────
+  const exploreEls = [
+    ...document.querySelectorAll(SELECTORS.CARD_LOCKED),
+    ...Array.from(document.querySelectorAll(SELECTORS.CARD_ACTIONABLE)).filter(
+      (a) => !a.closest(SELECTORS.CARD_LOCKED),
+    ),
+  ].filter((card) => !card.closest(SELECTORS.DAILY_SETS_CONTAINER));
 
-  const actionable: Activity[] = [];
-  const dailySetEls = new Map<string, HTMLAnchorElement>();
-  const activities: ActivityScanEntry[] = [];
-
-  for (const el of els) {
+  let exploreIndex = 0;
+  for (const el of exploreEls) {
     const state = determineCardState(el);
     const ariaLabel = el.getAttribute('aria-label') || '';
     const href = (el as HTMLAnchorElement).href || '';
-    const snippet = ariaLabel.slice(0, 80);
-
-    if (!href) continue;
     const pts = parseCardPoints(el);
-    const id = `D${activities.length + 1}`;
-    if (state !== CardState.Actionable) {
-      activities.push({ id, skipReason: state, snippet, points: pts });
-      continue;
-    }
+    const id = `E${++exploreIndex}`;
 
-    activities.push({ id, snippet, skipReason: null, points: pts });
-    actionable.push({
+    const parts = ariaLabel
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const title = parts[0] || (el.textContent ?? '').trim().slice(0, 60);
+    const descP = el.querySelector(SELECTORS.CARD_DESCRIPTION);
+    const description = descP ? (descP.textContent ?? '').trim() : parts.slice(1).join(', ');
+    const parentBiId = el.closest(SELECTORS.BI_TRACKED)?.getAttribute('data-bi-id') || '';
+
+    cards.push({
       id,
-      title: ariaLabel,
-      description: el.textContent?.trim().slice(0, 120) || '',
-      activityType: ACTIVITY_TYPE.DAILY_SET,
+      title,
+      description,
       points: pts,
+      cardState: state,
+      source: CARD_SOURCE.EXPLORE,
+      dataBiId: parentBiId,
     });
-    dailySetEls.set(id, el as HTMLAnchorElement);
+    if (href && state === CardState.Actionable) cardEls.set(id, el as HTMLAnchorElement);
   }
 
-  return {
-    dailySets: actionable,
-    dailySetDebug: buildActivityScan(activities, actionable.length),
-    dailySetEls,
-  };
+  // ── Daily sets section ────────────────────────────────────────────────
+  const dailyContainer = document.querySelector(SELECTORS.DAILY_SETS_CONTAINER);
+  if (dailyContainer) {
+    const dailyEls = Array.from(dailyContainer.querySelectorAll(SELECTORS.CARD_ACTIONABLE));
+    let dailyIndex = 0;
+
+    for (const el of dailyEls) {
+      const state = determineCardState(el);
+      const ariaLabel = el.getAttribute('aria-label') || '';
+      const href = (el as HTMLAnchorElement).href || '';
+      const pts = parseCardPoints(el);
+      const id = `D${++dailyIndex}`;
+
+      cards.push({
+        id,
+        title: ariaLabel,
+        description: el.textContent?.trim().slice(0, 120) || '',
+        points: pts,
+        cardState: state,
+        source: CARD_SOURCE.DAILY_SET,
+        dataBiId: '',
+      });
+      if (href && state === CardState.Actionable) cardEls.set(id, el as HTMLAnchorElement);
+    }
+  } else {
+    console.warn('[rewards-content] Selector not found:', SELECTORS.DAILY_SETS_CONTAINER);
+  }
+
+  return { cards, hasDailySection: !!dailyContainer, cardEls };
 }
 
 // Returns { searchCounters, searchCounterDebug }
@@ -144,66 +152,6 @@ function extractSearchCounters(): {
   }
 
   return { searchCounters: counters };
-}
-
-// Returns { activities, domDebug, cardEls }
-function extractActivities(): {
-  activities: Activity[];
-  domDebug: ActivityScan;
-  cardEls: Map<string, HTMLAnchorElement>;
-} {
-  // Select locked card divs first, then actionable anchors that are NOT inside a locked div.
-  const allCards = [
-    ...document.querySelectorAll(SELECTORS.CARD_LOCKED),
-    ...Array.from(document.querySelectorAll(SELECTORS.CARD_ACTIONABLE)).filter(
-      (a) => !a.closest(SELECTORS.CARD_LOCKED),
-    ),
-  ].filter((card) => !card.closest(SELECTORS.DAILY_SETS_CONTAINER));
-
-  const activities: Activity[] = [];
-  const cardEls = new Map<string, HTMLAnchorElement>();
-  const skipped: ActivityScanEntry[] = [];
-
-  for (const card of allCards) {
-    const ariaLabel = card.getAttribute('aria-label') || '';
-    const cardText = card.textContent || '';
-
-    const parentBiId = card.closest(SELECTORS.BI_TRACKED)?.getAttribute('data-bi-id') || '';
-    if (
-      !SEARCH_ON_BING_RE.test(ariaLabel) &&
-      !SEARCH_ON_BING_RE.test(cardText) &&
-      !parentBiId.includes('exploreonbing')
-    )
-      continue;
-
-    const snippet = (ariaLabel || cardText.trim()).slice(0, 120);
-    const pts = parseCardPoints(card);
-    const state = determineCardState(card);
-    const id = `E${skipped.length + cardEls.size + 1}`;
-    if (state !== CardState.Actionable) {
-      skipped.push({ id, skipReason: state, snippet, points: pts });
-      continue;
-    }
-
-    const parts = ariaLabel
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const title = parts[0] || cardText.trim().slice(0, 60);
-
-    // Description: prefer the <p> inside .contentContainer — clean "Search on Bing to/for …" text.
-    const descP = card.querySelector(SELECTORS.CARD_DESCRIPTION);
-    const description = descP ? (descP.textContent ?? '').trim() : parts.slice(1).join(', ');
-    const href = (card as HTMLAnchorElement).href || '';
-
-    if (!href) continue;
-    activities.push({ id, title, description, points: pts });
-    cardEls.set(id, card as HTMLAnchorElement);
-  }
-
-  const domDebug = buildActivityScan(skipped, cardEls.size);
-
-  return { activities, domDebug, cardEls };
 }
 
 // Returns true if the rewards dashboard is visible (i.e. user is logged in).
@@ -242,8 +190,7 @@ function waitAndExtract(): void {
     if (loginStatus === false) {
       chrome.runtime.sendMessage({
         action: MSG_ACTION.ACTIVITIES_FOUND,
-        activities: [],
-        domDebug: null,
+        cards: [],
         loggedIn: false,
       });
       return;
@@ -255,40 +202,15 @@ function waitAndExtract(): void {
       }
     }
 
-    const { activities, domDebug, cardEls } = extractActivities();
-    const { dailySets, dailySetDebug, dailySetEls } = extractDailySets();
+    const { cards, hasDailySection, cardEls } = extractAllCards();
 
-    if (
-      activities.length > 0 ||
-      dailySets.length > 0 ||
-      domDebug.actionableActivities > 0 ||
-      dailySetDebug !== null ||
-      Date.now() - start >= MAX_WAIT_MS
-    ) {
-      extractedCardEls.clear();
-      cardEls.forEach((el, id) => extractedCardEls.set(id, el));
-      extractedDailySetEls.clear();
-      dailySetEls.forEach((el, id) => extractedDailySetEls.set(id, el));
-
-      const alreadyCompletedPoints = domDebug.activities.reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + e.points : sum),
-        0,
-      );
-      const dailyAlreadyCompletedPoints = (dailySetDebug?.activities ?? []).reduce(
-        (sum, e) => (e.skipReason === CardState.Completed ? sum + e.points : sum),
-        0,
-      );
+    if (cards.length > 0 || hasDailySection || Date.now() - start >= MAX_WAIT_MS) {
+      extractedEls.clear();
+      cardEls.forEach((el, id) => extractedEls.set(id, el));
 
       chrome.runtime.sendMessage({
         action: MSG_ACTION.ACTIVITIES_FOUND,
-        activities,
-        domDebug,
-        dailySets,
-        dailySetDebug,
-        alreadyCompletedCount: domDebug.skippedCompleted,
-        dailyAlreadyCompletedCount: dailySetDebug?.skippedCompleted ?? 0,
-        alreadyCompletedPoints,
-        dailyAlreadyCompletedPoints,
+        cards,
         loggedIn: true,
       });
     } else {
@@ -299,10 +221,8 @@ function waitAndExtract(): void {
   poll();
 }
 
-function resolveEl(id: string, target: ActivityType | undefined): HTMLAnchorElement | undefined {
-  return target === ACTIVITY_TYPE.DAILY_SET
-    ? extractedDailySetEls.get(id)
-    : extractedCardEls.get(id);
+function resolveEl(id: string): HTMLAnchorElement | undefined {
+  return extractedEls.get(id);
 }
 
 chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
@@ -312,7 +232,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
   }
 
   if (msg.action === MSG_ACTION.CLICK_CARD) {
-    const card = resolveEl(msg.id, msg.target);
+    const card = resolveEl(msg.id);
     if (!card) {
       sendResponse({ clicked: false, error: `no card with id ${msg.id}` });
       return true;
@@ -333,7 +253,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
   }
 
   if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
-    const card = resolveEl(msg.id, msg.target);
+    const card = resolveEl(msg.id);
     sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
     return true;
   }

@@ -2,13 +2,21 @@ import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
 
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
+  EXPLORE_ON_BING: 'exploreOnBing',
+  IGNORED: 'ignored',
 } as const;
 export type ActivityType = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];
 
-export interface ActivitiesResult {
-  activities: Activity[];
-  dailySets: Activity[];
+export const CARD_SOURCE = {
+  EXPLORE: 'explore',
+  DAILY_SET: 'dailySet',
+} as const;
+export type CardSource = (typeof CARD_SOURCE)[keyof typeof CARD_SOURCE];
+
+export interface ExtractionResult {
+  allActivities: Activity[];
   loggedIn: boolean;
+  rewardsTabId: number | null;
   alreadyCompletedCount: number;
   dailyAlreadyCompletedCount: number;
   alreadyCompletedPoints: number;
@@ -19,13 +27,40 @@ export interface Activity {
   id: string;
   title: string;
   description: string;
-  activityType?: ActivityType;
+  activityType: ActivityType;
+  cardState: CardState;
   points: number;
+}
+
+/** Raw card data sent from content script before classification. */
+export interface RawCard {
+  id: string;
+  title: string;
+  description: string;
+  points: number;
+  cardState: CardState;
+  source: CardSource;
+  /** Parent data-bi-id attribute, used for explore-on-bing classification. */
+  dataBiId: string;
+}
+
+const EXPLORE_ON_BING_RE = /search (?:on|using|with) bing/i;
+
+/** Classify a raw card into an ActivityType based on source and heuristics. */
+export function classifyCard(card: RawCard): ActivityType {
+  if (card.source === CARD_SOURCE.DAILY_SET) return ACTIVITY_TYPE.DAILY_SET;
+  if (
+    EXPLORE_ON_BING_RE.test(card.title) ||
+    EXPLORE_ON_BING_RE.test(card.description) ||
+    card.dataBiId.includes('exploreonbing')
+  ) {
+    return ACTIVITY_TYPE.EXPLORE_ON_BING;
+  }
+  return ACTIVITY_TYPE.IGNORED;
 }
 
 export interface MappedActivity extends Activity {
   query: string | null;
-  unmatched: boolean;
 }
 
 export const enum CardState {
@@ -65,10 +100,10 @@ export function findRetryQuery(query: string): string | null {
 
 // Maps each activity to a query (may be null if none could be generated).
 export function buildSearchList(activities: Activity[]): MappedActivity[] {
-  return activities.map(({ id, title, description, activityType, points }) => {
+  return activities.map(({ id, title, description, activityType, cardState, points }) => {
     const query = generateSearchQuery(title, description);
     return query
-      ? { id, title, description, activityType, points, query, unmatched: false }
-      : { id, title, description, activityType, points, query: null, unmatched: true };
+      ? { id, title, description, activityType, cardState, points, query }
+      : { id, title, description, activityType, cardState, points, query: null };
   });
 }

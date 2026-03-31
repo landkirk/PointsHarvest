@@ -6,26 +6,33 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { PHASE } from '../util/state.js';
+import { PHASE, loadState } from '../util/state.js';
 
-import { fetchActivities, NotLoggedInError } from '../steps/fetch-activities.js';
-import { buildSearchList, findRetryQuery } from '../util/activity.js';
+import { buildSearchList, findRetryQuery, ACTIVITY_TYPE, CardState } from '../util/activity.js';
 import type { MappedActivity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 
-class CompleteExploreOnBing extends OrchestratorBase<[number]> {
+class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
   private rewardsTabId: number | null = null;
 
-  async run(ctx: Context, startIndex: number): Promise<void> {
+  async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const { activities, loggedIn, rewardsTabId, alreadyCompletedCount, alreadyCompletedPoints } =
-      await fetchActivities.run(ctx);
-    if (!loggedIn) throw new NotLoggedInError();
+    const extraction = (await loadState()).extractionResult ?? null;
+    if (!extraction || !extraction.rewardsTabId) {
+      await ctx.dbg(DBG.WARN, 'No extraction result — skipping explore on bing');
+      return;
+    }
+
+    const { rewardsTabId, alreadyCompletedCount, alreadyCompletedPoints } = extraction;
+    const activities = extraction.allActivities.filter(
+      (a) =>
+        a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING && a.cardState === CardState.Actionable,
+    );
 
     this.rewardsTabId = rewardsTabId;
-    if (rewardsTabId) this.openedTabIds.add(rewardsTabId);
+    this.openedTabIds.add(rewardsTabId);
     await ctx.dbg(
       DBG.INFO,
       `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`,
@@ -37,24 +44,23 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
       /* popup may be closed */
     });
 
-    const unmapped = mapped.filter((m) => m.unmatched).length;
+    const unmapped = mapped.filter((m) => m.query === null).length;
     await ctx.dbg(
       DBG.INFO,
       `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`,
     );
 
-    await ctx.setState({ currentIndex: startIndex });
     const phaseTotal = alreadyCompletedCount + mapped.length;
     let earnedPts = alreadyCompletedPoints;
     await ctx.updateHeader({
-      headerMessage: `Explore on Bing (${alreadyCompletedCount + startIndex} / ${phaseTotal})`,
+      headerMessage: `Explore on Bing (${alreadyCompletedCount} / ${phaseTotal})`,
       activePhase: PHASE.EXPLORE,
-      phaseProgress: { done: alreadyCompletedCount + startIndex, total: phaseTotal },
+      phaseProgress: { done: alreadyCompletedCount, total: phaseTotal },
       phasePoints: { explore: earnedPts },
     });
 
     try {
-      for (let i = startIndex; i < mapped.length; i++) {
+      for (let i = 0; i < mapped.length; i++) {
         this.checkStopped();
 
         const { query, title } = mapped[i];
@@ -95,7 +101,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[number]> {
 
         earnedPts += mapped[i].points;
         const completed = i + 1;
-        await ctx.setState({ currentIndex: i });
         await ctx.dbg(
           DBG.SUCCESS,
           `[${mapped[i].id}] Search ${completed}/${mapped.length} complete`,
