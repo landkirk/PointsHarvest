@@ -30,81 +30,68 @@ class CompleteDailySets extends OrchestratorBase {
 
     const { rewardsTabId, dailyAlreadyCompletedCount, dailyAlreadyCompletedPoints } = extraction;
 
-    const rewardsTabExists = await chrome.tabs.get(rewardsTabId).then(
-      () => true,
-      () => false,
-    );
-    if (!rewardsTabExists) {
-      await ctx.fail('navigation', 'Rewards tab no longer exists — cannot run daily sets');
-      return;
-    }
+    if (!(await this.assertRewardsTabExists(ctx, rewardsTabId, 'daily sets'))) return;
 
     const dailySets = extraction.allActivities.filter(
       (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET && a.cardState === CardState.Actionable,
     );
 
-    this.openedTabIds.add(rewardsTabId);
+    const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
+    let earnedPts = dailyAlreadyCompletedPoints;
+    await ctx.updateHeader({
+      headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
+      activePhase: PHASE.DAILY,
+      phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal },
+      phasePoints: { daily: earnedPts },
+    });
+    if (dailySets.length === 0) {
+      await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
+      return;
+    }
 
-    try {
-      const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
-      let earnedPts = dailyAlreadyCompletedPoints;
+    await ctx.dbg(DBG.INFO, `Starting daily sets: ${dailySets.length} activity/activities`);
+
+    for (let i = 0; i < dailySets.length; i++) {
+      this.checkStopped();
+
+      const label = dailySets[i].title.slice(0, 60);
+      await ctx.dbg(
+        DBG.INFO,
+        `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
+      );
+
+      const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
+      const succeeded = await this.executeActivityWithValidation(ctx, attempt, attempt, {
+        retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
+        lingerLabel: 'daily set activity retry',
+        failCategory: 'validation',
+        failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
+        navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
+        retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
+      });
+      if (!succeeded) continue;
+
+      await markActivityCompleted(dailySets[i].id);
+      earnedPts += dailySets[i].points;
+      this.checkStopped();
+      await ctx.dbg(
+        DBG.SUCCESS,
+        `[${dailySets[i].id}] Daily set activity ${i + 1}/${dailySets.length} complete`,
+      );
       await ctx.updateHeader({
-        headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
+        headerMessage: `Daily sets (${dailyAlreadyCompletedCount + i + 1} / ${dailyPhaseTotal})`,
         activePhase: PHASE.DAILY,
-        phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal },
+        phaseProgress: { done: dailyAlreadyCompletedCount + i + 1, total: dailyPhaseTotal },
         phasePoints: { daily: earnedPts },
       });
-      if (dailySets.length === 0) {
-        await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
-        return;
-      }
 
-      await ctx.dbg(DBG.INFO, `Starting daily sets: ${dailySets.length} activity/activities`);
-
-      for (let i = 0; i < dailySets.length; i++) {
+      if (i < dailySets.length - 1) {
+        await lingerOnPage('between daily set activities');
         this.checkStopped();
-
-        const label = dailySets[i].title.slice(0, 60);
-        await ctx.dbg(
-          DBG.INFO,
-          `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
-        );
-
-        const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
-        const succeeded = await this.executeActivityWithValidation(ctx, attempt, attempt, {
-          retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
-          lingerLabel: 'daily set activity retry',
-          failCategory: 'validation',
-          failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
-          navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
-          retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
-        });
-        if (!succeeded) continue;
-
-        await markActivityCompleted(dailySets[i].id);
-        earnedPts += dailySets[i].points;
-        this.checkStopped();
-        await ctx.dbg(
-          DBG.SUCCESS,
-          `[${dailySets[i].id}] Daily set activity ${i + 1}/${dailySets.length} complete`,
-        );
-        await ctx.updateHeader({
-          headerMessage: `Daily sets (${dailyAlreadyCompletedCount + i + 1} / ${dailyPhaseTotal})`,
-          activePhase: PHASE.DAILY,
-          phaseProgress: { done: dailyAlreadyCompletedCount + i + 1, total: dailyPhaseTotal },
-          phasePoints: { daily: earnedPts },
-        });
-
-        if (i < dailySets.length - 1) {
-          await lingerOnPage('between daily set activities');
-          this.checkStopped();
-        }
       }
-
-      await ctx.dbg(DBG.SUCCESS, 'Completed daily set activities');
-    } finally {
-      if (rewardsTabId) this.closeTab(rewardsTabId);
     }
+
+    await ctx.dbg(DBG.SUCCESS, 'Completed daily set activities');
   }
 
   private async attemptActivity(

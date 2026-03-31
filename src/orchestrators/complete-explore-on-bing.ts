@@ -32,14 +32,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
     const { rewardsTabId, alreadyCompletedCount, alreadyCompletedPoints } = extraction;
 
-    const rewardsTabExists = await chrome.tabs.get(rewardsTabId).then(
-      () => true,
-      () => false,
-    );
-    if (!rewardsTabExists) {
-      await ctx.fail('navigation', 'Rewards tab no longer exists — cannot run explore on bing');
-      return;
-    }
+    if (!(await this.assertRewardsTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
 
     const activities = extraction.allActivities.filter(
       (a) =>
@@ -47,7 +40,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     );
 
     this.rewardsTabId = rewardsTabId;
-    this.openedTabIds.add(rewardsTabId);
     await ctx.dbg(
       DBG.INFO,
       `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`,

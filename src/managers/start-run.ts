@@ -2,11 +2,14 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import {
   resetState,
+  loadState,
   setHeaderState,
   getIsActivelyRunning,
   setIsActivelyRunning,
   setActiveOrchestrator,
 } from '../util/state.js';
+import { openTab, removeTab } from '../util/tabs.js';
+import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
 import { NotLoggedInError } from '../orchestrators/activity-extraction.js';
 import type { Context } from '../util/context.js';
@@ -41,6 +44,17 @@ class StartRun {
     await ctx.dbg(DBG.INFO, 'Run started');
 
     if (!getIsActivelyRunning()) return;
+
+    let rewardsTabId: number;
+    try {
+      const tab = await openTab(REWARDS_URL, false);
+      if (tab.id === undefined) throw new Error('Rewards tab has no ID');
+      rewardsTabId = tab.id;
+    } catch {
+      await this._endRun(ctx, 'Failed to open Bing Rewards', 'Failed to open rewards tab', false);
+      return;
+    }
+    await ctx.setState({ rewardsTabId });
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
@@ -105,6 +119,8 @@ class StartRun {
     success: boolean,
   ): Promise<void> {
     setIsActivelyRunning(false);
+    const { rewardsTabId } = await loadState();
+    if (rewardsTabId) removeTab(rewardsTabId);
     await ctx.setState({ isRunning: false });
     await setHeaderState({ headerMessage: status, activePhase: null });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
