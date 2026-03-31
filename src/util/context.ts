@@ -24,12 +24,13 @@ export function createContext(): Context {
     },
     async updateHeader(payload: ProgressPayload): Promise<void> {
       const { headerMessage, activePhase, phaseProgress, phasePoints } = payload;
-      const merged = await setHeaderState({
+      await setHeaderState({
         headerMessage,
         activePhase,
         ...(activePhase != null && { phases: { [activePhase]: phaseProgress } }),
         phasePoints,
       });
+      const merged = await getHeaderState();
 
       chrome.runtime
         .sendMessage({
