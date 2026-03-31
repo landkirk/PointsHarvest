@@ -18,7 +18,6 @@ import { renderFailures, appendFailure } from './failure-banner.js';
 const dot = document.getElementById('dot') as HTMLElement;
 const statusEl = document.getElementById('status') as HTMLElement;
 const bar = document.getElementById('progress-bar') as HTMLElement;
-const labelEl = document.getElementById('progress-label') as HTMLElement;
 const phaseEls: Record<PhaseKey, HTMLElement> = {
   warmup: document.getElementById('phase-warmup') as HTMLElement,
   explore: document.getElementById('phase-explore') as HTMLElement,
@@ -126,7 +125,6 @@ function render({
 
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
-  labelEl.textContent = total > 0 ? `${completed} / ${total}` : '—';
 
   dot.className = 'dot';
   if (isLingering) dot.classList.add('waiting');
