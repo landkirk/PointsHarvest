@@ -19,7 +19,6 @@ const dot = document.getElementById('dot') as HTMLElement;
 const statusEl = document.getElementById('status') as HTMLElement;
 const bar = document.getElementById('progress-bar') as HTMLElement;
 const labelEl = document.getElementById('progress-label') as HTMLElement;
-const phaseRowsEl = document.getElementById('phase-rows') as HTMLElement;
 const phaseEls: Record<PhaseKey, HTMLElement> = {
   warmup: document.getElementById('phase-warmup') as HTMLElement,
   explore: document.getElementById('phase-explore') as HTMLElement,
@@ -92,8 +91,6 @@ function renderPhasePoints(phasePoints: Partial<PhasePointsMap> | null | undefin
 }
 
 function renderPhases(phases: PhaseProgressMap | null | undefined, activePhase?: PhaseKey): void {
-  phaseRowsEl.classList.toggle('visible', hasAnyPhases(phases));
-
   for (const key of Object.values(PHASE) as PhaseKey[]) {
     const el = phaseEls[key];
     const p = phases?.[key] ?? null;
