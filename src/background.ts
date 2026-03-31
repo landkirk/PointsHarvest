@@ -38,7 +38,10 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     return true;
   }
   if (msg.action === MSG_ACTION.STOP) {
-    stopRun.run().then(() => sendResponse({ ok: true }));
+    stopRun
+      .run()
+      .then(() => loadState())
+      .then(sendResponse);
     return true;
   }
   if (msg.action === MSG_ACTION.GET_STATE) {
