@@ -90,13 +90,7 @@ class CompleteDailySets extends OrchestratorBase {
         }
       }
 
-      await ctx.updateHeader({
-        headerMessage: `Daily sets (${dailyPhaseTotal} / ${dailyPhaseTotal})`,
-        activePhase: PHASE.DAILY,
-        phaseProgress: { done: dailyPhaseTotal, total: dailyPhaseTotal },
-        phasePoints: { daily: earnedPts },
-      });
-      await ctx.dbg(DBG.SUCCESS, 'All daily set activities complete');
+      await ctx.dbg(DBG.SUCCESS, 'Completed daily set activities');
     } finally {
       if (rewardsTabId) this.closeTab(rewardsTabId);
     }
