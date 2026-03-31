@@ -50,9 +50,12 @@ export interface RawCard {
 }
 
 const EXPLORE_ON_BING_RE = /search (?:on|using|with) bing/i;
+const CARD_IGNORE_STRINGS = ['share', 'referral'];
 
 /** Classify a raw card into an ActivityType based on source and heuristics. */
 export function classifyCard(card: RawCard): ActivityType {
+  const combined = `${card.title} ${card.description}`.toLowerCase();
+  if (CARD_IGNORE_STRINGS.some((s) => combined.includes(s))) return ACTIVITY_TYPE.IGNORED;
   if (card.source === CARD_SOURCE.DAILY_SET) return ACTIVITY_TYPE.DAILY_SET;
   if (
     EXPLORE_ON_BING_RE.test(card.title) ||
