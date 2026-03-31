@@ -17,6 +17,7 @@ export interface SearchCounter {
 }
 
 export const PHASE = {
+  WARMUP: 'warmup',
   EXPLORE: 'explore',
   DAILY: 'daily',
   FARM: 'farm',
@@ -25,6 +26,7 @@ export const PHASE = {
 export type PhaseKey = (typeof PHASE)[keyof typeof PHASE];
 
 export const PHASE_TIME_LABEL: Record<PhaseKey, string> = {
+  warmup: '',
   explore: 'this week',
   daily: 'today',
   farm: 'today',
@@ -36,6 +38,7 @@ export interface PhaseProgress {
 }
 
 export interface PhaseProgressMap {
+  warmup: PhaseProgress | null;
   explore: PhaseProgress | null;
   daily: PhaseProgress | null;
   farm: PhaseProgress | null;
@@ -85,8 +88,8 @@ export const INITIAL_STATE: AppState = {
   header: {
     headerMessage: 'idle',
     activePhase: null,
-    phases: { explore: null, daily: null, farm: null },
-    phasePoints: { explore: 0, daily: 0, farm: 0 },
+    phases: { warmup: null, explore: null, daily: null, farm: null },
+    phasePoints: { warmup: 0, explore: 0, daily: 0, farm: 0 },
   },
   debug: {
     debugLog: [],

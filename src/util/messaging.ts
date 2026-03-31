@@ -2,12 +2,20 @@ import type { PhaseKey, PhaseProgress, PhaseProgressMap, PhasePointsMap } from '
 
 export type { PhaseKey, PhaseProgressMap };
 
+/** Orchestrator → updateHeader input. */
 export interface ProgressPayload {
-  headerMessage?: string;
-  activePhase?: PhaseKey | null;
-  phaseProgress?: PhaseProgress;
-  phases?: PhaseProgressMap;
-  phasePoints?: Partial<PhasePointsMap>;
+  headerMessage: string;
+  activePhase: PhaseKey | null;
+  phaseProgress: PhaseProgress;
+  phasePoints: Partial<PhasePointsMap>;
+}
+
+/** Background → Popup broadcast (merged state). */
+export interface ProgressBroadcast {
+  headerMessage: string;
+  activePhase: PhaseKey | null;
+  phases: PhaseProgressMap;
+  phasePoints: PhasePointsMap;
 }
 
 // ── Debug payload types ────────────────────────────────────────────────────
@@ -76,7 +84,7 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.USER_ACTION_COMPLETE }
   // Background → Popup (broadcast)
   | { action: typeof MSG_ACTION.COMPLETE }
-  | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressPayload)
+  | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressBroadcast)
   | { action: typeof MSG_ACTION.DEBUG_ENTRY; entry: DebugEntry }
   | { action: typeof MSG_ACTION.LINGER_WAITING }
   | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: Failure }
