@@ -272,8 +272,9 @@ btnStart.addEventListener('click', () => {
 });
 
 btnStop.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: MSG_ACTION.STOP });
-  render({ isRunning: false, headerMessage: 'Stopped' });
+  chrome.runtime.sendMessage({ action: MSG_ACTION.STOP }).then((state: AppState) => {
+    if (state) renderState(state);
+  });
 });
 
 btnDone.addEventListener('click', () => {
