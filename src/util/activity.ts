@@ -1,4 +1,5 @@
 import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
+import { loadState, setState } from './state.js';
 
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
@@ -13,7 +14,7 @@ export const CARD_SOURCE = {
 } as const;
 export type CardSource = (typeof CARD_SOURCE)[keyof typeof CARD_SOURCE];
 
-export interface ExtractionResult {
+export interface ActivityState {
   allActivities: Activity[];
   loggedIn: boolean;
   rewardsTabId: number | null;
@@ -96,6 +97,18 @@ function generateSearchQuery(title: string, description: string): string {
 
 export function findRetryQuery(query: string): string | null {
   return VALIDATION_RETRY_QUERIES.find(({ pattern }) => pattern.test(query))?.retryQuery ?? null;
+}
+
+export async function markActivityCompleted(activityId: string): Promise<void> {
+  const state = await loadState();
+  const activityState = state.activityState;
+  if (!activityState) return;
+
+  const activity = activityState.allActivities.find((a) => a.id === activityId);
+  if (activity) {
+    activity.cardState = CardState.Completed;
+    await setState({ activityState });
+  }
 }
 
 // Maps each activity to a query (may be null if none could be generated).

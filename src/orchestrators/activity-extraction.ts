@@ -7,7 +7,7 @@ import { TIMEOUTS } from '../util/timing.js';
 import { setState } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { classifyCard, CardState, ACTIVITY_TYPE } from '../util/activity.js';
-import type { RawCard, Activity, ExtractionResult } from '../util/activity.js';
+import type { RawCard, Activity, ActivityState } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
 function sumCompleted(activities: Activity[]): { count: number; points: number } {
@@ -40,7 +40,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       rewardsTab = await openTab(REWARDS_URL, false);
     } catch {
       await ctx.fail('navigation', 'Failed to open rewards tab');
-      await setState({ extractionResult: this.emptyResult(null) });
+      await setState({ activityState: this.emptyResult(null) });
       return;
     }
 
@@ -64,11 +64,11 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       `Extracted ${result.allActivities.length} cards: ${explore} explore, ${daily} daily, ${ignored} ignored`,
     );
 
-    await setState({ extractionResult: result });
+    await setState({ activityState: result });
   }
 
-  private waitForExtraction(ctx: Context, rewardsTabId: number): Promise<ExtractionResult> {
-    return new Promise<ExtractionResult>((resolve) => {
+  private waitForExtraction(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
+    return new Promise<ActivityState>((resolve) => {
       const cleanup = () => {
         clearTimeout(timeout);
         chrome.tabs.onUpdated.removeListener(onTabUpdated);
@@ -140,7 +140,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
     });
   }
 
-  private emptyResult(rewardsTabId: number | null): ExtractionResult {
+  private emptyResult(rewardsTabId: number | null): ActivityState {
     return {
       allActivities: [],
       loggedIn: true,

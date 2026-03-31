@@ -2,13 +2,18 @@
 // page and waiting for the resulting search tab to load and dwell.
 
 import { lingerOnPage } from '../util/timing.js';
-import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { PHASE, loadState } from '../util/state.js';
 
-import { buildSearchList, findRetryQuery, ACTIVITY_TYPE, CardState } from '../util/activity.js';
+import {
+  buildSearchList,
+  findRetryQuery,
+  markActivityCompleted,
+  ACTIVITY_TYPE,
+  CardState,
+} from '../util/activity.js';
 import type { MappedActivity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
@@ -19,7 +24,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const extraction = (await loadState()).extractionResult ?? null;
+    const extraction = (await loadState()).activityState ?? null;
     if (!extraction || !extraction.rewardsTabId) {
       await ctx.dbg(DBG.WARN, 'No extraction result — skipping explore on bing');
       return;
@@ -40,9 +45,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
     const mapped = buildSearchList(activities);
     await ctx.setState({ mappedActivities: mapped });
-    chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {
-      /* popup may be closed */
-    });
 
     const unmapped = mapped.filter((m) => m.query === null).length;
     await ctx.dbg(
@@ -99,6 +101,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
         );
         if (!succeeded) continue;
 
+        await markActivityCompleted(mapped[i].id);
         earnedPts += mapped[i].points;
         const completed = i + 1;
         await ctx.dbg(
