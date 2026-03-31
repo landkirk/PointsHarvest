@@ -31,6 +31,16 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     }
 
     const { rewardsTabId, alreadyCompletedCount, alreadyCompletedPoints } = extraction;
+
+    const rewardsTabExists = await chrome.tabs.get(rewardsTabId).then(
+      () => true,
+      () => false,
+    );
+    if (!rewardsTabExists) {
+      await ctx.fail('navigation', 'Rewards tab no longer exists — cannot run explore on bing');
+      return;
+    }
+
     const activities = extraction.allActivities.filter(
       (a) =>
         a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING && a.cardState === CardState.Actionable,
@@ -61,72 +71,62 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       phasePoints: { explore: earnedPts },
     });
 
-    try {
-      for (let i = 0; i < mapped.length; i++) {
-        this.checkStopped();
+    for (let i = 0; i < mapped.length; i++) {
+      this.checkStopped();
 
-        const { query, title } = mapped[i];
+      const { query, title } = mapped[i];
 
-        if (!query) {
-          await ctx.dbg(
-            DBG.WARN,
-            `Skipping card ${i + 1} — no query could be generated for "${title}"`,
-          );
-          continue;
-        }
-
-        const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
-        await ctx.updateHeader({
-          headerMessage: `Searching: "${label}"`,
-          activePhase: PHASE.EXPLORE,
-          phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
-          phasePoints: { explore: earnedPts },
-        });
+      if (!query) {
         await ctx.dbg(
-          DBG.INFO,
-          `[${mapped[i].id}] [${i + 1}/${mapped.length}] Clicking card: "${title}"`,
+          DBG.WARN,
+          `Skipping card ${i + 1} — no query could be generated for "${title}"`,
         );
-
-        const retryQuery = findRetryQuery(query);
-        const succeeded = await this.executeActivityWithValidation(
-          ctx,
-          () => this.runSearchForActivity(ctx, mapped[i], query),
-          retryQuery ? () => this.runSearchForActivity(ctx, mapped[i], retryQuery) : null,
-          {
-            retryLogMessage: `Validation failed — retrying with lookup query: "${retryQuery}"`,
-            lingerLabel: 'explore on bing validation retry',
-            failCategory: 'validation',
-            failMessage: `Validation failed after retry for: "${query}"`,
-            noRetryFailMessage: `Validation failed — no lookup query for: "${query}"`,
-          },
-        );
-        if (!succeeded) continue;
-
-        await markActivityCompleted(mapped[i].id);
-        earnedPts += mapped[i].points;
-        const completed = i + 1;
-        await ctx.dbg(
-          DBG.SUCCESS,
-          `[${mapped[i].id}] Search ${completed}/${mapped.length} complete`,
-        );
-        this.checkStopped();
-
-        await ctx.updateHeader({
-          headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
-          activePhase: PHASE.EXPLORE,
-          phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
-          phasePoints: { explore: earnedPts },
-        });
-
-        if (i < mapped.length - 1) {
-          await lingerOnPage('between explore on bing searches');
-          this.checkStopped();
-        }
+        continue;
       }
-    } finally {
-      if (this.rewardsTabId) {
-        this.closeTab(this.rewardsTabId);
-        this.rewardsTabId = null;
+
+      const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
+      await ctx.updateHeader({
+        headerMessage: `Searching: "${label}"`,
+        activePhase: PHASE.EXPLORE,
+        phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
+        phasePoints: { explore: earnedPts },
+      });
+      await ctx.dbg(
+        DBG.INFO,
+        `[${mapped[i].id}] [${i + 1}/${mapped.length}] Clicking card: "${title}"`,
+      );
+
+      const retryQuery = findRetryQuery(query);
+      const succeeded = await this.executeActivityWithValidation(
+        ctx,
+        () => this.runSearchForActivity(ctx, mapped[i], query),
+        retryQuery ? () => this.runSearchForActivity(ctx, mapped[i], retryQuery) : null,
+        {
+          retryLogMessage: `Validation failed — retrying with lookup query: "${retryQuery}"`,
+          lingerLabel: 'explore on bing validation retry',
+          failCategory: 'validation',
+          failMessage: `Validation failed after retry for: "${query}"`,
+          noRetryFailMessage: `Validation failed — no lookup query for: "${query}"`,
+        },
+      );
+      if (!succeeded) continue;
+
+      await markActivityCompleted(mapped[i].id);
+      earnedPts += mapped[i].points;
+      const completed = i + 1;
+      await ctx.dbg(DBG.SUCCESS, `[${mapped[i].id}] Search ${completed}/${mapped.length} complete`);
+      this.checkStopped();
+
+      await ctx.updateHeader({
+        headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
+        activePhase: PHASE.EXPLORE,
+        phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
+        phasePoints: { explore: earnedPts },
+      });
+
+      if (i < mapped.length - 1) {
+        await lingerOnPage('between explore on bing searches');
+        this.checkStopped();
       }
     }
   }
@@ -161,10 +161,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       : r.status === ValidationStatus.Incomplete
         ? false
         : null;
-  }
-
-  protected async _onStop(_ctx: Context): Promise<void> {
-    this.rewardsTabId = null;
   }
 }
 

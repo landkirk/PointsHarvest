@@ -29,6 +29,16 @@ class CompleteDailySets extends OrchestratorBase {
     }
 
     const { rewardsTabId, dailyAlreadyCompletedCount, dailyAlreadyCompletedPoints } = extraction;
+
+    const rewardsTabExists = await chrome.tabs.get(rewardsTabId).then(
+      () => true,
+      () => false,
+    );
+    if (!rewardsTabExists) {
+      await ctx.fail('navigation', 'Rewards tab no longer exists — cannot run daily sets');
+      return;
+    }
+
     const dailySets = extraction.allActivities.filter(
       (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET && a.cardState === CardState.Actionable,
     );
