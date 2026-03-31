@@ -80,4 +80,4 @@ All cross-context communication uses `chrome.runtime.sendMessage`. Constants liv
 - Popup ↔ Background: `START`, `STOP`, `GET_STATE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`
 - Background ↔ Rewards content: `START_EXTRACT`, `CLICK_CARD` (optional `target: MSG_TARGET.DAILY_SET`), `VALIDATE_ACTIVITY`, `GET_COUNTERS`
 - Background → Search content: `PERFORM_SEARCH`
-- Background → Popup (push): `PROGRESS`, `COMPLETE`, `ACTIVITIES_MAPPED`, `DEBUG_ENTRY`, `LINGER_WAITING`
+- Background → Popup (push): `PROGRESS`, `COMPLETE`, `DEBUG_ENTRY`, `LINGER_WAITING`

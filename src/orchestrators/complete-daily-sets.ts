@@ -11,10 +11,6 @@ import { lingerOnTab } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
 
-const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
-const POLL_TIMEOUT_MS = 2 * 60 * 1000; // 2 min — poll is a single click
-const QUIZ_TIMEOUT_MS = 10 * 60 * 1000; // 10 min — quiz/test/puzzle
-
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
   private lingerTabId: number | null = null;
@@ -99,16 +95,15 @@ class CompleteDailySets extends OrchestratorBase {
     rewardsTabId: number,
     activity: Activity,
   ): Promise<boolean> {
-    const { title, description } = activity;
+    const { title } = activity;
     const label = title.slice(0, 60);
     const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
     if (!t) return false;
 
     this.checkStoppedOrCloseTab(t.id);
 
-    if (USER_ACTION_RE.test(title) || USER_ACTION_RE.test(description)) {
+    if (activity.requiresUserAction) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
-      const isPoll = /\bpoll\b/i.test(title) || /\bpoll\b/i.test(description);
       await lingerOnTab.run(ctx, t.id, {
         onResolve: (r) => {
           this.lingerResolve = r;
@@ -116,7 +111,7 @@ class CompleteDailySets extends OrchestratorBase {
         onTabId: (id) => {
           this.lingerTabId = id;
         },
-        timeoutMs: isPoll ? POLL_TIMEOUT_MS : QUIZ_TIMEOUT_MS,
+        timeoutMs: activity.userActionTimeoutMs,
       });
     } else {
       await lingerOnPage('daily set activity');

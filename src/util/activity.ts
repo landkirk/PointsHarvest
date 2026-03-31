@@ -31,6 +31,10 @@ export interface Activity {
   activityType: ActivityType;
   cardState: CardState;
   points: number;
+  searchQuery?: string | null;
+  fallbackQuery?: string | null;
+  requiresUserAction: boolean;
+  userActionTimeoutMs: number;
 }
 
 /** Raw card data sent from content script before classification. */
@@ -58,10 +62,6 @@ export function classifyCard(card: RawCard): ActivityType {
     return ACTIVITY_TYPE.EXPLORE_ON_BING;
   }
   return ACTIVITY_TYPE.IGNORED;
-}
-
-export interface MappedActivity extends Activity {
-  query: string | null;
 }
 
 export const enum CardState {
@@ -111,12 +111,29 @@ export async function markActivityCompleted(activityId: string): Promise<void> {
   }
 }
 
-// Maps each activity to a query (may be null if none could be generated).
-export function buildSearchList(activities: Activity[]): MappedActivity[] {
-  return activities.map(({ id, title, description, activityType, cardState, points }) => {
-    const query = generateSearchQuery(title, description);
-    return query
-      ? { id, title, description, activityType, cardState, points, query }
-      : { id, title, description, activityType, cardState, points, query: null };
-  });
+const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
+const POLL_TIMEOUT_MS = 2 * 60 * 1000; // 2 min — poll is a single click
+const QUIZ_TIMEOUT_MS = 10 * 60 * 1000; // 10 min — quiz/test/puzzle
+
+/** Enriches each activity with user-action metadata derived from its title/description. */
+export function enrichUserActions(activities: Activity[]): Activity[] {
+  for (const activity of activities) {
+    const needsAction =
+      USER_ACTION_RE.test(activity.title) || USER_ACTION_RE.test(activity.description);
+    const isPoll =
+      needsAction && (/\bpoll\b/i.test(activity.title) || /\bpoll\b/i.test(activity.description));
+    activity.requiresUserAction = needsAction;
+    activity.userActionTimeoutMs = needsAction ? (isPoll ? POLL_TIMEOUT_MS : QUIZ_TIMEOUT_MS) : 0;
+  }
+  return activities;
+}
+
+/** Enriches each activity with a generated search query and fallback query (may be null if none could be generated). */
+export function enrichSearchQueries(activities: Activity[]): Activity[] {
+  for (const activity of activities) {
+    const q = generateSearchQuery(activity.title, activity.description);
+    activity.searchQuery = q || null;
+    activity.fallbackQuery = q ? findRetryQuery(q) : null;
+  }
+  return activities;
 }

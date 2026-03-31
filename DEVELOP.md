@@ -64,7 +64,7 @@ src/                    Source files (edit these)
     linger-on-tab.ts        Pause automation and wait for user to complete a tile
     validate-activity.ts    Confirm an activity is marked complete on the rewards page
   util/
-    activity.ts         Activity/MappedActivity types, CardState enum, buildSearchList()
+    activity.ts         Activity type, CardState enum, buildSearchList()
     config.ts           URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
     context.ts          createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
     debug.ts            Logging helpers (dbg, resetLog) and debug type definitions
@@ -236,10 +236,10 @@ Edit `src/util/activity.ts` → `generateSearchQuery`:
 7. Monitor the debug panel for extraction results, search queue, and event log
 
 ### Testing Without Running Searches
-To test activity extraction without running searches, add a return statement in `orchestrators/complete-explore-on-bing.ts` → `run` after the mapping step (after the `ACTIVITIES_MAPPED` message send):
+To test activity extraction without running searches, add a return statement in `orchestrators/complete-explore-on-bing.ts` → `run` after the mapping step (after `ctx.setState({ activityState: extraction })`):
 
 ```typescript
-chrome.runtime.sendMessage({ action: MSG_ACTION.ACTIVITIES_MAPPED }).catch(() => {});
+await ctx.setState({ activityState: extraction });
 return; // Stop here for testing
 ```
 
@@ -377,7 +377,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD` (optional `target: MSG_TARGET.DAILY_SET` to route to the daily-set element array), `VALIDATE_ACTIVITY` commands; `ACTIVITIES_FOUND` response)
 - `background.ts` ↔ breakdown tab: `GET_COUNTERS` request/response via `fetch-counters.ts`
 - `background.ts` → `search-content.ts`: one-way `PERFORM_SEARCH` command
-- Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `ACTIVITIES_MAPPED`, `DEBUG_ENTRY`, `COMPLETE`) pushed to popup during run
+- Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `DEBUG_ENTRY`, `COMPLETE`) pushed to popup during run
 
 ### Randomization Strategy
 - Triangular distribution (`randMs`) biases toward middle of range — more human-like

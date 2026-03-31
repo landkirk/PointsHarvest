@@ -1,7 +1,7 @@
 import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
 import { PHASE, PHASE_TIME_LABEL } from '../util/state.js';
 import type { AppState, PhaseKey, SearchCounter } from '../util/state.js';
-import type { Activity, MappedActivity } from '../util/activity.js';
+import type { Activity } from '../util/activity.js';
 import type { DebugEntry } from '../util/messaging.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────
@@ -72,7 +72,7 @@ export function renderActivitiesAndCounters(state: AppState): void {
   const dailyActivities = allActivities.filter((a) => a.activityType === ACTIVITY_TYPE.DAILY_SET);
   renderActivitySection(
     dbgExplore,
-    exploreToActivityData(exploreActivities, state.mappedActivities as MappedActivity[]),
+    exploreToActivityData(exploreActivities),
     LIST_SIZE.LARGE,
     phasePoints[PHASE.EXPLORE],
     PHASE.EXPLORE,
@@ -193,11 +193,8 @@ function buildScanStats(scan: Activity[]): {
   return stats;
 }
 
-function exploreToActivityData(
-  activities: Activity[],
-  mappedActivities: MappedActivity[],
-): ActivityDebugData {
-  if (activities.length === 0 && mappedActivities.length === 0) {
+function exploreToActivityData(activities: Activity[]): ActivityDebugData {
+  if (activities.length === 0) {
     return {
       items: [],
       emptyMessage: 'Run the extension to see extraction results.',
@@ -205,28 +202,27 @@ function exploreToActivityData(
     };
   }
 
-  const mappedIds = new Set(mappedActivities.map((a) => a.id));
-  const items: ActivityDebugItem[] = [
-    ...mappedActivities.map((a) => ({
+  const items: ActivityDebugItem[] = activities.map((a) => {
+    const isMapped = a.searchQuery !== undefined;
+    const skipReason = isMapped
+      ? a.searchQuery === null
+        ? CardState.Unknown
+        : null
+      : a.cardState !== CardState.Actionable
+        ? a.cardState
+        : null;
+    return {
       id: a.id,
       title: a.title || '(no title)',
-      description: a.description || undefined,
-      skipReason: a.query === null ? CardState.Unknown : null,
-      action: a.query ?? undefined,
+      description: isMapped ? a.description || undefined : undefined,
+      skipReason,
+      action: a.searchQuery ?? undefined,
       points: a.points,
-    })),
-    ...activities
-      .filter((c) => !mappedIds.has(c.id))
-      .map((c) => ({
-        id: c.id,
-        title: c.title || '(no title)',
-        skipReason: c.cardState !== CardState.Actionable ? c.cardState : null,
-        points: c.points,
-      })),
-  ];
+    };
+  });
 
   const stats = buildScanStats(activities);
-  const queue = mappedActivities.filter((m) => m.query).map((m) => m.query as string);
+  const queue = activities.filter((a) => a.searchQuery).map((a) => a.searchQuery as string);
 
   return { stats, items, emptyMessage: 'No activity cards found.', queue };
 }

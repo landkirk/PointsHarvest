@@ -5,7 +5,13 @@ import { DBG } from '../util/debug.js';
 import { TIMEOUTS } from '../util/timing.js';
 import { setState, loadState } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { classifyCard, CardState, ACTIVITY_TYPE } from '../util/activity.js';
+import {
+  classifyCard,
+  CardState,
+  ACTIVITY_TYPE,
+  enrichSearchQueries,
+  enrichUserActions,
+} from '../util/activity.js';
 import type { RawCard, Activity, ActivityState } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
@@ -105,6 +111,8 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
           points: card.points,
           cardState: card.cardState,
           activityType: classifyCard(card),
+          requiresUserAction: false,
+          userActionTimeoutMs: 0,
         }));
 
         const exploreActivities = allActivities.filter(
@@ -113,6 +121,9 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         const dailyActivities = allActivities.filter(
           (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET,
         );
+
+        enrichSearchQueries(exploreActivities);
+        enrichUserActions(dailyActivities);
 
         const exploreCompleted = sumCompleted(exploreActivities);
         const dailyCompleted = sumCompleted(dailyActivities);
