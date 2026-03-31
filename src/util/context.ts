@@ -23,21 +23,26 @@ export function createContext(): Context {
       return fail(category, message, getActiveOrchestrator()?.name);
     },
     async updateHeader(payload: ProgressPayload): Promise<void> {
-      const headerUpdate: Parameters<typeof setHeaderState>[0] = {};
-      if (payload.headerMessage !== undefined) headerUpdate.headerMessage = payload.headerMessage;
-      if (payload.activePhase !== undefined) headerUpdate.activePhase = payload.activePhase;
-      if (payload.activePhase != null && payload.phaseProgress !== undefined) {
-        headerUpdate.phases = { [payload.activePhase]: payload.phaseProgress };
-      }
-      if (payload.phasePoints !== undefined) {
-        headerUpdate.phasePoints = payload.phasePoints;
-      }
+      const { headerMessage, activePhase, phaseProgress, phasePoints } = payload;
+      const headerUpdate: Parameters<typeof setHeaderState>[0] = {
+        ...(headerMessage !== undefined && { headerMessage }),
+        ...(activePhase !== undefined && { activePhase }),
+        ...(activePhase != null &&
+          phaseProgress !== undefined && {
+            phases: { [activePhase]: phaseProgress },
+          }),
+        ...(phasePoints !== undefined && { phasePoints }),
+      };
       if (Object.keys(headerUpdate).length) await setHeaderState(headerUpdate);
 
-      // Cache is now up-to-date — read merged state for broadcast.
-      const { phases, phasePoints } = await getHeaderState();
+      const merged = await getHeaderState();
       chrome.runtime
-        .sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases, phasePoints })
+        .sendMessage({
+          action: MSG_ACTION.PROGRESS,
+          ...payload,
+          phases: merged.phases,
+          phasePoints: merged.phasePoints,
+        })
         .catch(() => {
           /* popup may be closed */
         });
