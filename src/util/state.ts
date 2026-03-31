@@ -1,6 +1,6 @@
 import type { DebugEntry } from './debug.js';
 import type { Failure } from './failures.js';
-import type { MappedActivity, ExtractionResult } from './activity.js';
+import type { MappedActivity, ActivityState } from './activity.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
@@ -60,7 +60,7 @@ export interface AppState {
   lastRunDate: string | null;
   warmUpQueries: string[];
   searchCounters: SearchCounter[];
-  extractionResult: ExtractionResult | null;
+  activityState: ActivityState | null;
   mappedActivities: MappedActivity[];
   seenScreenIds: string[];
   ignoredUpdateVersion: string | null;
@@ -76,7 +76,7 @@ export const INITIAL_STATE: AppState = {
   lastRunDate: null,
   warmUpQueries: [],
   searchCounters: [],
-  extractionResult: null,
+  activityState: null,
   mappedActivities: [],
   seenScreenIds: [],
   ignoredUpdateVersion: null,

@@ -53,7 +53,6 @@ export const MSG_ACTION = {
   // Background/steps → popup
   COMPLETE: 'complete',
   PROGRESS: 'progress',
-  ACTIVITIES_MAPPED: 'activitiesMapped',
   DEBUG_ENTRY: 'debugEntry',
   LINGER_WAITING: 'lingerWaiting',
   // Popup → background
@@ -78,7 +77,6 @@ export type AppMessage =
   // Background → Popup (broadcast)
   | { action: typeof MSG_ACTION.COMPLETE }
   | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressPayload)
-  | { action: typeof MSG_ACTION.ACTIVITIES_MAPPED }
   | { action: typeof MSG_ACTION.DEBUG_ENTRY; entry: DebugEntry }
   | { action: typeof MSG_ACTION.LINGER_WAITING }
   | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: Failure }

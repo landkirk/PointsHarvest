@@ -65,7 +65,7 @@ export function appendLogEntry(entry: DebugEntry): void {
 
 export function renderActivitiesAndCounters(state: AppState): void {
   const phasePoints = state.header.phasePoints;
-  const allActivities = state.extractionResult?.allActivities ?? [];
+  const allActivities = state.activityState?.allActivities ?? [];
   const exploreActivities = allActivities.filter(
     (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
   );
