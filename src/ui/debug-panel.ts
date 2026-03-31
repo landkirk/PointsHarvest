@@ -6,18 +6,9 @@ import type { DebugEntry } from '../util/messaging.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────
 
-interface ActivityDebugItem {
-  id?: string;
-  title: string;
-  description?: string;
-  skipReason?: CardState | null;
-  action?: string;
-  points?: number;
-}
-
 interface ActivityDebugData {
   stats?: { total: number; actionable: number; locked: number; completed: number };
-  items: ActivityDebugItem[];
+  items: Activity[];
   emptyMessage: string;
   queue?: string[];
 }
@@ -129,24 +120,7 @@ function renderActivitySection(
   } else {
     html +=
       `<div class="dbg-list dbg-list--${listSize}">` +
-      data.items
-        .map(
-          (item) => `
-      <div class="dbg-card" data-status="${esc(item.skipReason ?? CardState.Actionable)}">
-        <div class="card-title${item.skipReason ? ' skipped' : ''}">${item.id ? `<span class="card-id">${esc(item.id)}</span> ` : ''}${esc(item.title)}</div>
-        ${item.description ? `<div class="card-desc">${esc(item.description)}</div>` : ''}
-        ${
-          item.skipReason
-            ? `<div class="card-skip card-skip--${esc(item.skipReason)}">Skipped: ${esc(item.skipReason)}</div>`
-            : item.action
-              ? `<div class="card-query" title="${esc(item.action)}">→ ${esc(item.action)}</div>`
-              : ''
-        }
-        ${item.points !== undefined ? `<div class="card-points">${item.points} pts</div>` : ''}
-      </div>
-    `,
-        )
-        .join('') +
+      data.items.map(activityCardHtml).join('') +
       '</div>';
   }
 
@@ -201,52 +175,58 @@ function exploreToActivityData(activities: Activity[]): ActivityDebugData {
       queue: undefined,
     };
   }
-
-  const items: ActivityDebugItem[] = activities.map((a) => {
-    const isMapped = a.searchQuery !== undefined;
-    const skipReason = isMapped
-      ? a.searchQuery === null
-        ? CardState.Unknown
-        : null
-      : a.cardState !== CardState.Actionable
-        ? a.cardState
-        : null;
-    return {
-      id: a.id,
-      title: a.title || '(no title)',
-      description: isMapped ? a.description || undefined : undefined,
-      skipReason,
-      action: a.searchQuery ?? undefined,
-      points: a.points,
-    };
-  });
-
   const stats = buildScanStats(activities);
-  const queue = activities.filter((a) => a.searchQuery).map((a) => a.searchQuery as string);
-
-  return { stats, items, emptyMessage: 'No activity cards found.', queue };
+  const queue = activities
+    .filter((a) => a.searchQuery && a.cardState === CardState.Actionable)
+    .map((a) => a.searchQuery as string);
+  return { stats, items: activities, emptyMessage: 'No activity cards found.', queue };
 }
 
 function dailySetsToActivityData(activities: Activity[]): ActivityDebugData {
   if (activities.length === 0) {
     return { items: [], emptyMessage: 'Run the extension to see results.' };
   }
-
-  const items: ActivityDebugItem[] = activities.map((t) => ({
-    id: t.id,
-    title: t.title || '(no title)',
-    skipReason: t.cardState !== CardState.Actionable ? t.cardState : null,
-    points: t.points,
-  }));
-
   return {
     stats: buildScanStats(activities),
-    items,
+    items: activities,
     emptyMessage: 'No daily set activities found.',
   };
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
+
+function activityCardHtml(a: Activity): string {
+  const state: CardState | null = a.cardState !== CardState.Actionable ? a.cardState : null;
+
+  const descLine =
+    a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING && a.searchQuery !== undefined && a.description
+      ? `<div class="card-desc">${esc(a.description)}</div>`
+      : '';
+
+  let actionLine = '';
+  if (state) {
+    actionLine = `<div class="card-skip card-skip--${esc(state)}">Skipped: ${esc(state)}</div>`;
+  } else if (a.searchQuery) {
+    actionLine = `<div class="card-query" title="${esc(a.searchQuery)}">→ ${esc(a.searchQuery)}</div>`;
+    if (a.fallbackQuery) {
+      actionLine += `<div class="card-query-fb" title="${esc(a.fallbackQuery)}">↳ fallback: ${esc(a.fallbackQuery)}</div>`;
+    }
+  }
+
+  const userActionLine = a.requiresUserAction
+    ? `<div class="card-user-action">User action required (${a.userActionTimeoutMs / 1000}s)</div>`
+    : '';
+
+  return `
+    <div class="dbg-card" data-status="${esc(state ?? CardState.Actionable)}">
+      <div class="card-title${state ? ' skipped' : ''}"><span class="card-id">${esc(a.id)}</span> ${esc(a.title || '(no title)')}</div>
+      ${descLine}
+      ${actionLine}
+      ${userActionLine}
+      <div class="card-points">${a.points} pts</div>
+    </div>
+  `;
+}
 
 function queryListHtml(
   queries: string[],
