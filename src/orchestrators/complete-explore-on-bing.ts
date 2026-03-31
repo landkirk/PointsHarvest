@@ -99,6 +99,14 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
           failCategory: 'validation',
           failMessage: `Validation failed after retry for: "${query}"`,
           noRetryFailMessage: `Validation failed — no lookup query for: "${query}"`,
+          retryHeaderPayload: retryQuery
+            ? {
+                headerMessage: `Retrying: "${retryQuery.length > 40 ? retryQuery.slice(0, 40) + '…' : retryQuery}"`,
+                activePhase: PHASE.EXPLORE,
+                phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
+                phasePoints: { explore: earnedPts },
+              }
+            : undefined,
         },
       );
       if (!succeeded) continue;
