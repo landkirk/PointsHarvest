@@ -32,7 +32,7 @@ export interface Failure {
   orchestrator?: string;
 }
 
-import type { ActivityType, Activity } from './activity.js';
+import type { RawCard } from './activity.js';
 
 // ── Message actions ────────────────────────────────────────────────────────
 
@@ -86,18 +86,11 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.START_EXTRACT }
   | {
       action: typeof MSG_ACTION.ACTIVITIES_FOUND;
-      activities: Activity[];
-      dailySets?: Activity[];
+      cards: RawCard[];
       loggedIn: boolean;
-      domDebug?: unknown;
-      dailySetDebug?: unknown;
-      alreadyCompletedCount?: number;
-      dailyAlreadyCompletedCount?: number;
-      alreadyCompletedPoints?: number;
-      dailyAlreadyCompletedPoints?: number;
     }
-  | { action: typeof MSG_ACTION.CLICK_CARD; id: string; target?: ActivityType }
-  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; id: string; target?: ActivityType }
+  | { action: typeof MSG_ACTION.CLICK_CARD; id: string }
+  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; id: string }
   | { action: typeof MSG_ACTION.GET_COUNTERS }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string };

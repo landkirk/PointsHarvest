@@ -170,7 +170,7 @@ dist/                   Compiled output (generated — do not edit)
 
 ### util/debug.ts
 - `dbg(type, message, orchestrator?)` — appends to the in-memory log, persists to storage, and sends a `DEBUG_ENTRY` message to the popup; `orchestrator` is stored on the entry and shown in the event log
-- Exports types: `DebugEntry`, `ActivityScan`, `ActivityScanEntry`
+- Exports types: `DebugEntry`
 
 ### ui/popup.ts
 - Real-time UI updates via `chrome.runtime.onMessage`

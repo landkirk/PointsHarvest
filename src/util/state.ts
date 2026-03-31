@@ -1,6 +1,6 @@
-import type { DebugEntry, ActivityScan } from './debug.js';
+import type { DebugEntry } from './debug.js';
 import type { Failure } from './failures.js';
-import type { MappedActivity } from './activity.js';
+import type { MappedActivity, ExtractionResult } from './activity.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
@@ -52,17 +52,15 @@ export interface AppHeaderState {
 
 export interface AppDebugState {
   debugLog: DebugEntry[];
-  domDebug: ActivityScan | null;
-  dailySetDebug: ActivityScan | null;
 }
 
 export interface AppState {
   isRunning: boolean;
   isLingering: boolean;
-  currentIndex: number;
   lastRunDate: string | null;
   warmUpQueries: string[];
   searchCounters: SearchCounter[];
+  extractionResult: ExtractionResult | null;
   mappedActivities: MappedActivity[];
   seenScreenIds: string[];
   ignoredUpdateVersion: string | null;
@@ -75,10 +73,10 @@ export interface AppState {
 export const INITIAL_STATE: AppState = {
   isRunning: false,
   isLingering: false,
-  currentIndex: 0,
   lastRunDate: null,
   warmUpQueries: [],
   searchCounters: [],
+  extractionResult: null,
   mappedActivities: [],
   seenScreenIds: [],
   ignoredUpdateVersion: null,
@@ -92,12 +90,9 @@ export const INITIAL_STATE: AppState = {
   },
   debug: {
     debugLog: [],
-    domDebug: null,
-    dailySetDebug: null,
   },
 };
 
-let cache: AppState | null = null;
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(fn: () => Promise<void>): Promise<void> {
@@ -127,27 +122,15 @@ export function setActiveOrchestrator(instance: AnyOrchestrator | null): void {
   activeOrchestrator = instance;
 }
 
-/** Load from storage into cache. Returns the loaded state. */
+/** Load full state from storage. */
 export async function loadState(): Promise<AppState> {
   const stored = await chrome.storage.local.get();
-  cache = { ...INITIAL_STATE, ...stored } as AppState;
-  return cache;
+  return { ...INITIAL_STATE, ...stored } as AppState;
 }
 
-function ensureCache(): AppState {
-  if (!cache) {
-    console.warn('setState/setSubState called before loadState() — using INITIAL_STATE');
-    cache = { ...INITIAL_STATE };
-  }
-  return cache;
-}
-
-/** Write updates to both the cache and storage. */
+/** Write partial updates to storage. */
 export function setState(updates: Partial<AppState>): Promise<void> {
-  return enqueueWrite(() => {
-    Object.assign(ensureCache(), updates);
-    return chrome.storage.local.set(updates);
-  });
+  return enqueueWrite(() => chrome.storage.local.set(updates));
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -161,9 +144,9 @@ function setSubState<K extends 'header' | 'debug'>(
   key: K,
   updates: Partial<AppState[K]>,
 ): Promise<void> {
-  return enqueueWrite(() => {
-    const c = ensureCache();
-    const current = c[key];
+  return enqueueWrite(async () => {
+    const stored = await chrome.storage.local.get(key);
+    const current: Record<string, unknown> = stored[key] ?? INITIAL_STATE[key];
     const merged: Record<string, unknown> = { ...current };
     for (const [k, v] of Object.entries(updates)) {
       const cur = merged[k];
@@ -173,8 +156,7 @@ function setSubState<K extends 'header' | 'debug'>(
         merged[k] = v;
       }
     }
-    c[key] = merged as unknown as AppState[K];
-    return chrome.storage.local.set({ [key]: c[key] });
+    await chrome.storage.local.set({ [key]: merged });
   });
 }
 
@@ -189,38 +171,39 @@ export type HeaderStateUpdate = Partial<
 export const setHeaderState = (u: HeaderStateUpdate) =>
   setSubState('header', u as Partial<AppHeaderState>);
 
-/** Read current header state from cache (or initial if not yet loaded). */
-export function getHeaderState(): AppHeaderState {
-  return cache?.header ?? INITIAL_STATE.header;
+/** Read current header state from storage. */
+export async function getHeaderState(): Promise<AppHeaderState> {
+  const stored = await chrome.storage.local.get('header');
+  return (stored.header as AppHeaderState) ?? INITIAL_STATE.header;
 }
 
 /** Write debug-specific updates, merging into the debug subobject. */
 export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
 
-/** Read current debug log from cache. */
-export function getDebugLog(): DebugEntry[] {
-  return cache?.debug.debugLog ?? [];
+/** Read current debug log from storage. */
+export async function getDebugLog(): Promise<DebugEntry[]> {
+  const stored = await chrome.storage.local.get('debug');
+  return (stored.debug as AppDebugState)?.debugLog ?? [];
 }
 
-/** Read current failures from cache. */
-export function getFailures(): Failure[] {
-  return cache?.failures ?? [];
+/** Read current failures from storage. */
+export async function getFailures(): Promise<Failure[]> {
+  const stored = await chrome.storage.local.get('failures');
+  return (stored.failures as Failure[]) ?? [];
 }
 
 /** Reset all persistent state to initial values, with optional overrides applied atomically.
  *  seenScreenIds and ignoredUpdateVersion are preserved by default — pass explicit overrides to wipe them (e.g. purge). */
 export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
-  if (!cache) await loadState();
+  const current = await loadState();
   return enqueueWrite(() => {
-    const { seenScreenIds, ignoredUpdateVersion, skipWarmUp } = cache ?? { ...INITIAL_STATE };
     const newState = {
       ...INITIAL_STATE,
-      seenScreenIds,
-      ignoredUpdateVersion,
-      skipWarmUp,
+      seenScreenIds: current.seenScreenIds,
+      ignoredUpdateVersion: current.ignoredUpdateVersion,
+      skipWarmUp: current.skipWarmUp,
       ...overrides,
     };
-    cache = newState;
     return chrome.storage.local.set(newState);
   });
 }

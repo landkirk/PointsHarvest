@@ -35,7 +35,7 @@ export function createContext(): Context {
       if (Object.keys(headerUpdate).length) await setHeaderState(headerUpdate);
 
       // Cache is now up-to-date — read merged state for broadcast.
-      const { phases, phasePoints } = getHeaderState();
+      const { phases, phasePoints } = await getHeaderState();
       chrome.runtime
         .sendMessage({ action: MSG_ACTION.PROGRESS, ...payload, phases, phasePoints })
         .catch(() => {

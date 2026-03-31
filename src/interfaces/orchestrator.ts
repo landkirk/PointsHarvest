@@ -181,12 +181,10 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     rewardsTabId: number,
     id: string,
     label: string,
-    target?: string,
   ): Promise<(chrome.tabs.Tab & { id: number }) | null> {
     const captureTabPromise = this.captureNextTab();
 
-    const msg: Record<string, unknown> = { action: MSG_ACTION.CLICK_CARD, id };
-    if (target !== undefined) msg.target = target;
+    const msg = { action: MSG_ACTION.CLICK_CARD, id };
 
     const clickResult = await chrome.tabs
       .sendMessage(rewardsTabId, msg)

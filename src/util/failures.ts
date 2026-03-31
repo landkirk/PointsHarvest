@@ -20,7 +20,7 @@ export async function fail(
     message,
     orchestrator,
   };
-  const failures = [...getFailures(), entry];
+  const failures = [...(await getFailures()), entry];
   if (failures.length > MAX_FAILURES) failures.shift();
   await setState({ failures });
   chrome.runtime.sendMessage({ action: MSG_ACTION.FAILURE_ENTRY, failure: entry }).catch(() => {

@@ -1,6 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
 import { setDebugState, getDebugLog } from './state.js';
-import type { CardState } from './activity.js';
 
 export type { DebugType, DebugEntry } from './messaging.js';
 import type { DebugEntry, DebugType } from './messaging.js';
@@ -12,20 +11,6 @@ export const DBG = {
   SUCCESS: 'success',
 } as const satisfies Record<string, DebugType>;
 
-export interface ActivityScanEntry {
-  id: string;
-  skipReason: CardState | null;
-  snippet: string;
-  points: number;
-}
-
-export interface ActivityScan {
-  actionableActivities: number;
-  skippedLocked: number;
-  skippedCompleted: number;
-  activities: ActivityScanEntry[];
-}
-
 const MAX_LOG_ENTRIES = 100;
 
 /** Appends a typed log entry, persists to storage, and notifies the popup. */
@@ -36,7 +21,7 @@ export async function dbg(type: DebugType, message: string, orchestrator?: strin
     message,
     orchestrator,
   };
-  const log = [...getDebugLog(), entry];
+  const log = [...(await getDebugLog()), entry];
   if (log.length > MAX_LOG_ENTRIES) log.shift();
   await setDebugState({ debugLog: log });
   chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {
