@@ -80,6 +80,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
           headerMessage: `Searching: "${label}"`,
           activePhase: PHASE.EXPLORE,
           phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
+          phasePoints: { explore: earnedPts },
         });
         await ctx.dbg(
           DBG.INFO,

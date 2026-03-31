@@ -21,22 +21,26 @@ const bar = document.getElementById('progress-bar') as HTMLElement;
 const labelEl = document.getElementById('progress-label') as HTMLElement;
 const phaseRowsEl = document.getElementById('phase-rows') as HTMLElement;
 const phaseEls: Record<PhaseKey, HTMLElement> = {
+  warmup: document.getElementById('phase-warmup') as HTMLElement,
   explore: document.getElementById('phase-explore') as HTMLElement,
   daily: document.getElementById('phase-daily') as HTMLElement,
   farm: document.getElementById('phase-farm') as HTMLElement,
 };
 const phaseCountEls: Record<PhaseKey, HTMLElement> = {
+  warmup: phaseEls.warmup.querySelector('.phase-count') as HTMLElement,
   explore: phaseEls.explore.querySelector('.phase-count') as HTMLElement,
   daily: phaseEls.daily.querySelector('.phase-count') as HTMLElement,
   farm: phaseEls.farm.querySelector('.phase-count') as HTMLElement,
 };
 const phaseBarEls: Record<PhaseKey, HTMLElement> = {
+  warmup: phaseEls.warmup.querySelector('.phase-bar') as HTMLElement,
   explore: phaseEls.explore.querySelector('.phase-bar') as HTMLElement,
   daily: phaseEls.daily.querySelector('.phase-bar') as HTMLElement,
   farm: phaseEls.farm.querySelector('.phase-bar') as HTMLElement,
 };
 const totalPtsEl = document.getElementById('total-pts') as HTMLElement;
 const phaseEarnedEls: Record<PhaseKey, HTMLElement> = {
+  warmup: phaseEls.warmup.querySelector('.phase-earned') as HTMLElement,
   explore: phaseEls.explore.querySelector('.phase-earned') as HTMLElement,
   daily: phaseEls.daily.querySelector('.phase-earned') as HTMLElement,
   farm: phaseEls.farm.querySelector('.phase-earned') as HTMLElement,
@@ -266,7 +270,7 @@ btnStart.addEventListener('click', () => {
     isRunning: true,
     headerMessage: 'Starting…',
     activePhase: null,
-    phases: { explore: null, daily: null, farm: null },
+    phases: { warmup: null, explore: null, daily: null, farm: null },
   });
   renderFailures([]);
   if (debugCheck.checked) clearDebug();
