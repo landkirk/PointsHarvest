@@ -1,6 +1,7 @@
 export const VALIDATION_RETRY_QUERIES: { pattern: RegExp; retryQuery: string }[] = [
   { pattern: /specific stock/i, retryQuery: 'AMD stock' },
   { pattern: /favorite video game/i, retryQuery: 'Skyrim' },
+  { pattern: /favorite movie/i, retryQuery: 'Saving Private Ryan' },
   { pattern: /next adventure/i, retryQuery: 'Bahamas' },
   { pattern: /your team/i, retryQuery: 'Tampa Bay Lightning games' },
   { pattern: /your shopping list/i, retryQuery: 'eggs' },
