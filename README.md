@@ -82,7 +82,7 @@ src/                  Source files (edit these)
     linger-on-tab.ts       Pause automation and wait for user to complete a tile
     validate-activity.ts   Confirm an activity is marked complete on the rewards page
   util/
-    activity.ts       Activity/MappedActivity types, CardState enum, buildSearchList()
+    activity.ts       Activity type, CardState enum, buildSearchList()
     config.ts         URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
     context.ts        createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
     debug.ts          Logging helpers and debug type definitions

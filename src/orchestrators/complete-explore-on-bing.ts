@@ -7,14 +7,8 @@ import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { PHASE, loadState } from '../util/state.js';
 
-import {
-  buildSearchList,
-  findRetryQuery,
-  markActivityCompleted,
-  ACTIVITY_TYPE,
-  CardState,
-} from '../util/activity.js';
-import type { MappedActivity } from '../util/activity.js';
+import { markActivityCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
+import type { Activity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 
@@ -45,16 +39,13 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`,
     );
 
-    const mapped = buildSearchList(activities);
-    await ctx.setState({ mappedActivities: mapped });
-
-    const unmapped = mapped.filter((m) => m.query === null).length;
+    const unmapped = activities.filter((a) => a.searchQuery === null).length;
     await ctx.dbg(
       DBG.INFO,
-      `Mapped ${mapped.length - unmapped}/${mapped.length} activit${mapped.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`,
+      `Mapped ${activities.length - unmapped}/${activities.length} activit${activities.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`,
     );
 
-    const phaseTotal = alreadyCompletedCount + mapped.length;
+    const phaseTotal = alreadyCompletedCount + activities.length;
     let earnedPts = alreadyCompletedPoints;
     await ctx.updateHeader({
       headerMessage: `Explore on Bing (${alreadyCompletedCount} / ${phaseTotal})`,
@@ -63,12 +54,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       phasePoints: { explore: earnedPts },
     });
 
-    for (let i = 0; i < mapped.length; i++) {
+    for (let i = 0; i < activities.length; i++) {
       this.checkStopped();
 
-      const { query, title } = mapped[i];
+      const { id, searchQuery, title, fallbackQuery, points } = activities[i];
 
-      if (!query) {
+      if (!searchQuery) {
         await ctx.dbg(
           DBG.WARN,
           `Skipping card ${i + 1} — no query could be generated for "${title}"`,
@@ -76,32 +67,28 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
         continue;
       }
 
-      const label = query.length > 40 ? query.slice(0, 40) + '…' : query;
+      const label = searchQuery.length > 40 ? searchQuery.slice(0, 40) + '…' : searchQuery;
       await ctx.updateHeader({
         headerMessage: `Searching: "${label}"`,
         activePhase: PHASE.EXPLORE,
         phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
         phasePoints: { explore: earnedPts },
       });
-      await ctx.dbg(
-        DBG.INFO,
-        `[${mapped[i].id}] [${i + 1}/${mapped.length}] Clicking card: "${title}"`,
-      );
+      await ctx.dbg(DBG.INFO, `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`);
 
-      const retryQuery = findRetryQuery(query);
       const succeeded = await this.executeActivityWithValidation(
         ctx,
-        () => this.runSearchForActivity(ctx, mapped[i], query),
-        retryQuery ? () => this.runSearchForActivity(ctx, mapped[i], retryQuery) : null,
+        () => this.runSearchForActivity(ctx, activities[i], searchQuery),
+        fallbackQuery ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery) : null,
         {
-          retryLogMessage: `Validation failed — retrying with lookup query: "${retryQuery}"`,
+          retryLogMessage: `Validation failed — retrying with lookup query: "${fallbackQuery}"`,
           lingerLabel: 'explore on bing validation retry',
           failCategory: 'validation',
-          failMessage: `Validation failed after retry for: "${query}"`,
-          noRetryFailMessage: `Validation failed — no lookup query for: "${query}"`,
-          retryHeaderPayload: retryQuery
+          failMessage: `Validation failed after retry for: "${searchQuery}"`,
+          noRetryFailMessage: `Validation failed — no lookup query for: "${searchQuery}"`,
+          retryHeaderPayload: fallbackQuery
             ? {
-                headerMessage: `Retrying: "${retryQuery.length > 40 ? retryQuery.slice(0, 40) + '…' : retryQuery}"`,
+                headerMessage: `Retrying: "${fallbackQuery.length > 40 ? fallbackQuery.slice(0, 40) + '…' : fallbackQuery}"`,
                 activePhase: PHASE.EXPLORE,
                 phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
                 phasePoints: { explore: earnedPts },
@@ -111,10 +98,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       );
       if (!succeeded) continue;
 
-      await markActivityCompleted(mapped[i].id);
-      earnedPts += mapped[i].points;
+      await markActivityCompleted(id);
+      earnedPts += points;
       const completed = i + 1;
-      await ctx.dbg(DBG.SUCCESS, `[${mapped[i].id}] Search ${completed}/${mapped.length} complete`);
+      await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${completed}/${activities.length} complete`);
       this.checkStopped();
 
       await ctx.updateHeader({
@@ -124,7 +111,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
         phasePoints: { explore: earnedPts },
       });
 
-      if (i < mapped.length - 1) {
+      if (i < activities.length - 1) {
         await lingerOnPage('between explore on bing searches');
         this.checkStopped();
       }
@@ -133,8 +120,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
   private async runSearchForActivity(
     ctx: Context,
-    activity: MappedActivity,
-    query: string,
+    activity: Activity,
+    searchQuery: string,
   ): Promise<boolean | null> {
     const rewardsTabId = this.rewardsTabId;
     if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
@@ -151,7 +138,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     });
     await this.waitForTabLoad(searchTab.id, 30000);
     this.checkStoppedOrCloseTab(searchTab.id);
-    await performSearch.run(ctx, searchTab.id, query);
+    await performSearch.run(ctx, searchTab.id, searchQuery);
     this.closeTab(searchTab.id);
     this.checkStopped();
 
