@@ -12,7 +12,7 @@ import { removeTab } from '../util/tabs.js';
 class StopRun {
   async run(): Promise<void> {
     setIsActivelyRunning(false);
-    await setState({ isRunning: false });
+    await setState({ isRunning: false, isLingering: false });
     await getActiveOrchestrator()?.stop(createContext());
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) removeTab(rewardsTabId);

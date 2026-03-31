@@ -67,7 +67,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
         continue;
       }
 
-      const label = searchQuery.length > 40 ? searchQuery.slice(0, 40) + '…' : searchQuery;
+      const truncate = (s: string) => (s.length > 40 ? s.slice(0, 40) + '…' : s);
+      const label = truncate(searchQuery);
       await ctx.updateHeader({
         headerMessage: `Searching: "${label}"`,
         activePhase: PHASE.EXPLORE,
@@ -88,7 +89,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
           noRetryFailMessage: `Validation failed — no lookup query for: "${searchQuery}"`,
           retryHeaderPayload: fallbackQuery
             ? {
-                headerMessage: `Retrying: "${fallbackQuery.length > 40 ? fallbackQuery.slice(0, 40) + '…' : fallbackQuery}"`,
+                headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
                 activePhase: PHASE.EXPLORE,
                 phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
                 phasePoints: { explore: earnedPts },
