@@ -11,7 +11,7 @@ export const DBG = {
   SUCCESS: 'success',
 } as const satisfies Record<string, DebugType>;
 
-const MAX_LOG_ENTRIES = 100;
+const MAX_LOG_ENTRIES = 350;
 
 /** Appends a typed log entry, persists to storage, and notifies the popup. */
 export async function dbg(type: DebugType, message: string, orchestrator?: string): Promise<void> {
