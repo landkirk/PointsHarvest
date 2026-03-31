@@ -3,7 +3,7 @@ import { sleep, lingerOnPage } from '../util/timing.js';
 import { StoppableBase, StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
 import type { FailureCategory } from '../util/failures.js';
-import { MSG_ACTION } from '../util/messaging.js';
+import { MSG_ACTION, type ProgressPayload } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 
 export { StoppedError };
@@ -54,6 +54,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
       noRetryFailMessage?: string;
       navFailMessage?: string;
       retryNavFailMessage?: string;
+      retryHeaderPayload?: ProgressPayload;
     },
   ): Promise<boolean> {
     let result: boolean | null;
@@ -72,6 +73,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     }
 
     await ctx.dbg(DBG.WARN, opts.retryLogMessage);
+    if (opts.retryHeaderPayload) await ctx.updateHeader(opts.retryHeaderPayload);
 
     try {
       await this.retryAfterLinger(
