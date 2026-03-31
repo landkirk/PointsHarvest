@@ -63,6 +63,7 @@ export interface AppState {
   lastRunDate: string | null;
   warmUpQueries: string[];
   searchCounters: SearchCounter[];
+  rewardsTabId: number | null;
   activityState: ActivityState | null;
   mappedActivities: MappedActivity[];
   seenScreenIds: string[];
@@ -79,6 +80,7 @@ export const INITIAL_STATE: AppState = {
   lastRunDate: null,
   warmUpQueries: [],
   searchCounters: [],
+  rewardsTabId: null,
   activityState: null,
   mappedActivities: [],
   seenScreenIds: [],
