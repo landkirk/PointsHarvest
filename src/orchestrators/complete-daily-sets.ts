@@ -2,14 +2,13 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
-import { ACTIVITY_TYPE } from '../util/activity.js';
+import { ACTIVITY_TYPE, CardState } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { PHASE } from '../util/state.js';
+import { PHASE, loadState } from '../util/state.js';
 import { lingerOnTab } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
-import { fetchActivities } from '../steps/fetch-activities.js';
 import type { Activity } from '../util/activity.js';
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
@@ -23,18 +22,16 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const {
-      dailySets,
-      loggedIn,
-      rewardsTabId,
-      dailyAlreadyCompletedCount,
-      dailyAlreadyCompletedPoints,
-    } = await fetchActivities.run(ctx);
-    if (!loggedIn) {
-      await ctx.dbg(DBG.WARN, 'Daily sets: not logged in — skipping');
+    const extraction = (await loadState()).extractionResult ?? null;
+    if (!extraction || !extraction.rewardsTabId) {
+      await ctx.dbg(DBG.WARN, 'No extraction result — skipping daily sets');
       return;
     }
-    if (!rewardsTabId) return;
+
+    const { rewardsTabId, dailyAlreadyCompletedCount, dailyAlreadyCompletedPoints } = extraction;
+    const dailySets = extraction.allActivities.filter(
+      (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET && a.cardState === CardState.Actionable,
+    );
 
     this.openedTabIds.add(rewardsTabId);
 
@@ -112,13 +109,7 @@ class CompleteDailySets extends OrchestratorBase {
   ): Promise<boolean> {
     const { title, description } = activity;
     const label = title.slice(0, 60);
-    const t = await this.clickCardAndCaptureTab(
-      ctx,
-      rewardsTabId,
-      activity.id,
-      label,
-      ACTIVITY_TYPE.DAILY_SET,
-    );
+    const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
     if (!t) return false;
 
     this.checkStoppedOrCloseTab(t.id);

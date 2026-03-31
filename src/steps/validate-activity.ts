@@ -32,7 +32,6 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
       .sendMessage(rewardsTabId, {
         action: MSG_ACTION.VALIDATE_ACTIVITY,
         id: activity.id,
-        target: activity.activityType,
       })
       .catch(() => null);
 

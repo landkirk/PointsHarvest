@@ -1,7 +1,6 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import {
-  loadState,
   resetState,
   setHeaderState,
   getIsActivelyRunning,
@@ -9,11 +8,12 @@ import {
   setActiveOrchestrator,
 } from '../util/state.js';
 import { createContext } from '../util/context.js';
-import { NotLoggedInError } from '../steps/fetch-activities.js';
+import { NotLoggedInError } from '../orchestrators/activity-extraction.js';
 import type { Context } from '../util/context.js';
 import { StoppedError } from '../interfaces/orchestrator.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
+import { ActivityExtractionOrchestrator } from '../orchestrators/activity-extraction.js';
 import { CompleteExploreOnBing } from '../orchestrators/complete-explore-on-bing.js';
 import { CompleteDailySets } from '../orchestrators/complete-daily-sets.js';
 import { FarmPcSearches } from '../orchestrators/farm-pc-searches.js';
@@ -21,22 +21,9 @@ import { WarmUpSearches } from '../orchestrators/warm-up-searches.js';
 
 type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
 
-interface RunOptions {
-  today: string;
-  lastRunDate: string | null;
-  currentIndex: number;
-  alreadyDone: boolean;
-  skipWarmUp: boolean;
-}
-
 class StartRun {
   async run(skipWarmUp = false): Promise<void> {
     const today = new Date().toDateString();
-    const state = await loadState();
-    const { lastRunDate, currentIndex } = state;
-    const completedSearches = state.header.phases?.explore?.done ?? 0;
-    const alreadyDone =
-      lastRunDate === today && completedSearches > 0 && currentIndex >= completedSearches;
 
     await resetState({ isRunning: true, lastRunDate: today });
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
@@ -44,36 +31,33 @@ class StartRun {
     setIsActivelyRunning(true);
     const ctx = createContext();
 
-    this._executeRun(ctx, { today, lastRunDate, currentIndex, alreadyDone, skipWarmUp }) // fire and forget
+    this._executeRun(ctx, skipWarmUp) // fire and forget
       .catch((err) =>
         ctx.dbg(DBG.ERROR, `Fatal run error: ${err instanceof Error ? err.message : String(err)}`),
       );
   }
 
-  private async _executeRun(
-    ctx: Context,
-    { today, lastRunDate, currentIndex, alreadyDone, skipWarmUp }: RunOptions,
-  ): Promise<void> {
+  private async _executeRun(ctx: Context, skipWarmUp: boolean): Promise<void> {
     await ctx.dbg(DBG.INFO, 'Run started');
-
-    if (!getIsActivelyRunning()) return;
-
-    const startIndex = lastRunDate === today && currentIndex > 0 && !alreadyDone ? currentIndex : 0;
 
     if (!getIsActivelyRunning()) return;
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
+      const extraction = new ActivityExtractionOrchestrator();
       const exploreOnBing = new CompleteExploreOnBing();
       const dailySets = new CompleteDailySets();
       const farmPcSearches = new FarmPcSearches();
+
+      await this._runOrchestrator(ctx, extraction, () => extraction.run(ctx));
+
       if (skipWarmUp) {
         await ctx.dbg(DBG.INFO, 'Warm-up skipped');
       } else {
         const warmUp = new WarmUpSearches();
         await this._runOrchestrator(ctx, warmUp, () => warmUp.run(ctx));
       }
-      await this._runOrchestrator(ctx, exploreOnBing, () => exploreOnBing.run(ctx, startIndex));
+      await this._runOrchestrator(ctx, exploreOnBing, () => exploreOnBing.run(ctx));
       await this._runOrchestrator(ctx, dailySets, () => dailySets.run(ctx));
       await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));
     } catch (err) {

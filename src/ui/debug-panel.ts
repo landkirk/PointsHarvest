@@ -1,8 +1,7 @@
-import { CardState } from '../util/activity.js';
+import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
 import { PHASE, PHASE_TIME_LABEL } from '../util/state.js';
 import type { AppState, PhaseKey, SearchCounter } from '../util/state.js';
-import type { ActivityScan } from '../util/debug.js';
-import type { MappedActivity } from '../util/activity.js';
+import type { Activity, MappedActivity } from '../util/activity.js';
 import type { DebugEntry } from '../util/messaging.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────
@@ -66,16 +65,21 @@ export function appendLogEntry(entry: DebugEntry): void {
 
 export function renderActivitiesAndCounters(state: AppState): void {
   const phasePoints = state.header.phasePoints;
+  const allActivities = state.extractionResult?.allActivities ?? [];
+  const exploreActivities = allActivities.filter(
+    (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
+  );
+  const dailyActivities = allActivities.filter((a) => a.activityType === ACTIVITY_TYPE.DAILY_SET);
   renderActivitySection(
     dbgExplore,
-    exploreToActivityData(state.debug.domDebug, state.mappedActivities as MappedActivity[]),
+    exploreToActivityData(exploreActivities, state.mappedActivities as MappedActivity[]),
     LIST_SIZE.LARGE,
     phasePoints[PHASE.EXPLORE],
     PHASE.EXPLORE,
   );
   renderActivitySection(
     dbgDaily,
-    dailySetsToActivityData(state.debug.dailySetDebug),
+    dailySetsToActivityData(dailyActivities),
     LIST_SIZE.MEDIUM,
     phasePoints[PHASE.DAILY],
     PHASE.DAILY,
@@ -174,25 +178,26 @@ function renderActivitySection(
 
 // ── Adapters: map state to ActivityDebugData ────────────────────────────────
 
-function buildScanStats(scan: ActivityScan): {
+function buildScanStats(scan: Activity[]): {
   total: number;
   actionable: number;
   locked: number;
   completed: number;
 } {
-  return {
-    total: scan.actionableActivities + scan.activities.length,
-    actionable: scan.actionableActivities,
-    locked: scan.skippedLocked,
-    completed: scan.skippedCompleted,
-  };
+  const stats = { total: scan.length, actionable: 0, locked: 0, completed: 0 };
+  for (const a of scan) {
+    if (a.cardState === CardState.Actionable) stats.actionable++;
+    else if (a.cardState === CardState.Locked) stats.locked++;
+    else if (a.cardState === CardState.Completed) stats.completed++;
+  }
+  return stats;
 }
 
 function exploreToActivityData(
-  scan: ActivityScan | null,
+  activities: Activity[],
   mappedActivities: MappedActivity[],
 ): ActivityDebugData {
-  if (!scan && mappedActivities.length === 0) {
+  if (activities.length === 0 && mappedActivities.length === 0) {
     return {
       items: [],
       emptyMessage: 'Run the extension to see extraction results.',
@@ -200,42 +205,49 @@ function exploreToActivityData(
     };
   }
 
+  const mappedIds = new Set(mappedActivities.map((a) => a.id));
   const items: ActivityDebugItem[] = [
     ...mappedActivities.map((a) => ({
       id: a.id,
       title: a.title || '(no title)',
       description: a.description || undefined,
-      skipReason: a.unmatched ? CardState.Unknown : null,
-      action: a.unmatched ? undefined : (a.query ?? undefined),
+      skipReason: a.query === null ? CardState.Unknown : null,
+      action: a.query ?? undefined,
       points: a.points,
     })),
-    ...(scan?.activities ?? []).map((c) => ({
-      title: c.snippet,
-      skipReason: c.skipReason,
-      points: c.points,
-    })),
+    ...activities
+      .filter((c) => !mappedIds.has(c.id))
+      .map((c) => ({
+        id: c.id,
+        title: c.title || '(no title)',
+        skipReason: c.cardState !== CardState.Actionable ? c.cardState : null,
+        points: c.points,
+      })),
   ];
 
-  const stats = scan ? buildScanStats(scan) : undefined;
-
+  const stats = buildScanStats(activities);
   const queue = mappedActivities.filter((m) => m.query).map((m) => m.query as string);
 
   return { stats, items, emptyMessage: 'No activity cards found.', queue };
 }
 
-function dailySetsToActivityData(scan: ActivityScan | null): ActivityDebugData {
-  if (!scan) {
+function dailySetsToActivityData(activities: Activity[]): ActivityDebugData {
+  if (activities.length === 0) {
     return { items: [], emptyMessage: 'Run the extension to see results.' };
   }
 
-  const items: ActivityDebugItem[] = scan.activities.map((t) => ({
+  const items: ActivityDebugItem[] = activities.map((t) => ({
     id: t.id,
-    title: t.snippet || '(no title)',
-    skipReason: t.skipReason,
+    title: t.title || '(no title)',
+    skipReason: t.cardState !== CardState.Actionable ? t.cardState : null,
     points: t.points,
   }));
 
-  return { stats: buildScanStats(scan), items, emptyMessage: 'No daily set activities found.' };
+  return {
+    stats: buildScanStats(activities),
+    items,
+    emptyMessage: 'No daily set activities found.',
+  };
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
