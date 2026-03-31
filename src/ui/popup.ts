@@ -231,15 +231,15 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
       phases: msg.phases,
       phasePoints: msg.phasePoints,
     });
+    if (debugCheck.checked) {
+      chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
+        if (state) renderActivitiesAndCounters(state);
+      });
+    }
   }
   if (msg.action === MSG_ACTION.COMPLETE) {
     chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
       if (state) renderState(state);
-    });
-  }
-  if (msg.action === MSG_ACTION.ACTIVITIES_MAPPED && debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-      if (state) renderActivitiesAndCounters(state);
     });
   }
   if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {

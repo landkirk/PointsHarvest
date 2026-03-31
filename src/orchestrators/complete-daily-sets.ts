@@ -2,7 +2,7 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
-import { ACTIVITY_TYPE, CardState } from '../util/activity.js';
+import { ACTIVITY_TYPE, CardState, markActivityCompleted } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -22,7 +22,7 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     this.checkStopped();
-    const extraction = (await loadState()).extractionResult ?? null;
+    const extraction = (await loadState()).activityState ?? null;
     if (!extraction || !extraction.rewardsTabId) {
       await ctx.dbg(DBG.WARN, 'No extraction result — skipping daily sets');
       return;
@@ -71,6 +71,7 @@ class CompleteDailySets extends OrchestratorBase {
         });
         if (!succeeded) continue;
 
+        await markActivityCompleted(dailySets[i].id);
         earnedPts += dailySets[i].points;
         this.checkStopped();
         await ctx.dbg(
