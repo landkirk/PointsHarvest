@@ -3,7 +3,8 @@
   "version": "1.11.0",
   "private": true,
   "scripts": {
-    "build": "npm run lint:fix && npm run build:clean && npm run build:type-check && npm run build:main && npm run build:content && npm run build:assets",
+    "build": "npm run lint:fix && npm run build:clean && npm run build:type-check && npm run build:main && npm run build:content && npm run build:assets && npm run build:blog",
+    "build:blog": "node scripts/build-blog.js",
     "build:clean": "rm -rf dist",
     "build:type-check": "tsc --noEmit",
     "build:main": "esbuild src/background.ts src/ui/popup.ts src/ui/onboarding.ts --bundle --outdir=dist --platform=browser --target=es2022 --minify",
@@ -21,6 +22,8 @@
     "esbuild": "^0.27.7",
     "eslint": "^10.1.0",
     "eslint-config-prettier": "^10.1.8",
+    "gray-matter": "^4.0.3",
+    "marked": "^17.0.5",
     "prettier": "^3.8.1",
     "typescript": "^6.0.2",
     "typescript-eslint": "^8.58.0"
