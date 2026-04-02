@@ -226,9 +226,10 @@
 
     <div class="prose">
       <h2>What is Points Harvest?</h2>
-<p>Points Harvest is a free, open-source Chrome extension that automates your daily <a href="https://rewards.microsoft.com">Bing Rewards</a> routine. Instead of manually clicking through searches and daily activities every day, you load the extension, press Start, and let it run.</p>
+<p>Points Harvest is a free Chrome extension that automates your daily <a href="https://rewards.microsoft.com">Bing Rewards</a> routine. Instead of manually clicking through searches and daily activities every day, you load the extension, click <strong>Run today&#39;s searches</strong>, and let it run.</p>
 <p>It handles:</p>
 <ul>
+<li><strong>Warm-up searches</strong> — a few quick searches to prime your session before the real work begins</li>
 <li><strong>Explore on Bing</strong> activities — the &quot;Search on Bing&quot; cards on your rewards dashboard</li>
 <li><strong>Daily Set tiles</strong> — the trivia, polls, and quizzes (it waits for you on interactive ones)</li>
 <li><strong>PC search farming</strong> — runs web searches until your daily PC search cap is reached</li>
@@ -236,7 +237,7 @@
 <h2>Before You Install</h2>
 <p>You&#39;ll need:</p>
 <ul>
-<li>A Chromium-based browser (Chrome, Edge, Brave, Arc, etc.)</li>
+<li>A Chromium-based browser (Chrome, Brave, Arc, etc.)</li>
 <li>A Microsoft account enrolled in <a href="https://rewards.microsoft.com">Bing Rewards</a></li>
 <li>The latest release zip from <a href="https://pointsharvest.com">pointsharvest.com</a></li>
 </ul>
@@ -251,23 +252,27 @@
 <h3>4. Load the extension</h3>
 <p>Click <strong>Load unpacked</strong>, then select the folder you unzipped in Step 1.</p>
 <p>You should now see the Points Harvest icon in your browser toolbar.</p>
+<h3>5. Allow pop-ups from rewards.bing.com</h3>
+<p>Chrome blocks pop-ups by default, which prevents Points Harvest from opening activity tabs. You&#39;ll need to allow them before your first run.</p>
+<p>Go to <strong>Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects</strong> and add <code>rewards.bing.com</code> as an allowed site. See <a href="https://support.google.com/chrome/answer/95472">Google&#39;s guide to managing pop-ups</a> for step-by-step instructions.</p>
 <h2>Running Your First Session</h2>
 <ol>
 <li>Go to <a href="https://rewards.bing.com">rewards.bing.com</a> and make sure you&#39;re signed in.</li>
-<li>Click the Points Harvest icon in your toolbar to open the popup.</li>
-<li>Press <strong>Start</strong>.</li>
+<li>Click the Points Harvest icon in your toolbar to open the side panel.</li>
+<li>Click <strong>Run today&#39;s searches</strong>.</li>
 </ol>
-<p>The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. Progress bars in the popup show which phase is currently running.</p>
+<p>The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. The side panel shows four phases — <strong>Warm-up</strong>, <strong>Explore on Bing</strong>, <strong>Daily Sets</strong>, and <strong>PC Searches</strong> — each with its own progress bar and points earned.</p>
 <blockquote>
-<p><strong>Note:</strong> For quiz and poll tiles in the Daily Set, Points Harvest will pause and wait for you to answer before continuing. These require human judgement and can&#39;t be automated reliably.</p>
+<p><strong>Note:</strong> For quiz and poll tiles in the Daily Set, Points Harvest will pause and activate the tab so you can complete it. A <strong>&quot;Done — I completed the action&quot;</strong> button appears in the side panel — click it when you&#39;re finished, or just close the tab, and the extension will continue.</p>
 </blockquote>
 <h2>How Long Does It Take?</h2>
-<p>A full run — Explore activities, Daily Set, and PC searches — typically completes in <strong>10–20 minutes</strong> depending on how many activities you have and the search delays built in to keep behavior natural.</p>
+<p>A full run — Explore activities, Daily Set, and PC searches — typically completes in <strong>2–5 minutes</strong> depending on how many activities you have and the search delays built in to keep behavior natural.</p>
 <h2>Tips</h2>
 <ul>
 <li><strong>Run once per day.</strong> Bing Rewards resets counters at midnight Pacific Time. Running more than once won&#39;t earn extra points.</li>
-<li><strong>Keep the browser open.</strong> Points Harvest needs an active browser session. You can minimize it, but don&#39;t close it while a run is in progress.</li>
-<li><strong>Check your streak.</strong> Make sure you&#39;re signed into the correct Microsoft account before starting.</li>
+<li><strong>Stay in the browser.</strong> Don&#39;t minimize the window while a run is in progress. Ideally, interact naturally with the pages as they open — scroll, click a search result, browse around. This looks more human and helps ensure points are credited.</li>
+<li><strong>Check your account.</strong> Make sure you&#39;re signed into the correct Microsoft account before starting.</li>
+<li><strong>You&#39;ll get a notification.</strong> A desktop notification appears when the run finishes, so you don&#39;t have to watch it the whole time.</li>
 </ul>
 <h2>Next Steps</h2>
 <p>That&#39;s it — you&#39;re set up. Enjoy your points on autopilot. If you run into any issues, check the <a href="https://pointsharvest.com/#faq">FAQ</a> on the homepage.</p>
