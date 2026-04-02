@@ -1,6 +1,12 @@
 import { MSG_ACTION } from './util/messaging.js';
 import type { AppMessage } from './util/messaging.js';
-import { loadState, resetState, getActiveOrchestrator } from './util/state.js';
+import {
+  loadState,
+  resetState,
+  setState,
+  setHeaderState,
+  getActiveOrchestrator,
+} from './util/state.js';
 import { StartRun, getActiveController } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
 
@@ -50,6 +56,14 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
     getActiveOrchestrator()?.onUserActionComplete();
+  }
+  if (msg.action === MSG_ACTION.RESET_STALE) {
+    setState({ isRunning: false }).then(() =>
+      setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
+    );
+  }
+  if (msg.action === MSG_ACTION.SET_PREFERENCE) {
+    setState(msg.updates);
   }
   return undefined;
 });

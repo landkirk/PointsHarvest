@@ -41,6 +41,7 @@ export interface Failure {
 }
 
 import type { RawCard } from './activity.js';
+import type { AppState } from './state.js';
 
 // ── Message actions ────────────────────────────────────────────────────────
 
@@ -63,6 +64,8 @@ export const MSG_ACTION = {
   DEBUG_ENTRY: 'debugEntry',
   // Popup → background
   USER_ACTION_COMPLETE: 'userActionComplete',
+  RESET_STALE: 'resetStale',
+  SET_PREFERENCE: 'setPreference',
   // Background → rewards content script (counter extraction)
   GET_COUNTERS: 'getCounters',
   FAILURE_ENTRY: 'failureEntry',
@@ -80,6 +83,11 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.PING }
   | { action: typeof MSG_ACTION.PURGE }
   | { action: typeof MSG_ACTION.USER_ACTION_COMPLETE }
+  | { action: typeof MSG_ACTION.RESET_STALE }
+  | {
+      action: typeof MSG_ACTION.SET_PREFERENCE;
+      updates: Partial<Pick<AppState, 'skipWarmUp' | 'ignoredUpdateVersion'>>;
+    }
   // Background → Popup (broadcast)
   | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressBroadcast)
   | { action: typeof MSG_ACTION.DEBUG_ENTRY; entry: DebugEntry }
