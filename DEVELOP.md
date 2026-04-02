@@ -301,6 +301,19 @@ Create `src/ui/screens/changelog-X.Y.Z.html` with a `<ul>` of **customer-facing*
 - `manifest.json` → `"version"`
 - `package.json` → `"version"`
 - `docs/index.html` → `LATEST_VERSION`
+- `docs/sitemap.xml` — keep in sync with the actual pages in `docs/`:
+  - Update `<lastmod>` on any `<url>` whose page content changed (use today's date, `YYYY-MM-DD`).
+  - For each new HTML page added to `docs/`, add a `<url>` block:
+    ```xml
+    <url>
+      <loc>https://pointsharvest.com/page-name.html</loc>
+      <lastmod>YYYY-MM-DD</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.8</priority>
+    </url>
+    ```
+    Use `priority="1.0"` only for the homepage. Use `0.8` for other top-level pages.
+  - For each HTML page removed from `docs/`, delete its corresponding `<url>` block from the sitemap.
 
 ### 5. Update the screens registry
 
