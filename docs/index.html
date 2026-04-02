@@ -64,6 +64,46 @@
     .nav-btn { padding: 0.35rem 0.9rem; font-size: 0.82rem; }
     .nav-links .nav-btn, .nav-links .nav-btn:hover { color: #000; text-decoration: none; }
 
+    /* FAQ */
+    .faq { display: flex; flex-direction: column; gap: 0.75rem; }
+    details {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.2s;
+    }
+    details:hover { border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); }
+    details[open] { border-color: var(--accent); }
+    summary {
+      padding: 1rem 1.25rem;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after {
+      content: '+';
+      font-size: 1.2rem;
+      font-weight: 300;
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-left: 1rem;
+      transition: transform 0.2s;
+    }
+    details[open] summary::after { content: '−'; }
+    details .faq-body {
+      padding: 0 1.25rem 1rem;
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+    details .faq-body p + p { margin-top: 0.5rem; }
+
     /* HERO */
     .hero {
       max-width: 720px;
@@ -235,6 +275,7 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
       <a class="btn btn-primary nav-btn" href="#" data-download="nav" download>Download</a>
     </div>
   </nav>
@@ -317,8 +358,61 @@
     </div>
   </section>
 
+  <hr class="section-divider" />
+
+  <section class="section" id="faq">
+    <div class="section-label">FAQ</div>
+    <h2>Common questions</h2>
+    <div class="faq">
+
+      <details>
+        <summary>Is this an official Microsoft or Bing extension?</summary>
+        <div class="faq-body">
+          <p><strong>No.</strong></p>
+          <p>PointsHarvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
+        </div>
+      </details>
+
+      <details>
+        <summary>Will my Bing account get banned?</summary>
+        <div class="faq-body">
+          There is a risk — <a href="https://www.microsoft.com/en-us/servicesagreement/" target="_blank" rel="noopener">Microsoft's Rewards Terms of Service</a> prohibit automated point collection. PointsHarvest is transparent about this: the extension shows a warning on first launch. It uses human-like randomized timing and does not spoof anything, but no tool can guarantee your account is safe. Use it at your own discretion.
+        </div>
+      </details>
+
+      <details>
+        <summary>Is it really free? Any catch?</summary>
+        <div class="faq-body">
+          Yes, completely free. No account, no login, no subscription. The extension runs entirely on your device — there is no tracking or analytics of any kind. The only network calls it makes are to check for updates.
+        </div>
+      </details>
+
+      <details>
+        <summary>How many points can I earn per day?</summary>
+        <div class="faq-body">
+          It depends on your account tier, but PointsHarvest completes all "Explore on Bing" activity cards plus PC search queries up to the daily cap. On a typical account that covers the full daily allotment — usually 30–150 points, depending on your region and tier.
+        </div>
+      </details>
+
+      <details>
+        <summary>Does it need my Microsoft password?</summary>
+        <div class="faq-body">
+          No. PointsHarvest never asks for or stores your credentials. It operates entirely through your already-signed-in Chrome session on <code>rewards.bing.com</code> and <code>bing.com</code> — the same way you'd use those sites normally.
+        </div>
+      </details>
+
+      <details>
+        <summary>Does it work in Edge or Firefox?</summary>
+        <div class="faq-body">
+          Other <a href="https://en.wikipedia.org/wiki/Chromium_(web_browser)#Browsers_based_on_Chromium" target="_blank" rel="noopener">Chromium-based browsers</a> like Brave, Opera, and Vivaldi support unpacked extensions the same way Chrome does. Edge is more complex — it is primarily designed to install extensions from the Chrome Web Store rather than loading them unpacked. Firefox is not supported; it uses a different extension format.
+        </div>
+      </details>
+
+    </div>
+  </section>
+
   <footer>
-    <p>PointsHarvest is not affiliated with Microsoft or Bing.</p>
+    <p>PointsHarvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
   </footer>
 
   <script>
