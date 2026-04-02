@@ -77,7 +77,7 @@ class FarmPcSearches extends OrchestratorBase {
       }
       const query = shuffled[shuffleIndex++];
 
-      const tab = await this.tabs.openTabAndWait('https://www.bing.com', 30000, ctx.signal);
+      const tab = await this.tabs.openTabAndWait('https://www.bing.com', ctx.signal, 30000);
 
       await performSearch.run(ctx, tab.id, query);
       this.tabs.closeTab(tab.id);
