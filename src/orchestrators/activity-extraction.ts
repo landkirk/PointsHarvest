@@ -3,7 +3,7 @@ import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { TIMEOUTS } from '../util/timing.js';
-import { setState, loadState } from '../util/state.js';
+import { setState, loadState } from '../util/persistent-state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import {
   classifyCard,

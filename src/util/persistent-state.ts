@@ -1,7 +1,6 @@
 import type { DebugEntry } from './debug.js';
 import type { Failure } from './failures.js';
 import type { ActivityState } from './activity.js';
-import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
@@ -101,20 +100,6 @@ let writeQueue: Promise<void> = Promise.resolve();
 function enqueueWrite(fn: () => Promise<void>): Promise<void> {
   writeQueue = writeQueue.then(fn);
   return writeQueue;
-}
-
-// ── In-memory runtime state (not persisted) ────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyOrchestrator = OrchestratorBase<any[]>;
-
-let activeOrchestrator: AnyOrchestrator | null = null;
-
-export function getActiveOrchestrator(): AnyOrchestrator | null {
-  return activeOrchestrator;
-}
-export function setActiveOrchestrator(instance: AnyOrchestrator | null): void {
-  activeOrchestrator = instance;
 }
 
 /** Load full state from storage. */

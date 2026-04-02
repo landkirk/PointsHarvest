@@ -1,8 +1,9 @@
-import { setState, setHeaderState, getHeaderState, getActiveOrchestrator } from './state.js';
+import { setState, setHeaderState, getHeaderState } from './persistent-state.js';
+import { getActiveOrchestrator } from './runtime-state.js';
 import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
-import type { AppState } from './state.js';
+import type { AppState } from './persistent-state.js';
 import type { DebugType } from './debug.js';
 import type { FailureCategory } from './failures.js';
 import type { ProgressPayload } from './messaging.js';

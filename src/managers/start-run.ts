@@ -1,5 +1,6 @@
 import { DBG } from '../util/debug.js';
-import { resetState, loadState, setHeaderState, setActiveOrchestrator } from '../util/state.js';
+import { resetState, loadState, setHeaderState } from '../util/persistent-state.js';
+import { setActiveOrchestrator } from '../util/runtime-state.js';
 import { openTab, removeTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';

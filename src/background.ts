@@ -1,12 +1,7 @@
 import { MSG_ACTION } from './util/messaging.js';
 import type { AppMessage } from './util/messaging.js';
-import {
-  loadState,
-  resetState,
-  setState,
-  setHeaderState,
-  getActiveOrchestrator,
-} from './util/state.js';
+import { loadState, resetState, setState, setHeaderState } from './util/persistent-state.js';
+import { getActiveOrchestrator } from './util/runtime-state.js';
 import { StartRun, getActiveController } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
 
