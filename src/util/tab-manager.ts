@@ -1,7 +1,11 @@
-import { openTab, closeOwnedTabs, type TabLoadState } from './tabs.js';
 import { sleep, TIMEOUTS } from './timing.js';
 import { MSG_ACTION } from './messaging.js';
 import type { Context } from './context.js';
+
+interface TabLoadState {
+  pendingTabId: number | null;
+  pendingResolve: (() => void) | null;
+}
 
 function abortable<T>(
   signal: AbortSignal | undefined,
@@ -37,12 +41,21 @@ export class TabManager {
 
   // ── Orchestrator API ────────────────────────────────────────────────────
 
-  async openTabAndWait(
+  /** Open a new tab, track it, and return it. Throws if creation fails. */
+  async openTab(url: string): Promise<chrome.tabs.Tab & { id: number }> {
+    const tab = await chrome.tabs.create({ url, active: false }).catch(() => null);
+    if (!tab) throw new Error(`Failed to open tab: ${url}`);
+    if (tab.id === undefined) throw new Error('Opened tab has no ID');
+    this.openedTabIds.add(tab.id);
+    return tab as chrome.tabs.Tab & { id: number };
+  }
+
+  async openAndFocusTab(
     url: string,
     signal?: AbortSignal,
     timeoutMs = TIMEOUTS.TAB_LOAD,
   ): Promise<chrome.tabs.Tab & { id: number }> {
-    const tab = await this._openManagedTab(url);
+    const tab = await this.openTab(url);
     await this._waitForTabLoad(tab.id, timeoutMs, signal);
     this.focusTab(tab.id);
     return tab;
@@ -64,6 +77,19 @@ export class TabManager {
   /** Stop tracking a tab without closing it (e.g. user closed it manually). */
   untrackTab(tabId: number): void {
     this.openedTabIds.delete(tabId);
+  }
+
+  /** Check that a tab still exists; call ctx.fail and return false if it does not. */
+  async assertTabExists(ctx: Context, tabId: number, phase: string): Promise<boolean> {
+    const exists = await chrome.tabs.get(tabId).then(
+      () => true,
+      () => false,
+    );
+    if (!exists) {
+      await ctx.fail('navigation', `Rewards tab no longer exists — cannot run ${phase}`);
+      return false;
+    }
+    return true;
   }
 
   async clickCardAndCaptureTab(
@@ -131,17 +157,12 @@ export class TabManager {
   }
 
   async closeAll(): Promise<void> {
-    await closeOwnedTabs(this.openedTabIds);
+    const ids = [...this.openedTabIds];
+    this.openedTabIds.clear();
+    if (ids.length) chrome.tabs.remove(ids).catch(() => {});
   }
 
   // ── Private ─────────────────────────────────────────────────────────────
-
-  private async _openManagedTab(url: string): Promise<chrome.tabs.Tab & { id: number }> {
-    const tab = await openTab(url);
-    if (tab.id === undefined) throw new Error('Opened tab has no ID');
-    this.openedTabIds.add(tab.id);
-    return tab as chrome.tabs.Tab & { id: number };
-  }
 
   private async _waitForTabLoad(
     tabId: number,
