@@ -13,7 +13,6 @@ import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import { TabManager } from '../util/tab-manager.js';
 import { ActivityRunner } from '../util/activity-runner.js';
-import { assertRewardsTabExists } from '../util/tabs.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
@@ -38,7 +37,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     const { count: alreadyCompletedCount, points: alreadyCompletedPoints } =
       sumCompleted(exploreActivities);
 
-    if (!(await assertRewardsTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
+    if (!(await this.tabs.assertTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
 
     const activities = extraction.allActivities.filter(
       (a) =>
