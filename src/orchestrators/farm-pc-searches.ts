@@ -22,7 +22,7 @@ class FarmPcSearches extends OrchestratorBase {
   readonly name = 'PC search farming';
 
   async run(ctx: Context): Promise<void> {
-    const tab = await this.tabs.openTabAndWait(REWARDS_BREAKDOWN_URL, false);
+    const tab = await this.tabs.openTabAndWait(REWARDS_BREAKDOWN_URL);
     ctx.signal.throwIfAborted();
     await this._farm(ctx, tab.id);
   }
@@ -77,7 +77,7 @@ class FarmPcSearches extends OrchestratorBase {
       }
       const query = shuffled[shuffleIndex++];
 
-      const tab = await this.tabs.openTabAndWait('https://www.bing.com', true, 30000, ctx.signal);
+      const tab = await this.tabs.openTabAndWait('https://www.bing.com', 30000, ctx.signal);
 
       await performSearch.run(ctx, tab.id, query);
       this.tabs.closeTab(tab.id);
@@ -86,6 +86,7 @@ class FarmPcSearches extends OrchestratorBase {
       await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES, ctx.signal);
       ctx.signal.throwIfAborted();
 
+      this.tabs.focusTab(breakdownTabId);
       const updated = await fetchCounters.run(ctx, breakdownTabId);
       if (updated === null) {
         await ctx.fail('counter', 'PC farm aborted: counter fetch failed');
