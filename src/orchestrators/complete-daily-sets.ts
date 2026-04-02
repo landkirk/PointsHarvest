@@ -7,14 +7,13 @@ import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { PHASE, loadState } from '../util/state.js';
-import { lingerOnTab } from '../steps/linger-on-tab.js';
+import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
-  private lingerTabId: number | null = null;
-  private lingerResolve: (() => void) | null = null;
+  private currentLinger: LingerHandle | null = null;
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
@@ -109,15 +108,10 @@ class CompleteDailySets extends OrchestratorBase {
 
     if (activity.requiresUserAction) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
-      await lingerOnTab.run(ctx, t.id, {
-        onResolve: (r) => {
-          this.lingerResolve = r;
-        },
-        onTabId: (id) => {
-          this.lingerTabId = id;
-        },
-        timeoutMs: activity.userActionTimeoutMs,
-      });
+      const linger = lingerOnTab(ctx, t.id, activity.userActionTimeoutMs);
+      this.currentLinger = linger;
+      await linger.promise;
+      this.currentLinger = null;
     } else {
       await lingerOnPage('daily set activity', undefined, ctx.signal);
       this.closeTabAndThrowIfAborted(ctx, t.id);
@@ -129,19 +123,16 @@ class CompleteDailySets extends OrchestratorBase {
   }
 
   private _resolveLinger(closeTab: boolean): void {
-    if (!this.lingerResolve) return;
-    const resolve = this.lingerResolve;
-    this.lingerResolve = null;
-    if (this.lingerTabId) {
-      if (closeTab) this.closeTab(this.lingerTabId);
-      else this.openedTabIds.delete(this.lingerTabId);
-      this.lingerTabId = null;
-    }
-    resolve();
+    if (!this.currentLinger) return;
+    const linger = this.currentLinger;
+    this.currentLinger = null;
+    if (closeTab) this.closeTab(linger.tabId);
+    else this.openedTabIds.delete(linger.tabId);
+    linger.resolve();
   }
 
   onTabRemoved(tabId: number): void {
-    if (tabId === this.lingerTabId) this._resolveLinger(false);
+    if (this.currentLinger?.tabId === tabId) this._resolveLinger(false);
   }
 
   onUserActionComplete(): void {
