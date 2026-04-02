@@ -5,12 +5,7 @@ import type { AppState, PhasePointsMap } from '../util/state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
-import {
-  renderDebug,
-  clearDebug,
-  appendLogEntry,
-  renderActivitiesAndCounters,
-} from './debug-panel.js';
+import { renderDebug, appendLogEntry, renderActivitiesAndCounters } from './debug-panel.js';
 import { renderFailures, appendFailure } from './failure-banner.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
@@ -48,6 +43,7 @@ function phaseEarnedLabel(phase: PhaseKey, pts: number): string {
   return `+${pts} pts ${PHASE_TIME_LABEL[phase]}`;
 }
 
+const mainEl = document.getElementById('main') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
@@ -57,15 +53,6 @@ const debugPanel = document.getElementById('debug-panel') as HTMLElement;
 const btnPurge = document.getElementById('btn-purge') as HTMLElement;
 
 // ── Main UI ────────────────────────────────────────────────────────────────
-
-interface RenderState {
-  isRunning?: boolean;
-  isLingering?: boolean;
-  headerMessage?: string;
-  activePhase?: PhaseKey | null;
-  phases?: PhaseProgressMap | null;
-  phasePoints?: Partial<PhasePointsMap> | null;
-}
 
 function hasAnyPhases(phases: PhaseProgressMap | null | undefined): boolean {
   return !!phases && Object.values(phases).some((p) => p !== null);
@@ -109,20 +96,22 @@ function renderPhases(phases: PhaseProgressMap | null | undefined, activePhase?:
   }
 }
 
-function render({
-  isRunning,
-  isLingering,
-  headerMessage,
-  activePhase,
-  phases,
-  phasePoints,
-}: RenderState): void {
+async function render(): Promise<void> {
+  const state = (await chrome.runtime.sendMessage({
+    action: MSG_ACTION.GET_STATE,
+  })) as AppState;
+  if (!state) return;
+
+  const { isRunning, isLingering, header } = state;
+  const { headerMessage, activePhase, phases, phasePoints } = header;
+
   const activeProgress = activePhase ? (phases?.[activePhase] ?? null) : null;
   const completed = activeProgress?.done ?? 0;
   const total = activeProgress?.total ?? 0;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isDone = !isRunning && hasAnyPhases(phases);
 
+  skipWarmUpCheck.checked = state.skipWarmUp;
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
 
@@ -137,40 +126,32 @@ function render({
 
   renderPhases(phases, activePhase ?? undefined);
   renderPhasePoints(phasePoints);
+  renderFailures(state.failures ?? []);
+  if (debugCheck.checked) {
+    renderDebug(state);
+    renderActivitiesAndCounters(state);
+  }
 }
 
 // Load state on open. If storage says running, ping to confirm the service worker
 // is actually alive and running — if it was restarted, isActivelyRunning is false
 // and we reset rather than showing a permanently-stuck running state.
-function renderState(state: AppState): void {
-  skipWarmUpCheck.checked = state.skipWarmUp;
-  render({ ...state, ...state.header });
-  renderFailures(state.failures ?? []);
-  if (debugCheck.checked) renderDebug(state);
-}
-
-const mainEl = document.getElementById('main') as HTMLElement;
-
-function initPopup(): void {
+async function initPopup(): Promise<void> {
   mainEl.style.display = '';
-  chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-    if (!state) return;
-    if (!state.isRunning) {
-      renderState(state);
-      return;
+  const state = (await chrome.runtime.sendMessage({
+    action: MSG_ACTION.GET_STATE,
+  })) as AppState;
+  if (!state) return;
+  if (state.isRunning) {
+    const response = (await chrome.runtime.sendMessage({
+      action: MSG_ACTION.PING,
+    })) as { running: boolean };
+    if (!response?.running) {
+      await setState({ isRunning: false });
+      await setHeaderState({ headerMessage: 'Stopped', activePhase: null });
     }
-    chrome.runtime
-      .sendMessage({ action: MSG_ACTION.PING })
-      .then((response: { running: boolean }) => {
-        if (!response?.running) {
-          const stoppedHeader = { ...state.header, headerMessage: 'Stopped', activePhase: null };
-          setState({ isRunning: false });
-          setHeaderState(stoppedHeader);
-          state = { ...state, isRunning: false, header: stoppedHeader };
-        }
-        renderState(state);
-      });
-  });
+  }
+  await render();
 }
 
 function showPendingOrInit(state: AppState): void {
@@ -179,7 +160,7 @@ function showPendingOrInit(state: AppState): void {
   if (pending.length > 0) {
     showOnboarding(pending, initPopup);
   } else {
-    initPopup();
+    void initPopup();
   }
 }
 
@@ -188,7 +169,7 @@ Promise.all([
   checkForUpdate(),
 ]).then(async ([state, updateResult]) => {
   if (!state) {
-    initPopup();
+    void initPopup();
     return;
   }
   const updateStatusEl = document.getElementById('update-status') as HTMLElement;
@@ -223,34 +204,13 @@ Promise.all([
 
 chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
   if (msg.action === MSG_ACTION.PROGRESS) {
-    render({
-      isRunning: true,
-      headerMessage: msg.headerMessage,
-      activePhase: msg.activePhase,
-      phases: msg.phases,
-      phasePoints: msg.phasePoints,
-    });
-    if (debugCheck.checked) {
-      chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-        if (state) renderActivitiesAndCounters(state);
-      });
-    }
-  }
-  if (msg.action === MSG_ACTION.COMPLETE) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-      if (state) renderState(state);
-    });
+    void render();
   }
   if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
     appendLogEntry(msg.entry);
   }
   if (msg.action === MSG_ACTION.FAILURE_ENTRY) {
     appendFailure(msg.failure);
-  }
-  if (msg.action === MSG_ACTION.LINGER_WAITING) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-      if (state) renderState(state);
-    });
   }
 });
 
@@ -259,25 +219,14 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
 btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
   chrome.runtime.sendMessage({ action: MSG_ACTION.START, skipWarmUp: skipWarmUpCheck.checked });
-  render({
-    isRunning: true,
-    headerMessage: 'Starting…',
-    activePhase: null,
-    phases: { warmup: null, explore: null, daily: null, farm: null },
-  });
-  renderFailures([]);
-  if (debugCheck.checked) clearDebug();
 });
 
 btnStop.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: MSG_ACTION.STOP }).then((state: AppState) => {
-    if (state) renderState(state);
-  });
+  chrome.runtime.sendMessage({ action: MSG_ACTION.STOP });
 });
 
 btnDone.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.USER_ACTION_COMPLETE });
-  render({ isRunning: true, isLingering: false, headerMessage: 'Resuming…' });
 });
 
 btnPurge.addEventListener('click', () => {
@@ -299,8 +248,6 @@ skipWarmUpCheck.addEventListener('change', () => {
 debugCheck.addEventListener('change', () => {
   debugPanel.classList.toggle('open', debugCheck.checked);
   if (debugCheck.checked) {
-    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
-      if (state) renderDebug(state);
-    });
+    void render();
   }
 });
