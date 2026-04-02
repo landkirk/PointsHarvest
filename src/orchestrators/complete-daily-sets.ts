@@ -2,7 +2,7 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { lingerOnPage } from '../util/timing.js';
-import { ACTIVITY_TYPE, CardState, markActivityCompleted } from '../util/activity.js';
+import { ACTIVITY_TYPE, CardState, markActivityCompleted, sumCompleted } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -24,7 +24,12 @@ class CompleteDailySets extends OrchestratorBase {
       return;
     }
 
-    const { rewardsTabId, dailyAlreadyCompletedCount, dailyAlreadyCompletedPoints } = extraction;
+    const { rewardsTabId } = extraction;
+    const allDailyActivities = extraction.allActivities.filter(
+      (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET,
+    );
+    const { count: dailyAlreadyCompletedCount, points: dailyAlreadyCompletedPoints } =
+      sumCompleted(allDailyActivities);
 
     if (!(await this.assertRewardsTabExists(ctx, rewardsTabId, 'daily sets'))) return;
 

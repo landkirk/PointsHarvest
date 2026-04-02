@@ -7,26 +7,12 @@ import { setState, loadState } from '../util/state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import {
   classifyCard,
-  CardState,
   ACTIVITY_TYPE,
   enrichSearchQueries,
   enrichUserActions,
 } from '../util/activity.js';
 import type { RawCard, Activity, ActivityState } from '../util/activity.js';
 import type { Context } from '../util/context.js';
-
-function sumCompleted(activities: Activity[]): { count: number; points: number } {
-  return activities.reduce(
-    (acc, a) => {
-      if (a.cardState === CardState.Completed) {
-        acc.count++;
-        acc.points += a.points;
-      }
-      return acc;
-    },
-    { count: 0, points: 0 },
-  );
-}
 
 export class NotLoggedInError extends Error {
   constructor() {
@@ -125,17 +111,10 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         enrichSearchQueries(exploreActivities);
         enrichUserActions(dailyActivities);
 
-        const exploreCompleted = sumCompleted(exploreActivities);
-        const dailyCompleted = sumCompleted(dailyActivities);
-
         resolve({
           allActivities,
           loggedIn: true,
           rewardsTabId,
-          alreadyCompletedCount: exploreCompleted.count,
-          dailyAlreadyCompletedCount: dailyCompleted.count,
-          alreadyCompletedPoints: exploreCompleted.points,
-          dailyAlreadyCompletedPoints: dailyCompleted.points,
         });
       };
 
@@ -149,10 +128,6 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       allActivities: [],
       loggedIn: true,
       rewardsTabId,
-      alreadyCompletedCount: 0,
-      dailyAlreadyCompletedCount: 0,
-      alreadyCompletedPoints: 0,
-      dailyAlreadyCompletedPoints: 0,
     };
   }
 }

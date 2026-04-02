@@ -7,7 +7,7 @@ import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { PHASE, loadState } from '../util/state.js';
 
-import { markActivityCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
+import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
 import type { Activity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
@@ -24,7 +24,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       return;
     }
 
-    const { rewardsTabId, alreadyCompletedCount, alreadyCompletedPoints } = extraction;
+    const { rewardsTabId } = extraction;
+    const exploreActivities = extraction.allActivities.filter(
+      (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
+    );
+    const { count: alreadyCompletedCount, points: alreadyCompletedPoints } =
+      sumCompleted(exploreActivities);
 
     if (!(await this.assertRewardsTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
 
