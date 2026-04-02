@@ -16,7 +16,7 @@ export interface Context {
 }
 
 export function createContext(signal: AbortSignal): Context {
-  return {
+  const ctx: Context = {
     signal,
     setState,
     dbg(type: DebugType, message: string): Promise<void> {
@@ -33,7 +33,7 @@ export function createContext(signal: AbortSignal): Context {
         ...(activePhase != null && { phases: { [activePhase]: phaseProgress } }),
         phasePoints,
       });
-      await this.broadcastProgress();
+      await ctx.broadcastProgress();
     },
     async broadcastProgress(): Promise<void> {
       const merged = await getHeaderState();
@@ -50,4 +50,5 @@ export function createContext(signal: AbortSignal): Context {
         });
     },
   };
+  return ctx;
 }
