@@ -39,8 +39,8 @@ export class TabManager {
 
   async openTabAndWait(
     url: string,
-    timeoutMs = TIMEOUTS.TAB_LOAD,
     signal?: AbortSignal,
+    timeoutMs = TIMEOUTS.TAB_LOAD,
   ): Promise<chrome.tabs.Tab & { id: number }> {
     const tab = await this._openManagedTab(url);
     await this._waitForTabLoad(tab.id, timeoutMs, signal);
