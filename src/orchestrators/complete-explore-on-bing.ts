@@ -146,9 +146,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     );
     if (!searchTab) return null;
 
-    chrome.tabs.update(searchTab.id, { active: true }).catch(() => {
-      /* non-critical: tab may have closed before we activated it */
-    });
     ctx.signal.throwIfAborted();
     await performSearch.run(ctx, searchTab.id, searchQuery);
     this.tabs.closeTab(searchTab.id);

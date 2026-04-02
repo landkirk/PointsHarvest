@@ -30,7 +30,7 @@ class WarmUpSearches extends OrchestratorBase {
       ctx.signal.throwIfAborted();
 
       const query = queries[i];
-      const tab = await this.tabs.openTabAndWait('https://www.bing.com', true, 30000, ctx.signal);
+      const tab = await this.tabs.openTabAndWait('https://www.bing.com', 30000, ctx.signal);
 
       await performSearch.run(ctx, tab.id, query);
       this.tabs.closeTab(tab.id);

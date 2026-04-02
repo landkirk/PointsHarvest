@@ -22,10 +22,6 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
       return null;
     }
 
-    await chrome.tabs.update(breakdownTabId, { active: true }).catch(() => {
-      /* tab may already be closed */
-    });
-
     for (let i = 0; i < MAX_POLLS; i++) {
       ctx.signal.throwIfAborted();
       const result = await chrome.tabs
