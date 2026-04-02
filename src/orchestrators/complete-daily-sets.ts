@@ -10,10 +10,17 @@ import { PHASE, loadState } from '../util/persistent-state.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
+import { TabManager } from '../util/tab-manager.js';
+import { ActivityRunner } from '../util/activity-runner.js';
+import { assertRewardsTabExists } from '../util/tabs.js';
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
   private currentLinger: LingerHandle | null = null;
+
+  constructor() {
+    super(new TabManager(), new ActivityRunner());
+  }
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
@@ -30,7 +37,7 @@ class CompleteDailySets extends OrchestratorBase {
     const { count: dailyAlreadyCompletedCount, points: dailyAlreadyCompletedPoints } =
       sumCompleted(allDailyActivities);
 
-    if (!(await this.assertRewardsTabExists(ctx, rewardsTabId, 'daily sets'))) return;
+    if (!(await assertRewardsTabExists(ctx, rewardsTabId, 'daily sets'))) return;
 
     const dailySets = extraction.allActivities.filter(
       (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET && a.cardState === CardState.Actionable,
@@ -61,7 +68,7 @@ class CompleteDailySets extends OrchestratorBase {
       );
 
       const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
-      const succeeded = await this.executeActivityWithValidation(ctx, attempt, attempt, {
+      const succeeded = await this.runner!.executeActivityWithValidation(ctx, attempt, attempt, {
         retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
         lingerLabel: 'daily set activity retry',
         failCategory: 'validation',
@@ -101,10 +108,10 @@ class CompleteDailySets extends OrchestratorBase {
   ): Promise<boolean> {
     const { title } = activity;
     const label = title.slice(0, 60);
-    const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
+    const t = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
     if (!t) return false;
 
-    this.closeTabAndThrowIfAborted(ctx, t.id);
+    ctx.signal.throwIfAborted();
 
     if (activity.requiresUserAction) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
@@ -114,8 +121,8 @@ class CompleteDailySets extends OrchestratorBase {
       this.currentLinger = null;
     } else {
       await lingerOnPage('daily set activity', undefined, ctx.signal);
-      this.closeTabAndThrowIfAborted(ctx, t.id);
-      this.closeTab(t.id);
+      ctx.signal.throwIfAborted();
+      this.tabs.closeTab(t.id);
     }
     ctx.signal.throwIfAborted();
     const validated = await validateActivity.run(ctx, activity, rewardsTabId);
@@ -126,20 +133,20 @@ class CompleteDailySets extends OrchestratorBase {
     if (!this.currentLinger) return;
     const linger = this.currentLinger;
     this.currentLinger = null;
-    if (closeTab) this.closeTab(linger.tabId);
-    else this.openedTabIds.delete(linger.tabId);
+    if (closeTab) this.tabs.closeTab(linger.tabId);
+    else this.tabs.untrackTab(linger.tabId);
     linger.resolve();
   }
 
-  onTabRemoved(tabId: number): void {
+  override onTabRemoved(tabId: number): void {
     if (this.currentLinger?.tabId === tabId) this._resolveLinger(false);
   }
 
-  onUserActionComplete(): void {
+  override onUserActionComplete(): void {
     this._resolveLinger(true);
   }
 
-  protected async _onStop(_ctx: Context): Promise<void> {
+  protected override async _onStop(_ctx: Context): Promise<void> {
     this._resolveLinger(true);
   }
 }

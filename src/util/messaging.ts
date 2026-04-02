@@ -1,4 +1,9 @@
-import type { PhaseKey, PhaseProgress, PhaseProgressMap, PhasePointsMap } from './persistent-state.js';
+import type {
+  PhaseKey,
+  PhaseProgress,
+  PhaseProgressMap,
+  PhasePointsMap,
+} from './persistent-state.js';
 import type { DebugEntry } from './debug.js';
 import type { Failure } from './failures.js';
 
