@@ -4,19 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PointsHarvest — Automate Your Bing Rewards</title>
-  <meta name="description" content="PointsHarvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — no clicking required." />
+  <meta name="description" content="PointsHarvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required." />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://pointsharvest.com/" />
   <meta property="og:title" content="PointsHarvest — Automate Your Bing Rewards" />
-  <meta property="og:description" content="Free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — no clicking required." />
+  <meta property="og:description" content="Free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required." />
   <meta property="og:image" content="https://pointsharvest.com/icon1024.png" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="PointsHarvest — Automate Your Bing Rewards" />
-  <meta name="twitter:description" content="Free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — no clicking required." />
+  <meta name="twitter:description" content="Free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required." />
   <meta name="twitter:image" content="https://pointsharvest.com/icon1024.png" />
 
   <link rel="icon" type="image/png" href="icon1024.png" />
@@ -274,6 +274,7 @@
     footer a { color: var(--muted); }
     footer a:hover { color: var(--text); }
   </style>
+  <link rel="stylesheet" href="preview.css" />
 </head>
 <body>
 
@@ -290,16 +291,82 @@
   <section class="hero">
     <div class="badge">Free Chrome Extension</div>
     <h1>Earn Bing Rewards<br /><span>on autopilot</span></h1>
-    <p>PointsHarvest is a Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — no clicking required.</p>
+    <p>PointsHarvest is a Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, and Daily Set tiles — minimal interaction required.</p>
     <div class="cta-group">
       <a class="btn btn-primary" href="#" data-download="button" download>Download Latest</a>
     </div>
     <p class="hero-disclaimer">PointsHarvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
   </section>
 
+  <section class="section" id="preview">
+    <div class="preview-layout">
+      <div class="preview-description">
+        <div class="section-label">See it in action</div>
+        <h2>One click, earning is automated</h2>
+        <p>PointsHarvest runs four phases in sequence with minimal interaction. It handles searches and simple activities automatically, and surfaces quizzes and polls for you to complete. It tells you exactly where it is and what it's earned at every step.</p>
+        <ul class="preview-bullets">
+          <li>Warm-up searches to skip the first 3 non-earning searches each day</li>
+          <li>All "Explore on Bing" activity cards, completed automatically</li>
+          <li>Daily Set tiles — handled automatically where possible, sets up quizzes and puzzles for you to complete</li>
+          <li>PC search farming until you hit the daily cap, with points earning verification</li>
+        </ul>
+      </div>
+      <div class="preview-frame-wrap">
+        <div class="preview-frame">
+          <div class="preview-chrome-bar">
+            <div class="preview-chrome-dots">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="preview-chrome-title">PointsHarvest</div>
+          </div>
+          <div class="popup-preview">
+            <div class="pp-header">
+              <span class="pp-dot pp-dot--running" id="pp-dot-el"></span>
+              PointsHarvest
+              <span class="pp-pts" id="pp-total-pts">+130 explore (wk) · +110 today</span>
+            </div>
+            <div class="pp-status" id="pp-status">Farming PC searches (12 / 30)</div>
+            <div class="pp-bar-wrap">
+              <div class="pp-bar" id="pp-main-bar"></div>
+            </div>
+            <div class="pp-phases">
+              <div class="pp-phase pp-phase--done">
+                <span class="pp-phase-label">Warm-up</span>
+                <span class="pp-phase-count">3/3</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" data-w="100"></div></div>
+                <span class="pp-phase-earned"></span>
+              </div>
+              <div class="pp-phase pp-phase--done">
+                <span class="pp-phase-label">Explore on Bing</span>
+                <span class="pp-phase-count">13/13</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" data-w="100"></div></div>
+                <span class="pp-phase-earned">+130 pts this week</span>
+              </div>
+              <div class="pp-phase pp-phase--done">
+                <span class="pp-phase-label">Daily Sets</span>
+                <span class="pp-phase-count">3/3</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" data-w="100"></div></div>
+                <span class="pp-phase-earned">+50 pts today</span>
+              </div>
+              <div class="pp-phase pp-phase--active">
+                <span class="pp-phase-label">PC Searches</span>
+                <span class="pp-phase-count" id="pp-pc-count">12/30</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar pp-phase-bar--searching" data-w="77"></div></div>
+                <span class="pp-phase-earned" id="pp-pc-pts">+60 pts today</span>
+              </div>
+            </div>
+            <div class="pp-btn-stop" id="pp-btn">Stop</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider" />
+
   <section class="section" id="features">
     <div class="section-label">Features</div>
-    <h2>Everything runs automatically</h2>
+    <h2>Handles the daily grind for you</h2>
     <div class="features">
       <div class="feature-card">
         <div class="icon">🔍</div>
@@ -309,12 +376,12 @@
       <div class="feature-card">
         <div class="icon">📋</div>
         <h3>Daily Set Tiles</h3>
-        <p>Opens daily set activities. Handles simple ones automatically; surfaces quizzes and polls so you can complete them with one click.</p>
+        <p>Opens daily set activities. Handles simple ones automatically; surfaces quizzes and polls so you can complete them.</p>
       </div>
       <div class="feature-card">
         <div class="icon">📈</div>
         <h3>PC Search Farming</h3>
-        <p>After activities are done, farms any remaining PC search points until you hit the daily cap.</p>
+        <p>After activities are done, farms remaining PC searches until the daily cap, with points earning verification.</p>
       </div>
       <div class="feature-card">
         <div class="icon">🧩</div>
@@ -391,7 +458,7 @@
       <details>
         <summary>Is it really free? Any catch?</summary>
         <div class="faq-body">
-          Yes, completely free. No account, no login, no subscription. The extension runs entirely on your device — there is no tracking or analytics of any kind. The only network calls it makes are to check for updates.
+          Yes, completely free. No account, no login, no subscription. The extension runs entirely on your device — there is no tracking or analytics of any kind.
         </div>
       </details>
 
@@ -424,6 +491,7 @@
     <p>Microsoft, Bing, and Bing Rewards are trademarks of Microsoft Corporation.</p>
   </footer>
 
+  <script src="preview.js"></script>
   <script>
     const LATEST_VERSION = 'v1.10.0';
     const DOWNLOAD_URL = `https://r2.pointsharvest.com/PointsHarvest-${LATEST_VERSION}.zip`;
