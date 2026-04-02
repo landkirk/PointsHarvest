@@ -89,7 +89,7 @@
       idx++;
       if (START + idx > TOTAL) {
         showDone();
-        pendingRestart = setTimeout(restart, 12000);
+        pendingRestart = setTimeout(restart, 8000);
         return;
       }
       applyStep(false);
