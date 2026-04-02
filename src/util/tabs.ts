@@ -17,13 +17,14 @@ export async function waitForTabLoad(
   tabId: number,
   state: TabLoadState,
   timeoutMs = TIMEOUTS.TAB_LOAD,
+  signal?: AbortSignal,
 ): Promise<void> {
   state.pendingTabId = tabId;
   await Promise.race([
     new Promise<void>((resolve) => {
       state.pendingResolve = resolve;
     }),
-    sleep(timeoutMs),
+    sleep(timeoutMs, signal),
   ]);
   state.pendingResolve = null;
   state.pendingTabId = null;

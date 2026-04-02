@@ -1,4 +1,5 @@
 import { setHeaderState } from '../util/state.js';
+import { sleep } from '../util/timing.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 
@@ -29,7 +30,7 @@ class LingerOnTabStep extends StepBase<[number, LingerHooks]> {
       new Promise<void>((resolve) => {
         hooks.onResolve(resolve);
       }),
-      new Promise<void>((resolve) => setTimeout(resolve, hooks.timeoutMs)),
+      sleep(hooks.timeoutMs, ctx.signal),
     ]);
     hooks.onTabId(null);
     await ctx.setState({ isLingering: false });

@@ -1,19 +1,15 @@
-import {
-  setState,
-  loadState,
-  setHeaderState,
-  getActiveOrchestrator,
-  setIsActivelyRunning,
-} from '../util/state.js';
+import { setState, loadState, setHeaderState, getActiveOrchestrator } from '../util/state.js';
 import { dbg, DBG } from '../util/debug.js';
 import { createContext } from '../util/context.js';
 import { removeTab } from '../util/tabs.js';
+import { getActiveController } from './start-run.js';
+import { StoppedError } from '../interfaces/stoppable.js';
 
 class StopRun {
   async run(): Promise<void> {
-    setIsActivelyRunning(false);
+    getActiveController()?.abort(new StoppedError());
     await setState({ isRunning: false, isLingering: false });
-    const ctx = createContext();
+    const ctx = createContext(AbortSignal.abort(new StoppedError()));
     await getActiveOrchestrator()?.stop(ctx);
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) removeTab(rewardsTabId);

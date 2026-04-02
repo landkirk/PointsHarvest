@@ -1,6 +1,6 @@
 import { waitForTabLoad, closeOwnedTabs, openTab, type TabLoadState } from '../util/tabs.js';
 import { sleep, lingerOnPage } from '../util/timing.js';
-import { StoppableBase, StoppedError } from './stoppable.js';
+import { StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
 import type { FailureCategory } from '../util/failures.js';
 import { MSG_ACTION, type ProgressPayload } from '../util/messaging.js';
@@ -8,23 +8,13 @@ import { DBG } from '../util/debug.js';
 
 export { StoppedError };
 
-export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends StoppableBase {
+export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   abstract readonly name: string;
   protected openedTabIds = new Set<number>();
   protected tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
   protected captureNextTabResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
 
   abstract run(ctx: Context, ...args: TArgs): Promise<void>;
-
-  /** Closes tabId then throws StoppedError if stopped; no-op otherwise. */
-  protected checkStoppedOrCloseTab(tabId: number): void {
-    try {
-      this.checkStopped();
-    } catch (e) {
-      this.closeTab(tabId);
-      throw e;
-    }
-  }
 
   /** Resolves pending tab load, runs subclass cleanup, and closes owned tabs. */
   async stop(ctx: Context): Promise<void> {
@@ -99,8 +89,8 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     failCategory: FailureCategory,
     failMessage: string,
   ): Promise<void> {
-    await lingerOnPage(lingerLabel);
-    this.checkStopped();
+    await lingerOnPage(lingerLabel, undefined, ctx.signal);
+    ctx.signal.throwIfAborted();
     const result = await retry();
     if (result !== true) {
       await ctx.fail(failCategory, failMessage);
@@ -147,19 +137,19 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     return true;
   }
 
-  protected waitForTabLoad(tabId: number, timeoutMs = 30000): Promise<void> {
-    return waitForTabLoad(tabId, this.tabLoadState, timeoutMs);
+  protected waitForTabLoad(tabId: number, timeoutMs = 30000, signal?: AbortSignal): Promise<void> {
+    return waitForTabLoad(tabId, this.tabLoadState, timeoutMs, signal);
   }
 
-  /** Open a tab, wait for it to load, check stopped (closing tab if so), and return it. */
+  /** Open a tab, wait for it to load, and return it. */
   protected async openTabAndWait(
     url: string,
     active = true,
     timeoutMs = 30000,
+    signal?: AbortSignal,
   ): Promise<chrome.tabs.Tab & { id: number }> {
     const tab = await this.openManagedTab(url, active);
-    await this.waitForTabLoad(tab.id, timeoutMs);
-    this.checkStoppedOrCloseTab(tab.id);
+    await this.waitForTabLoad(tab.id, timeoutMs, signal);
     return tab;
   }
 
@@ -182,12 +172,23 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     this.openedTabIds.delete(tabId);
   }
 
-  protected async captureNextTab(timeoutMs = 10000): Promise<chrome.tabs.Tab | null> {
+  /** Close tabId and throw the abort reason if the signal is aborted; no-op otherwise. */
+  protected closeTabAndThrowIfAborted(ctx: Context, tabId: number): void {
+    if (ctx.signal.aborted) {
+      this.closeTab(tabId);
+      ctx.signal.throwIfAborted();
+    }
+  }
+
+  protected async captureNextTab(
+    timeoutMs = 10000,
+    signal?: AbortSignal,
+  ): Promise<chrome.tabs.Tab | null> {
     const capturePromise = new Promise<chrome.tabs.Tab | null>((resolve) => {
       this.captureNextTabResolve = resolve;
     });
     try {
-      return await Promise.race([capturePromise, sleep(timeoutMs).then(() => null)]);
+      return await Promise.race([capturePromise, sleep(timeoutMs, signal).then(() => null)]);
     } finally {
       this.captureNextTabResolve = null;
     }
@@ -200,7 +201,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> extends Sto
     id: string,
     label: string,
   ): Promise<(chrome.tabs.Tab & { id: number }) | null> {
-    const captureTabPromise = this.captureNextTab();
+    const captureTabPromise = this.captureNextTab(10000, ctx.signal);
 
     const msg = { action: MSG_ACTION.CLICK_CARD, id };
 

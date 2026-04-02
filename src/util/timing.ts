@@ -22,13 +22,31 @@ export function randMs(min: number, max: number): number {
   return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));
 }
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(id);
+      reject(signal!.reason);
+    };
+    const id = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 /** Dwell on a page for a random duration and log it. */
-export async function lingerOnPage(label = 'page', timing = TIMING.LINGER_ON_PAGE): Promise<void> {
+export async function lingerOnPage(
+  label = 'page',
+  timing = TIMING.LINGER_ON_PAGE,
+  signal?: AbortSignal,
+): Promise<void> {
   const ms = randMs(...timing);
   await dbg(DBG.INFO, `Lingering on ${label} for ${(ms / 1000).toFixed(1)}s`);
-  await sleep(ms);
+  await sleep(ms, signal);
 }
