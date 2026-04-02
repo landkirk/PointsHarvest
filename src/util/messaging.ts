@@ -1,4 +1,6 @@
 import type { PhaseKey, PhaseProgress, PhaseProgressMap, PhasePointsMap } from './state.js';
+import type { DebugEntry } from './debug.js';
+import type { Failure } from './failures.js';
 
 export type { PhaseKey, PhaseProgressMap };
 
@@ -16,28 +18,6 @@ export interface ProgressBroadcast {
   activePhase: PhaseKey | null;
   phases: PhaseProgressMap;
   phasePoints: PhasePointsMap;
-}
-
-// ── Debug payload types ────────────────────────────────────────────────────
-
-export type DebugType = 'info' | 'warn' | 'error' | 'success';
-
-export interface DebugEntry {
-  time: string;
-  type: DebugType;
-  message: string;
-  orchestrator?: string;
-}
-
-// ── Failure payload types ──────────────────────────────────────────────────
-
-export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter' | 'setup';
-
-export interface Failure {
-  time: string;
-  category: FailureCategory;
-  message: string;
-  orchestrator?: string;
 }
 
 import type { RawCard } from './activity.js';

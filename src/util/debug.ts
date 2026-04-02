@@ -1,8 +1,14 @@
 import { MSG_ACTION } from './messaging.js';
 import { setDebugState, getDebugLog } from './state.js';
 
-export type { DebugType, DebugEntry } from './messaging.js';
-import type { DebugEntry, DebugType } from './messaging.js';
+export type DebugType = 'info' | 'warn' | 'error' | 'success';
+
+export interface DebugEntry {
+  time: string;
+  type: DebugType;
+  message: string;
+  orchestrator?: string;
+}
 
 export const DBG = {
   INFO: 'info',

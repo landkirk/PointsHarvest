@@ -1,4 +1,4 @@
-import type { Failure } from '../util/messaging.js';
+import type { Failure } from '../util/failures.js';
 import { esc } from './debug-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────

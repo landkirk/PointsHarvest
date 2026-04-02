@@ -3,7 +3,8 @@ import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
 import type { AppState } from './state.js';
-import type { DebugType, FailureCategory } from './messaging.js';
+import type { DebugType } from './debug.js';
+import type { FailureCategory } from './failures.js';
 import type { ProgressPayload } from './messaging.js';
 
 export interface Context {
