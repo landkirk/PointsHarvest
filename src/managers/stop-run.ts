@@ -13,11 +13,13 @@ class StopRun {
   async run(): Promise<void> {
     setIsActivelyRunning(false);
     await setState({ isRunning: false, isLingering: false });
-    await getActiveOrchestrator()?.stop(createContext());
+    const ctx = createContext();
+    await getActiveOrchestrator()?.stop(ctx);
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) removeTab(rewardsTabId);
     await setHeaderState({ headerMessage: 'Stopped', activePhase: null });
     await dbg(DBG.WARN, 'Run stopped by user');
+    await ctx.broadcastProgress();
   }
 }
 
