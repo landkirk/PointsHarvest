@@ -1,6 +1,6 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
-import { PHASE, PHASE_TIME_LABEL, setState, setHeaderState } from '../util/state.js';
+import { PHASE, PHASE_TIME_LABEL } from '../util/state.js';
 import type { AppState, PhasePointsMap } from '../util/state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
@@ -147,8 +147,7 @@ async function initPopup(): Promise<void> {
       action: MSG_ACTION.PING,
     })) as { running: boolean };
     if (!response?.running) {
-      await setState({ isRunning: false });
-      await setHeaderState({ headerMessage: 'Stopped', activePhase: null });
+      await chrome.runtime.sendMessage({ action: MSG_ACTION.RESET_STALE });
     }
   }
   await render();
@@ -192,7 +191,11 @@ Promise.all([
     document.addEventListener('change', onIgnoreChange);
     showOnboarding([UPDATE_SCREEN], () => {
       document.removeEventListener('change', onIgnoreChange);
-      if (ignoreChecked) setState({ ignoredUpdateVersion: updateResult.latestVersion });
+      if (ignoreChecked)
+        chrome.runtime.sendMessage({
+          action: MSG_ACTION.SET_PREFERENCE,
+          updates: { ignoredUpdateVersion: updateResult.latestVersion },
+        });
       showPendingOrInit(state);
     });
   } else {
@@ -242,7 +245,10 @@ document.querySelectorAll('.dbg-section h2').forEach((h2) => {
 });
 
 skipWarmUpCheck.addEventListener('change', () => {
-  setState({ skipWarmUp: skipWarmUpCheck.checked });
+  chrome.runtime.sendMessage({
+    action: MSG_ACTION.SET_PREFERENCE,
+    updates: { skipWarmUp: skipWarmUpCheck.checked },
+  });
 });
 
 debugCheck.addEventListener('change', () => {
