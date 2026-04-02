@@ -18,10 +18,6 @@ export interface ActivityState {
   allActivities: Activity[];
   loggedIn: boolean;
   rewardsTabId: number | null;
-  alreadyCompletedCount: number;
-  dailyAlreadyCompletedCount: number;
-  alreadyCompletedPoints: number;
-  dailyAlreadyCompletedPoints: number;
 }
 
 export interface Activity {
@@ -100,6 +96,19 @@ function generateSearchQuery(title: string, description: string): string {
 
 export function findRetryQuery(query: string): string | null {
   return VALIDATION_RETRY_QUERIES.find(({ pattern }) => pattern.test(query))?.retryQuery ?? null;
+}
+
+export function sumCompleted(activities: Activity[]): { count: number; points: number } {
+  return activities.reduce(
+    (acc, a) => {
+      if (a.cardState === CardState.Completed) {
+        acc.count++;
+        acc.points += a.points;
+      }
+      return acc;
+    },
+    { count: 0, points: 0 },
+  );
 }
 
 export async function markActivityCompleted(activityId: string): Promise<void> {
