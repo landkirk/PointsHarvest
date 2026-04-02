@@ -106,8 +106,8 @@
 
     /* HERO */
     .hero {
-      max-width: 720px;
-      margin: 5rem auto 3rem;
+      max-width: 900px;
+      margin: 3rem auto 2rem;
       padding: 0 2rem;
       text-align: center;
       position: relative;
@@ -129,10 +129,10 @@
       background: #1e2330;
       border: 1px solid var(--border);
       border-radius: 99px;
-      font-size: 0.78rem;
+      font-size: 0.7rem;
       color: var(--muted);
-      padding: 0.3rem 0.9rem;
-      margin-bottom: 1.5rem;
+      padding: 0.2rem 0.65rem;
+      margin-top: 0.75rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
     }
@@ -146,14 +146,13 @@
     .hero p {
       font-size: 1.1rem;
       color: var(--muted);
-      max-width: 520px;
-      margin: 0 auto 2rem;
+      margin: 0 auto 0.75rem;
     }
     .hero-disclaimer {
       font-size: 0.75rem !important;
       color: var(--muted) !important;
       max-width: 480px;
-      margin: 1.5rem auto 0 !important;
+      margin: 0.5rem auto 0 !important;
       line-height: 1.5;
     }
     .cta-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
@@ -172,8 +171,8 @@
 
     /* FEATURES */
     .section {
-      max-width: 900px;
-      margin: 4rem auto;
+      max-width: 1100px;
+      margin: 2.5rem auto;
       padding: 0 2rem;
     }
     .section-label {
@@ -191,7 +190,7 @@
     }
     .features {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 1.25rem;
     }
     .feature-card {
@@ -258,7 +257,7 @@
     .section-divider {
       border: none;
       border-top: 1px solid var(--border);
-      max-width: 900px;
+      max-width: 1100px;
       margin: 0 auto;
       padding: 0 2rem;
     }
@@ -280,7 +279,7 @@
 
   <nav>
     <div class="nav-logo">Points<span>Harvest</span></div>
-    <div class="nav-links">
+<div class="nav-links">
       <a href="#features">Features</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
@@ -289,27 +288,49 @@
   </nav>
 
   <section class="hero">
-    <div class="badge">Free Chrome Extension</div>
     <h1>Earn Bing Rewards<br /><span>on autopilot</span></h1>
     <p>PointsHarvest is a Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, and Daily Set tiles — minimal interaction required.</p>
+    <p class="hero-disclaimer">Not affiliated with or endorsed by Microsoft.</p>
     <div class="cta-group">
       <a class="btn btn-primary" href="#" data-download="button" download>Download Latest</a>
     </div>
-    <p class="hero-disclaimer">PointsHarvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
   </section>
+
+  <section class="section" id="features">
+    <div class="section-label">Features</div>
+    <h2>Handles the daily grind for you</h2>
+    <div class="features">
+      <div class="feature-card">
+        <div class="icon">🔍</div>
+        <h3>Explore on Bing Activities</h3>
+        <p>Detects and completes all your "Search on Bing" activity cards, mapping each to the right query automatically.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📋</div>
+        <h3>Daily Set Tiles</h3>
+        <p>Opens daily set activities. Handles simple ones automatically; surfaces quizzes and polls so you can complete them.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📈</div>
+        <h3>PC Search Farming</h3>
+        <p>After activities are done, farms remaining PC searches until the daily cap, with points earning verification.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🧩</div>
+        <h3>Hands-on When It Matters</h3>
+        <p>Quizzes, polls, and puzzles are surfaced for you to complete manually — the extension handles everything else automatically.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="section-divider" />
 
   <section class="section" id="preview">
     <div class="preview-layout">
       <div class="preview-description">
         <div class="section-label">See it in action</div>
         <h2>One click, earning is automated</h2>
-        <p>PointsHarvest runs four phases in sequence with minimal interaction. It handles searches and simple activities automatically, and surfaces quizzes and polls for you to complete. It tells you exactly where it is and what it's earned at every step.</p>
-        <ul class="preview-bullets">
-          <li>Warm-up searches to skip the first 3 non-earning searches each day</li>
-          <li>All "Explore on Bing" activity cards, completed automatically</li>
-          <li>Daily Set tiles — handled automatically where possible, sets up quizzes and puzzles for you to complete</li>
-          <li>PC search farming until you hit the daily cap, with points earning verification</li>
-        </ul>
+        <p>Four phases, one click. Searches, activities, and daily sets run automatically — quizzes and polls are surfaced for you to complete. Every step is tracked in real time.</p>
       </div>
       <div class="preview-frame-wrap">
         <div class="preview-frame">
@@ -358,40 +379,6 @@
             <div class="pp-btn-stop" id="pp-btn">Stop</div>
           </div>
         </div>
-      </div>
-    </div>
-  </section>
-
-  <hr class="section-divider" />
-
-  <section class="section" id="features">
-    <div class="section-label">Features</div>
-    <h2>Handles the daily grind for you</h2>
-    <div class="features">
-      <div class="feature-card">
-        <div class="icon">🔍</div>
-        <h3>Explore on Bing Activities</h3>
-        <p>Detects and completes all your "Search on Bing" activity cards, mapping each to the right query automatically.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">📋</div>
-        <h3>Daily Set Tiles</h3>
-        <p>Opens daily set activities. Handles simple ones automatically; surfaces quizzes and polls so you can complete them.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">📈</div>
-        <h3>PC Search Farming</h3>
-        <p>After activities are done, farms remaining PC searches until the daily cap, with points earning verification.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">🧩</div>
-        <h3>Hands-on When It Matters</h3>
-        <p>Quizzes, polls, and puzzles are surfaced for you to complete manually — the extension handles everything else automatically.</p>
-      </div>
-      <div class="feature-card">
-        <div class="icon">⏱️</div>
-        <h3>Human-like Timing</h3>
-        <p>Uses randomized delays to dwell naturally on pages — no robotic patterns.</p>
       </div>
     </div>
   </section>
