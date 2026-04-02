@@ -1,7 +1,7 @@
 import { DBG } from '../util/debug.js';
 import { resetState, loadState, setHeaderState } from '../util/persistent-state.js';
 import { setActiveOrchestrator } from '../util/runtime-state.js';
-import { openTab, removeTab } from '../util/tabs.js';
+import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
 import {
@@ -25,6 +25,8 @@ export function getActiveController(): AbortController | null {
 type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
 
 class StartRun {
+  readonly tabs = new TabManager();
+
   async run(skipWarmUp = false): Promise<void> {
     const today = new Date().toDateString();
 
@@ -48,7 +50,8 @@ class StartRun {
 
     let rewardsTabId: number;
     try {
-      const tab = await openTab(REWARDS_URL);
+      const tab = await this.tabs.openTab(REWARDS_URL);
+      this.tabs.focusTab(tab.id);
       if (tab.id === undefined) throw new Error('Rewards tab has no ID');
       rewardsTabId = tab.id;
     } catch {
@@ -122,7 +125,7 @@ class StartRun {
   ): Promise<void> {
     activeController = null;
     const { rewardsTabId } = await loadState();
-    if (rewardsTabId) removeTab(rewardsTabId);
+    if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
     await ctx.setState({ isRunning: false });
     await setHeaderState({ headerMessage: status, activePhase: null });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);

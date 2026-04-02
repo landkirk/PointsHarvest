@@ -6,7 +6,7 @@ import { StartRun, getActiveController } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
 
 const startRun = new StartRun();
-const stopRun = new StopRun();
+const stopRun = new StopRun(startRun.tabs);
 
 // ── Initialization ─────────────────────────────────────────────────────────
 

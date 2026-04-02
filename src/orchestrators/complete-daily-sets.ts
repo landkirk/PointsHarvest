@@ -12,7 +12,6 @@ import { validateActivity, ValidationStatus } from '../steps/validate-activity.j
 import type { Activity } from '../util/activity.js';
 import { TabManager } from '../util/tab-manager.js';
 import { ActivityRunner } from '../util/activity-runner.js';
-import { assertRewardsTabExists } from '../util/tabs.js';
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
@@ -37,7 +36,7 @@ class CompleteDailySets extends OrchestratorBase {
     const { count: dailyAlreadyCompletedCount, points: dailyAlreadyCompletedPoints } =
       sumCompleted(allDailyActivities);
 
-    if (!(await assertRewardsTabExists(ctx, rewardsTabId, 'daily sets'))) return;
+    if (!(await this.tabs.assertTabExists(ctx, rewardsTabId, 'daily sets'))) return;
 
     const dailySets = extraction.allActivities.filter(
       (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET && a.cardState === CardState.Actionable,
