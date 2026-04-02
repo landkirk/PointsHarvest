@@ -1,12 +1,7 @@
 import { MSG_ACTION } from './util/messaging.js';
 import type { AppMessage } from './util/messaging.js';
-import {
-  loadState,
-  resetState,
-  getActiveOrchestrator,
-  getIsActivelyRunning,
-} from './util/state.js';
-import { StartRun } from './managers/start-run.js';
+import { loadState, resetState, getActiveOrchestrator } from './util/state.js';
+import { StartRun, getActiveController } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
 
 const startRun = new StartRun();
@@ -44,7 +39,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     return true;
   }
   if (msg.action === MSG_ACTION.PING) {
-    sendResponse({ running: getIsActivelyRunning() });
+    sendResponse({ running: getActiveController() !== null });
     return true;
   }
   if (msg.action === MSG_ACTION.PURGE) {

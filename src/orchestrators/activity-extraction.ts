@@ -38,7 +38,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
   readonly name = 'Activity extraction';
 
   async run(ctx: Context): Promise<void> {
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
 
     const rewardsTabId = (await loadState()).rewardsTabId;
     if (!rewardsTabId) {

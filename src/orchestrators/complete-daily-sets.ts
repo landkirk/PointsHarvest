@@ -17,7 +17,7 @@ class CompleteDailySets extends OrchestratorBase {
   private lingerResolve: (() => void) | null = null;
 
   async run(ctx: Context): Promise<void> {
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
     const extraction = (await loadState()).activityState ?? null;
     if (!extraction || !extraction.rewardsTabId) {
       await ctx.dbg(DBG.WARN, 'No extraction result — skipping daily sets');
@@ -48,7 +48,7 @@ class CompleteDailySets extends OrchestratorBase {
     await ctx.dbg(DBG.INFO, `Starting daily sets: ${dailySets.length} activity/activities`);
 
     for (let i = 0; i < dailySets.length; i++) {
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
 
       const label = dailySets[i].title.slice(0, 60);
       await ctx.dbg(
@@ -69,7 +69,7 @@ class CompleteDailySets extends OrchestratorBase {
 
       await markActivityCompleted(dailySets[i].id);
       earnedPts += dailySets[i].points;
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
       await ctx.dbg(
         DBG.SUCCESS,
         `[${dailySets[i].id}] Daily set activity ${i + 1}/${dailySets.length} complete`,
@@ -82,8 +82,8 @@ class CompleteDailySets extends OrchestratorBase {
       });
 
       if (i < dailySets.length - 1) {
-        await lingerOnPage('between daily set activities');
-        this.checkStopped();
+        await lingerOnPage('between daily set activities', undefined, ctx.signal);
+        ctx.signal.throwIfAborted();
       }
     }
 
@@ -100,7 +100,7 @@ class CompleteDailySets extends OrchestratorBase {
     const t = await this.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
     if (!t) return false;
 
-    this.checkStoppedOrCloseTab(t.id);
+    this.closeTabAndThrowIfAborted(ctx, t.id);
 
     if (activity.requiresUserAction) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
@@ -114,11 +114,11 @@ class CompleteDailySets extends OrchestratorBase {
         timeoutMs: activity.userActionTimeoutMs,
       });
     } else {
-      await lingerOnPage('daily set activity');
-      this.checkStoppedOrCloseTab(t.id);
+      await lingerOnPage('daily set activity', undefined, ctx.signal);
+      this.closeTabAndThrowIfAborted(ctx, t.id);
       this.closeTab(t.id);
     }
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
     const validated = await validateActivity.run(ctx, activity, rewardsTabId);
     return validated.status !== ValidationStatus.Incomplete;
   }

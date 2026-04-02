@@ -10,13 +10,13 @@ class PerformSearchStep extends StepBase<[number, string]> {
   readonly name = 'perform-search';
 
   async run(ctx: Context, tabId: number, query: string): Promise<void> {
-    await lingerOnPage('search tab', TIMING.LINGER_ON_SEARCH);
-    this.checkStopped();
+    await lingerOnPage('search tab', TIMING.LINGER_ON_SEARCH, ctx.signal);
+    ctx.signal.throwIfAborted();
 
     const result = await chrome.tabs
       .sendMessage(tabId, { action: MSG_ACTION.PERFORM_SEARCH, query })
       .catch(() => null);
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
 
     if (!result?.ok) {
       await ctx.fail(
@@ -25,7 +25,7 @@ class PerformSearchStep extends StepBase<[number, string]> {
       );
     }
 
-    await lingerOnPage(`results: "${query}"`);
+    await lingerOnPage(`results: "${query}"`, undefined, ctx.signal);
   }
 }
 

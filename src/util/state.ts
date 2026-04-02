@@ -108,15 +108,7 @@ function enqueueWrite(fn: () => Promise<void>): Promise<void> {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyOrchestrator = OrchestratorBase<any[]>;
 
-let isActivelyRunning = false;
 let activeOrchestrator: AnyOrchestrator | null = null;
-
-export function getIsActivelyRunning(): boolean {
-  return isActivelyRunning;
-}
-export function setIsActivelyRunning(value: boolean): void {
-  isActivelyRunning = value;
-}
 
 export function getActiveOrchestrator(): AnyOrchestrator | null {
   return activeOrchestrator;
