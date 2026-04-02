@@ -1,4 +1,5 @@
 import { MSG_ACTION } from '../util/messaging.js';
+import { setHeaderState } from '../util/state.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 
@@ -23,6 +24,7 @@ class LingerOnTabStep extends StepBase<[number, LingerHooks]> {
     }
     hooks.onTabId(tabId);
     await ctx.setState({ isLingering: true });
+    await setHeaderState({ headerMessage: 'Action required — complete the activity in the tab' });
     chrome.runtime.sendMessage({ action: MSG_ACTION.LINGER_WAITING }).catch(() => {
       /* popup may be closed */
     });

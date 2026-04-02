@@ -248,10 +248,8 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
     appendFailure(msg.failure);
   }
   if (msg.action === MSG_ACTION.LINGER_WAITING) {
-    render({
-      isRunning: true,
-      isLingering: true,
-      headerMessage: 'Action required — complete the activity in the tab',
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }).then((state: AppState) => {
+      if (state) renderState(state);
     });
   }
 });
