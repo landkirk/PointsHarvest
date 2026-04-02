@@ -48,7 +48,7 @@ class StartRun {
 
     let rewardsTabId: number;
     try {
-      const tab = await openTab(REWARDS_URL, false);
+      const tab = await openTab(REWARDS_URL);
       if (tab.id === undefined) throw new Error('Rewards tab has no ID');
       rewardsTabId = tab.id;
     } catch {

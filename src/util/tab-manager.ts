@@ -39,13 +39,19 @@ export class TabManager {
 
   async openTabAndWait(
     url: string,
-    active = true,
     timeoutMs = TIMEOUTS.TAB_LOAD,
     signal?: AbortSignal,
   ): Promise<chrome.tabs.Tab & { id: number }> {
-    const tab = await this._openManagedTab(url, active);
+    const tab = await this._openManagedTab(url);
     await this._waitForTabLoad(tab.id, timeoutMs, signal);
+    this.focusTab(tab.id);
     return tab;
+  }
+
+  focusTab(tabId: number): void {
+    chrome.tabs.update(tabId, { active: true }).catch(() => {
+      /* tab may already be closed */
+    });
   }
 
   closeTab(tabId: number): void {
@@ -100,6 +106,7 @@ export class TabManager {
     this.openedTabIds.add(tab.id);
 
     await this._waitForTabLoad(tab.id, TIMEOUTS.TAB_LOAD, ctx.signal);
+    this.focusTab(tab.id as number);
 
     return tab as chrome.tabs.Tab & { id: number };
   }
@@ -129,11 +136,8 @@ export class TabManager {
 
   // ── Private ─────────────────────────────────────────────────────────────
 
-  private async _openManagedTab(
-    url: string,
-    active = false,
-  ): Promise<chrome.tabs.Tab & { id: number }> {
-    const tab = await openTab(url, active);
+  private async _openManagedTab(url: string): Promise<chrome.tabs.Tab & { id: number }> {
+    const tab = await openTab(url);
     if (tab.id === undefined) throw new Error('Opened tab has no ID');
     this.openedTabIds.add(tab.id);
     return tab as chrome.tabs.Tab & { id: number };

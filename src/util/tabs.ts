@@ -1,8 +1,8 @@
 import type { Context } from './context.js';
 
 /** Open a new tab and return it. Throws if the tab could not be created. */
-export async function openTab(url: string, active = false): Promise<chrome.tabs.Tab> {
-  const tab = await chrome.tabs.create({ url, active }).catch(() => null);
+export async function openTab(url: string): Promise<chrome.tabs.Tab> {
+  const tab = await chrome.tabs.create({ url, active: false }).catch(() => null);
   if (!tab) throw new Error(`Failed to open tab: ${url}`);
   return tab;
 }
