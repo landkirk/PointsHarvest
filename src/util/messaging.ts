@@ -59,10 +59,8 @@ export const MSG_ACTION = {
   PING: 'ping',
   PURGE: 'purgeState',
   // Background/steps → popup
-  COMPLETE: 'complete',
   PROGRESS: 'progress',
   DEBUG_ENTRY: 'debugEntry',
-  LINGER_WAITING: 'lingerWaiting',
   // Popup → background
   USER_ACTION_COMPLETE: 'userActionComplete',
   // Background → rewards content script (counter extraction)
@@ -83,10 +81,8 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.PURGE }
   | { action: typeof MSG_ACTION.USER_ACTION_COMPLETE }
   // Background → Popup (broadcast)
-  | { action: typeof MSG_ACTION.COMPLETE }
   | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressBroadcast)
   | { action: typeof MSG_ACTION.DEBUG_ENTRY; entry: DebugEntry }
-  | { action: typeof MSG_ACTION.LINGER_WAITING }
   | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: Failure }
   // Background ↔ Rewards content script
   | { action: typeof MSG_ACTION.START_EXTRACT }

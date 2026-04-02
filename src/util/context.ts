@@ -11,6 +11,7 @@ export interface Context {
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
   updateHeader: (payload: ProgressPayload) => Promise<void>;
+  broadcastProgress: () => Promise<void>;
 }
 
 export function createContext(): Context {
@@ -30,8 +31,10 @@ export function createContext(): Context {
         ...(activePhase != null && { phases: { [activePhase]: phaseProgress } }),
         phasePoints,
       });
+      await this.broadcastProgress();
+    },
+    async broadcastProgress(): Promise<void> {
       const merged = await getHeaderState();
-
       chrome.runtime
         .sendMessage({
           action: MSG_ACTION.PROGRESS,

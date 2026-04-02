@@ -1,4 +1,3 @@
-import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import {
   resetState,
@@ -33,6 +32,7 @@ class StartRun {
 
     setIsActivelyRunning(true);
     const ctx = createContext();
+    await ctx.broadcastProgress();
 
     this._executeRun(ctx, skipWarmUp) // fire and forget
       .catch((err) =>
@@ -124,9 +124,7 @@ class StartRun {
     await ctx.setState({ isRunning: false });
     await setHeaderState({ headerMessage: status, activePhase: null });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
-    chrome.runtime.sendMessage({ action: MSG_ACTION.COMPLETE }).catch(() => {
-      /* popup may be closed */
-    });
+    await ctx.broadcastProgress();
     const iconUrl = await this._iconDataUrl();
     chrome.notifications.create({
       type: 'basic',
