@@ -109,6 +109,7 @@ class StartRun {
         `${orchestrator.name} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {
+      await orchestrator.stop(ctx);
       setActiveOrchestrator(null);
     }
   }
