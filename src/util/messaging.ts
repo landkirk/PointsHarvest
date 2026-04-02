@@ -1,4 +1,4 @@
-import type { PhaseKey, PhaseProgress, PhaseProgressMap, PhasePointsMap } from './state.js';
+import type { PhaseKey, PhaseProgress, PhaseProgressMap, PhasePointsMap } from './persistent-state.js';
 import type { DebugEntry } from './debug.js';
 import type { Failure } from './failures.js';
 
@@ -21,7 +21,7 @@ export interface ProgressBroadcast {
 }
 
 import type { RawCard } from './activity.js';
-import type { AppState } from './state.js';
+import type { AppState } from './persistent-state.js';
 
 // ── Message actions ────────────────────────────────────────────────────────
 

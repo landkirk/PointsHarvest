@@ -1,5 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
-import { setDebugState, getDebugLog } from './state.js';
+import { setDebugState, getDebugLog } from './persistent-state.js';
 
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
 

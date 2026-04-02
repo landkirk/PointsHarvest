@@ -5,7 +5,7 @@ import { lingerOnPage } from '../util/timing.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { PHASE, loadState } from '../util/state.js';
+import { PHASE, loadState } from '../util/persistent-state.js';
 
 import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
 import type { Activity } from '../util/activity.js';

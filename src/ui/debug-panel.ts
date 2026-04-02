@@ -1,6 +1,6 @@
 import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
-import { PHASE, PHASE_TIME_LABEL } from '../util/state.js';
-import type { AppState, PhaseKey, SearchCounter } from '../util/state.js';
+import { PHASE, PHASE_TIME_LABEL } from '../util/persistent-state.js';
+import type { AppState, PhaseKey, SearchCounter } from '../util/persistent-state.js';
 import type { Activity } from '../util/activity.js';
 import type { DebugEntry } from '../util/debug.js';
 

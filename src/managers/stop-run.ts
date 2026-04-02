@@ -1,4 +1,5 @@
-import { setState, loadState, setHeaderState, getActiveOrchestrator } from '../util/state.js';
+import { setState, loadState, setHeaderState } from '../util/persistent-state.js';
+import { getActiveOrchestrator } from '../util/runtime-state.js';
 import { dbg, DBG } from '../util/debug.js';
 import { createContext } from '../util/context.js';
 import { removeTab } from '../util/tabs.js';

@@ -1,7 +1,7 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
-import { PHASE, PHASE_TIME_LABEL } from '../util/state.js';
-import type { AppState, PhasePointsMap } from '../util/state.js';
+import { PHASE, PHASE_TIME_LABEL } from '../util/persistent-state.js';
+import type { AppState, PhasePointsMap } from '../util/persistent-state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';

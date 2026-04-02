@@ -1,5 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
-import { setState, getFailures } from './state.js';
+import { setState, getFailures } from './persistent-state.js';
 import { dbg, DBG } from './debug.js';
 
 export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter' | 'setup';
