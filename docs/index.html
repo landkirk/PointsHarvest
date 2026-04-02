@@ -137,7 +137,7 @@
       text-transform: uppercase;
     }
     h1 {
-      font-size: clamp(2rem, 5vw, 3rem);
+      font-size: clamp(2.5rem, 6vw, 4rem);
       font-weight: 800;
       line-height: 1.2;
       margin-bottom: 1rem;
@@ -148,6 +148,13 @@
       color: var(--muted);
       max-width: 520px;
       margin: 0 auto 2rem;
+    }
+    .hero-disclaimer {
+      font-size: 0.75rem !important;
+      color: var(--muted) !important;
+      max-width: 480px;
+      margin: 1.5rem auto 0 !important;
+      line-height: 1.5;
     }
     .cta-group { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
     .btn {
@@ -287,6 +294,7 @@
     <div class="cta-group">
       <a class="btn btn-primary" href="#" data-download="button" download>Download Latest</a>
     </div>
+    <p class="hero-disclaimer">PointsHarvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
   </section>
 
   <section class="section" id="features">
@@ -413,6 +421,7 @@
 
   <footer>
     <p>PointsHarvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
+    <p>Microsoft, Bing, and Bing Rewards are trademarks of Microsoft Corporation.</p>
   </footer>
 
   <script>
