@@ -1,4 +1,4 @@
-import { sleep, TIMEOUTS } from './timing.js';
+import type { Context } from './context.js';
 
 /** Open a new tab and return it. Throws if the tab could not be created. */
 export async function openTab(url: string, active = false): Promise<chrome.tabs.Tab> {
@@ -10,24 +10,6 @@ export async function openTab(url: string, active = false): Promise<chrome.tabs.
 export interface TabLoadState {
   pendingTabId: number | null;
   pendingResolve: (() => void) | null;
-}
-
-/** Wait for a tab to reach 'complete' status (via onTabUpdated) or time out. */
-export async function waitForTabLoad(
-  tabId: number,
-  state: TabLoadState,
-  timeoutMs = TIMEOUTS.TAB_LOAD,
-  signal?: AbortSignal,
-): Promise<void> {
-  state.pendingTabId = tabId;
-  await Promise.race([
-    new Promise<void>((resolve) => {
-      state.pendingResolve = resolve;
-    }),
-    sleep(timeoutMs, signal),
-  ]);
-  state.pendingResolve = null;
-  state.pendingTabId = null;
 }
 
 /** Remove a single tab, ignoring errors if it's already closed. */
@@ -43,4 +25,21 @@ export async function closeOwnedTabs(tabIds: Set<number>): Promise<void> {
     removeTab(tabId);
   }
   tabIds.clear();
+}
+
+/** Check that a tab still exists; call ctx.fail and return false if it does not. */
+export async function assertRewardsTabExists(
+  ctx: Context,
+  rewardsTabId: number,
+  phase: string,
+): Promise<boolean> {
+  const exists = await chrome.tabs.get(rewardsTabId).then(
+    () => true,
+    () => false,
+  );
+  if (!exists) {
+    await ctx.fail('navigation', `Rewards tab no longer exists — cannot run ${phase}`);
+    return false;
+  }
+  return true;
 }

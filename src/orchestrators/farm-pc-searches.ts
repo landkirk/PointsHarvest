@@ -22,7 +22,7 @@ class FarmPcSearches extends OrchestratorBase {
   readonly name = 'PC search farming';
 
   async run(ctx: Context): Promise<void> {
-    const tab = await this.openManagedTab(REWARDS_BREAKDOWN_URL, false);
+    const tab = await this.tabs.openTabAndWait(REWARDS_BREAKDOWN_URL, false);
     ctx.signal.throwIfAborted();
     await this._farm(ctx, tab.id);
   }
@@ -77,10 +77,10 @@ class FarmPcSearches extends OrchestratorBase {
       }
       const query = shuffled[shuffleIndex++];
 
-      const tab = await this.openTabAndWait('https://www.bing.com', true, 30000, ctx.signal);
+      const tab = await this.tabs.openTabAndWait('https://www.bing.com', true, 30000, ctx.signal);
 
       await performSearch.run(ctx, tab.id, query);
-      this.closeTab(tab.id);
+      this.tabs.closeTab(tab.id);
       ctx.signal.throwIfAborted();
 
       await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES, ctx.signal);
