@@ -58,9 +58,11 @@
       color: var(--text);
     }
     .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; gap: 1.5rem; font-size: 0.9rem; color: var(--muted); }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.9rem; color: var(--muted); }
     .nav-links a { color: var(--muted); }
     .nav-links a:hover { color: var(--text); text-decoration: none; }
+    .nav-btn { padding: 0.35rem 0.9rem; font-size: 0.82rem; }
+    .nav-links .nav-btn, .nav-links .nav-btn:hover { color: #000; text-decoration: none; }
 
     /* HERO */
     .hero {
@@ -68,6 +70,19 @@
       margin: 5rem auto 3rem;
       padding: 0 2rem;
       text-align: center;
+      position: relative;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 280px;
+      background: radial-gradient(ellipse, rgba(245, 158, 11, 0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
     }
     .badge {
       display: inline-block;
@@ -137,7 +152,10 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 1.4rem;
+      transition: border-color 0.2s;
+      cursor: default;
     }
+    .feature-card:hover { border-color: var(--accent); }
     .feature-card .icon {
       font-size: 1.4rem;
       margin-bottom: 0.75rem;
@@ -189,6 +207,15 @@
       font-family: "SF Mono", "Fira Code", monospace;
     }
 
+    /* DIVIDER */
+    .section-divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
     /* FOOTER */
     footer {
       border-top: 1px solid var(--border);
@@ -208,6 +235,7 @@
     <div class="nav-links">
       <a href="#features">Features</a>
       <a href="#install">Install</a>
+      <a class="btn btn-primary nav-btn" href="#" data-download="nav" download>Download</a>
     </div>
   </nav>
 
@@ -251,6 +279,8 @@
       </div>
     </div>
   </section>
+
+  <hr class="section-divider" />
 
   <section class="section" id="install">
     <div class="section-label">Installation</div>
@@ -298,6 +328,7 @@
       el.href = DOWNLOAD_URL;
       if (el.dataset.download === 'filename') el.textContent = `PointsHarvest-${LATEST_VERSION}.zip`;
       if (el.dataset.download === 'button') el.textContent = `Download Latest (${LATEST_VERSION})`;
+      if (el.dataset.download === 'nav') el.textContent = `Download`;
     });
   </script>
 </body>
