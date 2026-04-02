@@ -11,10 +11,17 @@ import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '.
 import type { Activity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
+import { TabManager } from '../util/tab-manager.js';
+import { ActivityRunner } from '../util/activity-runner.js';
+import { assertRewardsTabExists } from '../util/tabs.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
   private rewardsTabId: number | null = null;
+
+  constructor() {
+    super(new TabManager(), new ActivityRunner());
+  }
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
@@ -31,7 +38,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     const { count: alreadyCompletedCount, points: alreadyCompletedPoints } =
       sumCompleted(exploreActivities);
 
-    if (!(await this.assertRewardsTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
+    if (!(await assertRewardsTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
 
     const activities = extraction.allActivities.filter(
       (a) =>
@@ -82,7 +89,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       });
       await ctx.dbg(DBG.INFO, `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`);
 
-      const succeeded = await this.executeActivityWithValidation(
+      const succeeded = await this.runner!.executeActivityWithValidation(
         ctx,
         () => this.runSearchForActivity(ctx, activities[i], searchQuery),
         fallbackQuery ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery) : null,
@@ -131,7 +138,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
   ): Promise<boolean | null> {
     const rewardsTabId = this.rewardsTabId;
     if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
-    const searchTab = await this.clickCardAndCaptureTab(
+    const searchTab = await this.tabs.clickCardAndCaptureTab(
       ctx,
       rewardsTabId,
       activity.id,
@@ -142,10 +149,9 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     chrome.tabs.update(searchTab.id, { active: true }).catch(() => {
       /* non-critical: tab may have closed before we activated it */
     });
-    await this.waitForTabLoad(searchTab.id, 30000, ctx.signal);
-    this.closeTabAndThrowIfAborted(ctx, searchTab.id);
+    ctx.signal.throwIfAborted();
     await performSearch.run(ctx, searchTab.id, searchQuery);
-    this.closeTab(searchTab.id);
+    this.tabs.closeTab(searchTab.id);
     ctx.signal.throwIfAborted();
 
     const r = await validateActivity.run(ctx, activity, rewardsTabId);
