@@ -49,7 +49,7 @@ The extension tracks the last run date and progress:
 - If you run it today and complete all searches, it shows "Done for today!" and won't run again until tomorrow
 - If interrupted mid-run, it resumes from where it left off (same day only)
 - Each new day, the date check resets and you can run it again
-- The popup shows real-time progress with per-phase progress bars (Explore, Daily Sets, PC Search) and earned points for each phase
+- The popup shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, PC Search) and earned points for each phase
 
 ## How it works
 
@@ -72,25 +72,28 @@ src/                  Source files (edit these)
     start-run.ts           Top-level run coordinator (fire-and-forget from background)
     stop-run.ts            Cancels an active run and closes all opened tabs
   orchestrators/
+    activity-extraction.ts       Opens rewards tab, extracts and classifies activity cards
     complete-explore-on-bing.ts  Iterates mapped cards, clicks each, runs searches
     complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
+    warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
-    fetch-activities.ts    Open rewards tab, wait for content script, extract cards
     fetch-counters.ts      Poll breakdown tab for search point counters
     perform-search.ts      Dwell and execute a single search in a tab
     linger-on-tab.ts       Pause automation and wait for user to complete a tile
     validate-activity.ts   Confirm an activity is marked complete on the rewards page
   util/
-    activity.ts       Activity type, CardState enum, buildSearchList()
-    config.ts         URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
-    context.ts        createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
-    debug.ts          Logging helpers and debug type definitions
-    messaging.ts      MSG_ACTION constants and MsgAction type
-    search-queries.ts PC_SEARCH_QUERIES pool used by farm-pc-searches
-    state.ts          In-memory session + chrome.storage.local persistent state
-    tabs.ts           Tab utilities (openTab, waitForTabLoad, closeOwnedTabs)
-    timing.ts         randMs, sleep, lingerOnPage, TIMING presets
+    activity-runner.ts ActivityRunner class — executes activities with retry logic
+    activity.ts        Activity type, CardState enum, classifyCard(), enrichSearchQueries()
+    config.ts          URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
+    context.ts         createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
+    debug.ts           Logging helpers and debug type definitions
+    messaging.ts       MSG_ACTION constants and MsgAction type
+    persistent-state.ts chrome.storage.local persistent state + PHASE constants + write queue
+    runtime-state.ts   In-memory runtime state (activeOrchestrator) — resets on SW restart
+    search-queries.ts  PC_SEARCH_QUERIES pool used by farm-pc-searches
+    tab-manager.ts     TabManager class — open/close/focus/capture tabs
+    timing.ts          randMs, sleep, lingerOnPage, TIMING presets
   interfaces/
     orchestrator.ts   OrchestratorBase abstract class
   content/
@@ -106,17 +109,21 @@ dist/                 Compiled output — loaded by Chrome at runtime
        │
        ▼
 managers/start-run.js loads state, resets session,
-fires _executeRun (fire-and-forget)
+opens rewards.bing.com tab, fires _executeRun (fire-and-forget)
        │
        ▼
-Open rewards.bing.com + breakdown tab in parallel
+orchestrators/activity-extraction.js —
 rewards-content.js polls the SPA until cards render (max 15s),
-extracts "Search on Bing" activities + daily set activities,
-sends them to background
+extracts and classifies activity cards (explore, daily set, ignored),
+enriches each with search queries or user-action metadata
+       │
+       ▼
+orchestrators/warm-up-searches.js (unless skipped) —
+runs a short sequence of warm-up searches
        │
        ▼
 complete-explore-on-bing.js maps each activity description → search query
-via buildSearchList() in util/activity.ts, stripping "Search on Bing to/for..."
+via enrichSearchQueries() in util/activity.ts, stripping "Search on Bing to/for..."
 boilerplate (falls back to card title if description is too short)
        │
        ▼
