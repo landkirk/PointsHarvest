@@ -7,10 +7,11 @@ slug: getting-started
 
 ## What is Points Harvest?
 
-Points Harvest is a free, open-source Chrome extension that automates your daily [Bing Rewards](https://rewards.microsoft.com) routine. Instead of manually clicking through searches and daily activities every day, you load the extension, press Start, and let it run.
+Points Harvest is a free Chrome extension that automates your daily [Bing Rewards](https://rewards.microsoft.com) routine. Instead of manually clicking through searches and daily activities every day, you load the extension, click **Run today's searches**, and let it run.
 
 It handles:
 
+- **Warm-up searches** — a few quick searches to prime your session before the real work begins
 - **Explore on Bing** activities — the "Search on Bing" cards on your rewards dashboard
 - **Daily Set tiles** — the trivia, polls, and quizzes (it waits for you on interactive ones)
 - **PC search farming** — runs web searches until your daily PC search cap is reached
@@ -19,7 +20,7 @@ It handles:
 
 You'll need:
 
-- A Chromium-based browser (Chrome, Edge, Brave, Arc, etc.)
+- A Chromium-based browser (Chrome, Brave, Arc, etc.)
 - A Microsoft account enrolled in [Bing Rewards](https://rewards.microsoft.com)
 - The latest release zip from [pointsharvest.com](https://pointsharvest.com)
 
@@ -45,25 +46,32 @@ Click **Load unpacked**, then select the folder you unzipped in Step 1.
 
 You should now see the Points Harvest icon in your browser toolbar.
 
+### 5. Allow pop-ups from rewards.bing.com
+
+Chrome blocks pop-ups by default, which prevents Points Harvest from opening activity tabs. You'll need to allow them before your first run.
+
+Go to **Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects** and add `rewards.bing.com` as an allowed site. See [Google's guide to managing pop-ups](https://support.google.com/chrome/answer/95472) for step-by-step instructions.
+
 ## Running Your First Session
 
 1. Go to [rewards.bing.com](https://rewards.bing.com) and make sure you're signed in.
-2. Click the Points Harvest icon in your toolbar to open the popup.
-3. Press **Start**.
+2. Click the Points Harvest icon in your toolbar to open the side panel.
+3. Click **Run today's searches**.
 
-The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. Progress bars in the popup show which phase is currently running.
+The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. The side panel shows four phases — **Warm-up**, **Explore on Bing**, **Daily Sets**, and **PC Searches** — each with its own progress bar and points earned.
 
-> **Note:** For quiz and poll tiles in the Daily Set, Points Harvest will pause and wait for you to answer before continuing. These require human judgement and can't be automated reliably.
+> **Note:** For quiz and poll tiles in the Daily Set, Points Harvest will pause and activate the tab so you can complete it. A **"Done — I completed the action"** button appears in the side panel — click it when you're finished, or just close the tab, and the extension will continue.
 
 ## How Long Does It Take?
 
-A full run — Explore activities, Daily Set, and PC searches — typically completes in **10–20 minutes** depending on how many activities you have and the search delays built in to keep behavior natural.
+A full run — Explore activities, Daily Set, and PC searches — typically completes in **2–5 minutes** depending on how many activities you have and the search delays built in to keep behavior natural.
 
 ## Tips
 
 - **Run once per day.** Bing Rewards resets counters at midnight Pacific Time. Running more than once won't earn extra points.
-- **Keep the browser open.** Points Harvest needs an active browser session. You can minimize it, but don't close it while a run is in progress.
-- **Check your streak.** Make sure you're signed into the correct Microsoft account before starting.
+- **Stay in the browser.** Don't minimize the window while a run is in progress. Ideally, interact naturally with the pages as they open — scroll, click a search result, browse around. This looks more human and helps ensure points are credited.
+- **Check your account.** Make sure you're signed into the correct Microsoft account before starting.
+- **You'll get a notification.** A desktop notification appears when the run finishes, so you don't have to watch it the whole time.
 
 ## Next Steps
 
