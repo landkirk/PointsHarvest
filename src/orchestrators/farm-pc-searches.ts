@@ -4,7 +4,6 @@ import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { shuffleArray } from '../util/array.js';
 import { lingerOnPage, TIMING } from '../util/timing.js';
-import { openTab } from '../util/tabs.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { PC_SEARCH_TYPE, PHASE } from '../util/state.js';
@@ -21,42 +20,16 @@ function findPcCounter(counters: SearchCounter[] | null | undefined): SearchCoun
 
 class FarmPcSearches extends OrchestratorBase {
   readonly name = 'PC search farming';
-  private breakdownTabId: number | null = null;
 
   async run(ctx: Context): Promise<void> {
-    const ownBreakdownTab = !this.breakdownTabId;
-    if (ownBreakdownTab) {
-      const tab = await openTab(REWARDS_BREAKDOWN_URL, false);
-      if (tab.id === undefined) throw new Error('Breakdown tab has no ID');
-      this.breakdownTabId = tab.id;
-    }
-
+    const tab = await this.openManagedTab(REWARDS_BREAKDOWN_URL, false);
     ctx.signal.throwIfAborted();
-
-    try {
-      await this._farm(ctx);
-    } finally {
-      if (ownBreakdownTab && this.breakdownTabId) {
-        chrome.tabs.remove(this.breakdownTabId).catch(() => {
-          /* tab may already be closed */
-        });
-        this.breakdownTabId = null;
-      }
-    }
+    await this._farm(ctx, tab.id);
   }
 
-  protected async _onStop(_ctx: Context): Promise<void> {
-    if (this.breakdownTabId) {
-      chrome.tabs.remove(this.breakdownTabId).catch(() => {
-        /* tab may already be closed */
-      });
-      this.breakdownTabId = null;
-    }
-  }
-
-  private async _farm(ctx: Context): Promise<void> {
+  private async _farm(ctx: Context, breakdownTabId: number): Promise<void> {
     ctx.signal.throwIfAborted();
-    const searchCounters = await fetchCounters.run(ctx, this.breakdownTabId);
+    const searchCounters = await fetchCounters.run(ctx, breakdownTabId);
     if (searchCounters === null) return;
     const counter = findPcCounter(searchCounters);
 
@@ -113,7 +86,7 @@ class FarmPcSearches extends OrchestratorBase {
       await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES, ctx.signal);
       ctx.signal.throwIfAborted();
 
-      const updated = await fetchCounters.run(ctx, this.breakdownTabId);
+      const updated = await fetchCounters.run(ctx, breakdownTabId);
       if (updated === null) {
         await ctx.fail('counter', 'PC farm aborted: counter fetch failed');
         return;
