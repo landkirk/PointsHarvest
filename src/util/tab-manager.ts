@@ -3,6 +3,33 @@ import { sleep, TIMEOUTS } from './timing.js';
 import { MSG_ACTION } from './messaging.js';
 import type { Context } from './context.js';
 
+function abortable<T>(
+  signal: AbortSignal | undefined,
+  executor: (resolve: (value: T) => void) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
+    let settled = false;
+    const onAbort = () => {
+      if (!settled) {
+        settled = true;
+        reject(signal!.reason);
+      }
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+    executor((value) => {
+      if (!settled) {
+        settled = true;
+        signal?.removeEventListener('abort', onAbort);
+        resolve(value);
+      }
+    });
+  });
+}
+
 export class TabManager {
   private readonly openedTabIds = new Set<number>();
   private tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
@@ -97,15 +124,6 @@ export class TabManager {
   }
 
   async closeAll(): Promise<void> {
-    if (this.tabLoadState.pendingResolve) {
-      this.tabLoadState.pendingResolve();
-      this.tabLoadState.pendingResolve = null;
-      this.tabLoadState.pendingTabId = null;
-    }
-    if (this._captureResolve) {
-      this._captureResolve(null);
-      this._captureResolve = null;
-    }
     await closeOwnedTabs(this.openedTabIds);
   }
 
@@ -129,7 +147,7 @@ export class TabManager {
     this.tabLoadState.pendingTabId = tabId;
     try {
       await Promise.race([
-        new Promise<void>((resolve) => {
+        abortable<void>(signal, (resolve) => {
           this.tabLoadState.pendingResolve = resolve;
         }),
         sleep(timeoutMs, signal),
@@ -144,7 +162,7 @@ export class TabManager {
     timeoutMs = 10000,
     signal?: AbortSignal,
   ): Promise<chrome.tabs.Tab | null> {
-    const capturePromise = new Promise<chrome.tabs.Tab | null>((resolve) => {
+    const capturePromise = abortable<chrome.tabs.Tab | null>(signal, (resolve) => {
       this._captureResolve = resolve;
     });
     try {
