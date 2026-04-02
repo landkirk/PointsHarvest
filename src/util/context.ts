@@ -7,6 +7,7 @@ import type { DebugType, FailureCategory } from './messaging.js';
 import type { ProgressPayload } from './messaging.js';
 
 export interface Context {
+  signal: AbortSignal;
   setState: (updates: Partial<AppState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
@@ -14,8 +15,9 @@ export interface Context {
   broadcastProgress: () => Promise<void>;
 }
 
-export function createContext(): Context {
+export function createContext(signal: AbortSignal): Context {
   return {
+    signal,
     setState,
     dbg(type: DebugType, message: string): Promise<void> {
       return dbg(type, message, getActiveOrchestrator()?.name);

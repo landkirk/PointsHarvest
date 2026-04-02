@@ -31,7 +31,7 @@ class FarmPcSearches extends OrchestratorBase {
       this.breakdownTabId = tab.id;
     }
 
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
 
     try {
       await this._farm(ctx);
@@ -55,7 +55,7 @@ class FarmPcSearches extends OrchestratorBase {
   }
 
   private async _farm(ctx: Context): Promise<void> {
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
     const searchCounters = await fetchCounters.run(ctx, this.breakdownTabId);
     if (searchCounters === null) return;
     const counter = findPcCounter(searchCounters);
@@ -96,7 +96,7 @@ class FarmPcSearches extends OrchestratorBase {
     let shuffleIndex = 0;
 
     while (current < max) {
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
 
       if (shuffleIndex >= shuffled.length) {
         await ctx.fail('search', 'PC search queries exhausted');
@@ -104,14 +104,14 @@ class FarmPcSearches extends OrchestratorBase {
       }
       const query = shuffled[shuffleIndex++];
 
-      const tab = await this.openTabAndWait('https://www.bing.com');
+      const tab = await this.openTabAndWait('https://www.bing.com', true, 30000, ctx.signal);
 
       await performSearch.run(ctx, tab.id, query);
       this.closeTab(tab.id);
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
 
-      await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES);
-      this.checkStopped();
+      await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES, ctx.signal);
+      ctx.signal.throwIfAborted();
 
       const updated = await fetchCounters.run(ctx, this.breakdownTabId);
       if (updated === null) {

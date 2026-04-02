@@ -1,25 +1,25 @@
 import { DBG } from '../util/debug.js';
-import {
-  resetState,
-  loadState,
-  setHeaderState,
-  getIsActivelyRunning,
-  setIsActivelyRunning,
-  setActiveOrchestrator,
-} from '../util/state.js';
+import { resetState, loadState, setHeaderState, setActiveOrchestrator } from '../util/state.js';
 import { openTab, removeTab } from '../util/tabs.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
-import { NotLoggedInError } from '../orchestrators/activity-extraction.js';
-import type { Context } from '../util/context.js';
-import { StoppedError } from '../interfaces/orchestrator.js';
-import type { OrchestratorBase } from '../interfaces/orchestrator.js';
-
-import { ActivityExtractionOrchestrator } from '../orchestrators/activity-extraction.js';
+import {
+  NotLoggedInError,
+  ActivityExtractionOrchestrator,
+} from '../orchestrators/activity-extraction.js';
 import { CompleteExploreOnBing } from '../orchestrators/complete-explore-on-bing.js';
 import { CompleteDailySets } from '../orchestrators/complete-daily-sets.js';
 import { FarmPcSearches } from '../orchestrators/farm-pc-searches.js';
 import { WarmUpSearches } from '../orchestrators/warm-up-searches.js';
+import type { Context } from '../util/context.js';
+import { StoppedError } from '../interfaces/stoppable.js';
+import type { OrchestratorBase } from '../interfaces/orchestrator.js';
+
+let activeController: AbortController | null = null;
+
+export function getActiveController(): AbortController | null {
+  return activeController;
+}
 
 type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
 
@@ -30,8 +30,8 @@ class StartRun {
     await resetState({ isRunning: true, lastRunDate: today });
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 
-    setIsActivelyRunning(true);
-    const ctx = createContext();
+    activeController = new AbortController();
+    const ctx = createContext(activeController.signal);
     await ctx.broadcastProgress();
 
     this._executeRun(ctx, skipWarmUp) // fire and forget
@@ -43,7 +43,7 @@ class StartRun {
   private async _executeRun(ctx: Context, skipWarmUp: boolean): Promise<void> {
     await ctx.dbg(DBG.INFO, 'Run started');
 
-    if (!getIsActivelyRunning()) return;
+    if (ctx.signal.aborted) return;
 
     let rewardsTabId: number;
     try {
@@ -87,7 +87,7 @@ class StartRun {
       throw err;
     }
 
-    if (!getIsActivelyRunning()) return;
+    if (ctx.signal.aborted) return;
     await this._endRun(ctx, 'Done for today!', 'All tasks complete', true);
   }
 
@@ -96,7 +96,7 @@ class StartRun {
     orchestrator: AnyOrchestrator,
     run: () => Promise<void>,
   ): Promise<void> {
-    if (!getIsActivelyRunning()) return;
+    if (ctx.signal.aborted) return;
     setActiveOrchestrator(orchestrator);
     try {
       await run();
@@ -118,7 +118,7 @@ class StartRun {
     msg: string,
     success: boolean,
   ): Promise<void> {
-    setIsActivelyRunning(false);
+    activeController = null;
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) removeTab(rewardsTabId);
     await ctx.setState({ isRunning: false });

@@ -27,7 +27,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
     });
 
     for (let i = 0; i < MAX_POLLS; i++) {
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
       const result = await chrome.tabs
         .sendMessage(breakdownTabId, { action: MSG_ACTION.GET_COUNTERS })
         .catch(() => null);
@@ -56,7 +56,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
         return valid;
       }
 
-      if (i < MAX_POLLS - 1) await sleep(POLL_INTERVAL_MS);
+      if (i < MAX_POLLS - 1) await sleep(POLL_INTERVAL_MS, ctx.signal);
     }
 
     await ctx.fail('counter', `Counter fetch timed out after ${MAX_POLLS}s`);

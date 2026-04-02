@@ -17,7 +17,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
   private rewardsTabId: number | null = null;
 
   async run(ctx: Context): Promise<void> {
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
     const extraction = (await loadState()).activityState ?? null;
     if (!extraction || !extraction.rewardsTabId) {
       await ctx.dbg(DBG.WARN, 'No extraction result — skipping explore on bing');
@@ -55,7 +55,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     });
 
     for (let i = 0; i < activities.length; i++) {
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
 
       const { id, searchQuery, title, fallbackQuery, points } = activities[i];
 
@@ -103,7 +103,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       earnedPts += points;
       const completed = i + 1;
       await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${completed}/${activities.length} complete`);
-      this.checkStopped();
+      ctx.signal.throwIfAborted();
 
       await ctx.updateHeader({
         headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
@@ -113,8 +113,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       });
 
       if (i < activities.length - 1) {
-        await lingerOnPage('between explore on bing searches');
-        this.checkStopped();
+        await lingerOnPage('between explore on bing searches', undefined, ctx.signal);
+        ctx.signal.throwIfAborted();
       }
     }
   }
@@ -137,11 +137,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     chrome.tabs.update(searchTab.id, { active: true }).catch(() => {
       /* non-critical: tab may have closed before we activated it */
     });
-    await this.waitForTabLoad(searchTab.id, 30000);
-    this.checkStoppedOrCloseTab(searchTab.id);
+    await this.waitForTabLoad(searchTab.id, 30000, ctx.signal);
+    this.closeTabAndThrowIfAborted(ctx, searchTab.id);
     await performSearch.run(ctx, searchTab.id, searchQuery);
     this.closeTab(searchTab.id);
-    this.checkStopped();
+    ctx.signal.throwIfAborted();
 
     const r = await validateActivity.run(ctx, activity, rewardsTabId);
     return r.status === ValidationStatus.Completed
