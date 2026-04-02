@@ -111,6 +111,7 @@
       padding: 0 2rem;
       text-align: center;
       position: relative;
+      overflow: hidden;
     }
     .hero::before {
       content: '';
@@ -192,6 +193,12 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 1.25rem;
+    }
+    @media (max-width: 800px) {
+      .features { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 480px) {
+      .features { grid-template-columns: 1fr; }
     }
     .feature-card {
       background: var(--surface);
@@ -283,7 +290,6 @@
       <a href="#features">Features</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
-      <a class="btn btn-primary nav-btn" href="#" data-download="nav" download>Download</a>
     </div>
   </nav>
 
@@ -486,7 +492,6 @@
       el.href = DOWNLOAD_URL;
       if (el.dataset.download === 'filename') el.textContent = `PointsHarvest-${LATEST_VERSION}.zip`;
       if (el.dataset.download === 'button') el.textContent = `Download Latest (${LATEST_VERSION})`;
-      if (el.dataset.download === 'nav') el.textContent = `Download`;
     });
   </script>
 </body>
