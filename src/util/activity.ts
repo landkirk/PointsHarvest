@@ -1,5 +1,5 @@
 import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
-import { loadState, setState } from './state.js';
+import { loadState, setState } from './persistent-state.js';
 
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',

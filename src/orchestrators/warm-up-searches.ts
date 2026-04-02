@@ -5,7 +5,7 @@ import { shuffleArray } from '../util/array.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { PHASE } from '../util/state.js';
+import { PHASE } from '../util/persistent-state.js';
 import { performSearch } from '../steps/perform-search.js';
 
 const WARMUP_COUNT = 3;

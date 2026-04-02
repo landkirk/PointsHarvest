@@ -1,5 +1,5 @@
 import type { OnboardingScreen } from '../util/screens.js';
-import { setState, loadState } from '../util/state.js';
+import { setState, loadState } from '../util/persistent-state.js';
 
 export async function showOnboarding(
   screens: OnboardingScreen[],

@@ -6,7 +6,7 @@ import { ACTIVITY_TYPE, CardState, markActivityCompleted, sumCompleted } from '.
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { PHASE, loadState } from '../util/state.js';
+import { PHASE, loadState } from '../util/persistent-state.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';

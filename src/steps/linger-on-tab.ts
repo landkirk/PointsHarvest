@@ -1,4 +1,4 @@
-import { setHeaderState } from '../util/state.js';
+import { setHeaderState } from '../util/persistent-state.js';
 import { sleep } from '../util/timing.js';
 import type { Context } from '../util/context.js';
 

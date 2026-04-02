@@ -7,7 +7,7 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
-import type { SearchCounter } from '../util/state.js';
+import type { SearchCounter } from '../util/persistent-state.js';
 import { PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
 
 const POLL_INTERVAL_MS = TIMEOUTS.FETCH_COUNTERS_POLL;
