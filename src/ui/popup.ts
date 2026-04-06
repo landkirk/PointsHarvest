@@ -221,7 +221,14 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
 
 btnStart.addEventListener('click', () => {
   btnStart.disabled = true;
-  chrome.runtime.sendMessage({ action: MSG_ACTION.START, skipWarmUp: skipWarmUpCheck.checked });
+  chrome.windows.getCurrent().then((win) => {
+    if (!win.id) return;
+    chrome.runtime.sendMessage({
+      action: MSG_ACTION.START,
+      skipWarmUp: skipWarmUpCheck.checked,
+      windowId: win.id,
+    });
+  });
 });
 
 btnStop.addEventListener('click', () => {

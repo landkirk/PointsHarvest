@@ -27,9 +27,10 @@ type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
 class StartRun {
   readonly tabs = new TabManager();
 
-  async run(skipWarmUp = false): Promise<void> {
+  async run(skipWarmUp: boolean, windowId: number): Promise<void> {
     const today = new Date().toDateString();
 
+    this.tabs.setWindowId(windowId);
     await resetState({ isRunning: true, lastRunDate: today });
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 
@@ -51,6 +52,7 @@ class StartRun {
     let rewardsTabId: number;
     try {
       const tab = await this.tabs.openTab(REWARDS_URL);
+      this.tabs.untrackTab(tab.id); // managed by _endRun; must not be closed by orchestrator closeAll()
       this.tabs.focusTab(tab.id);
       if (tab.id === undefined) throw new Error('Rewards tab has no ID');
       rewardsTabId = tab.id;
@@ -62,17 +64,17 @@ class StartRun {
 
     try {
       // ── Chain orchestrators ──────────────────────────────────────────────────
-      const extraction = new ActivityExtractionOrchestrator();
-      const exploreOnBing = new CompleteExploreOnBing();
-      const dailySets = new CompleteDailySets();
-      const farmPcSearches = new FarmPcSearches();
+      const extraction = new ActivityExtractionOrchestrator(this.tabs);
+      const exploreOnBing = new CompleteExploreOnBing(this.tabs);
+      const dailySets = new CompleteDailySets(this.tabs);
+      const farmPcSearches = new FarmPcSearches(this.tabs);
 
       await this._runOrchestrator(ctx, extraction, () => extraction.run(ctx));
 
       if (skipWarmUp) {
         await ctx.dbg(DBG.INFO, 'Warm-up skipped');
       } else {
-        const warmUp = new WarmUpSearches();
+        const warmUp = new WarmUpSearches(this.tabs);
         await this._runOrchestrator(ctx, warmUp, () => warmUp.run(ctx));
       }
       await this._runOrchestrator(ctx, exploreOnBing, () => exploreOnBing.run(ctx));
@@ -124,6 +126,7 @@ class StartRun {
     success: boolean,
   ): Promise<void> {
     activeController = null;
+    await this.tabs.closeAll();
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
     await ctx.setState({ isRunning: false });

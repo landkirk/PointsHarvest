@@ -11,16 +11,10 @@ import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '.
 import type { Activity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
-import { TabManager } from '../util/tab-manager.js';
-import { ActivityRunner } from '../util/activity-runner.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
   private rewardsTabId: number | null = null;
-
-  constructor() {
-    super(new TabManager(), new ActivityRunner());
-  }
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
