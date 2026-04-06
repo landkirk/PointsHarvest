@@ -62,7 +62,7 @@ export type MsgAction = (typeof MSG_ACTION)[keyof typeof MSG_ACTION];
 
 export type AppMessage =
   // Popup → Background
-  | { action: typeof MSG_ACTION.START; skipWarmUp?: boolean }
+  | { action: typeof MSG_ACTION.START; skipWarmUp: boolean; windowId: number }
   | { action: typeof MSG_ACTION.STOP }
   | { action: typeof MSG_ACTION.GET_STATE }
   | { action: typeof MSG_ACTION.PING }

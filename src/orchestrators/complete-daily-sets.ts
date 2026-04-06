@@ -10,16 +10,10 @@ import { PHASE, loadState } from '../util/persistent-state.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
-import { TabManager } from '../util/tab-manager.js';
-import { ActivityRunner } from '../util/activity-runner.js';
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
   private currentLinger: LingerHandle | null = null;
-
-  constructor() {
-    super(new TabManager(), new ActivityRunner());
-  }
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();

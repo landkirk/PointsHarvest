@@ -38,12 +38,19 @@ export class TabManager {
   private readonly openedTabIds = new Set<number>();
   private tabLoadState: TabLoadState = { pendingTabId: null, pendingResolve: null };
   private _captureResolve: ((tab: chrome.tabs.Tab | null) => void) | null = null;
+  private windowId!: number;
+
+  setWindowId(id: number): void {
+    this.windowId = id;
+  }
 
   // ── Orchestrator API ────────────────────────────────────────────────────
 
   /** Open a new tab, track it, and return it. Throws if creation fails. */
   async openTab(url: string): Promise<chrome.tabs.Tab & { id: number }> {
-    const tab = await chrome.tabs.create({ url, active: false }).catch(() => null);
+    const tab = await chrome.tabs
+      .create({ url, active: false, windowId: this.windowId })
+      .catch(() => null);
     if (!tab) throw new Error(`Failed to open tab: ${url}`);
     if (tab.id === undefined) throw new Error('Opened tab has no ID');
     this.openedTabIds.add(tab.id);
