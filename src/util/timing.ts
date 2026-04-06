@@ -15,6 +15,7 @@ export const TIMEOUTS = {
   REWARDS_DOM_POLL: 500, // DOM poll interval
   VALIDATE_ACTIVITY: 2_000, // post-click settle delay
   TAB_LOAD: 30_000, // default waitForTabLoad timeout
+  PERMISSION_WAIT: 10 * 60_000, // max wait for user to fix Chrome popup permissions
 };
 
 /** Triangular distribution biased toward the middle of [min, max]. */
