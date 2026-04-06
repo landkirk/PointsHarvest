@@ -14,6 +14,7 @@ class StopRun {
     await setState({ isRunning: false, isLingering: false });
     const ctx = createContext(AbortSignal.abort(new StoppedError()));
     await getActiveOrchestrator()?.stop(ctx);
+    await this.tabs.closeAll();
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
     await setHeaderState({ headerMessage: 'Stopped', activePhase: null });

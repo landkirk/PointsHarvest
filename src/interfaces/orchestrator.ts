@@ -9,7 +9,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   abstract readonly name: string;
 
   constructor(
-    protected readonly tabs: TabManager = new TabManager(),
+    protected readonly tabs: TabManager,
     protected readonly runner: ActivityRunner | null = null,
   ) {}
 
