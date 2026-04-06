@@ -2,6 +2,19 @@ import { sleep, TIMEOUTS } from './timing.js';
 import { MSG_ACTION } from './messaging.js';
 import type { Context } from './context.js';
 
+export type CapturedTab = chrome.tabs.Tab & { id: number };
+
+export const enum TabCaptureStatus {
+  Ok = 'ok',
+  Blocked = 'blocked',
+  Failed = 'failed',
+}
+
+export type TabCaptureResult =
+  | { status: TabCaptureStatus.Ok; tab: CapturedTab }
+  | { status: TabCaptureStatus.Blocked }
+  | { status: TabCaptureStatus.Failed };
+
 interface TabLoadState {
   pendingTabId: number | null;
   pendingResolve: (() => void) | null;
@@ -104,7 +117,7 @@ export class TabManager {
     rewardsTabId: number,
     id: string,
     label: string,
-  ): Promise<(chrome.tabs.Tab & { id: number }) | null> {
+  ): Promise<TabCaptureResult> {
     const capturePromise = this._captureNextTab(10000, ctx.signal);
 
     const clickResult = await chrome.tabs
@@ -123,16 +136,12 @@ export class TabManager {
         'navigation',
         `Card click failed for "${label}": ${clickResult?.error ?? 'no response'}`,
       );
-      return null;
+      return { status: TabCaptureStatus.Failed };
     }
 
     const tab = await capturePromise;
     if (!tab) {
-      await ctx.fail(
-        'setup',
-        `Chrome blocked the activity tab from opening ("${label}"). To fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → rewards.bing.com`,
-      );
-      return null;
+      return { status: TabCaptureStatus.Blocked };
     }
 
     if (tab.id === undefined) throw new Error('Captured tab has no ID');
@@ -141,7 +150,7 @@ export class TabManager {
     await this._waitForTabLoad(tab.id, TIMEOUTS.TAB_LOAD, ctx.signal);
     this.focusTab(tab.id as number);
 
-    return tab as chrome.tabs.Tab & { id: number };
+    return { status: TabCaptureStatus.Ok, tab: tab as CapturedTab };
   }
 
   // ── Internal / lifecycle ────────────────────────────────────────────────

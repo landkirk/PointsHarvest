@@ -10,6 +10,7 @@ import { PHASE, loadState } from '../util/persistent-state.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
+import { TabCaptureStatus } from '../util/tab-manager.js';
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
@@ -101,8 +102,13 @@ class CompleteDailySets extends OrchestratorBase {
   ): Promise<boolean> {
     const { title } = activity;
     const label = title.slice(0, 60);
-    const t = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
-    if (!t) return false;
+    const result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
+    if (result.status === TabCaptureStatus.Failed) return false;
+    if (result.status === TabCaptureStatus.Blocked) {
+      await this._waitForPopupUnblock(ctx, label);
+      return false;
+    }
+    const t = result.tab;
 
     ctx.signal.throwIfAborted();
 
@@ -136,10 +142,12 @@ class CompleteDailySets extends OrchestratorBase {
   }
 
   override onUserActionComplete(): void {
+    super.onUserActionComplete();
     this._resolveLinger(true);
   }
 
   protected override async _onStop(_ctx: Context): Promise<void> {
+    await super._onStop(_ctx);
     this._resolveLinger(true);
   }
 }
