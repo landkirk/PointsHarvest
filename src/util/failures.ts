@@ -13,6 +13,15 @@ export interface Failure {
 
 const MAX_FAILURES = 50;
 
+/** Removes all failures with category 'setup' from persistent state. */
+export async function clearSetupFailures(): Promise<void> {
+  const failures = await getFailures();
+  const filtered = failures.filter((f) => f.category !== 'setup');
+  if (filtered.length !== failures.length) {
+    await setState({ failures: filtered });
+  }
+}
+
 /** Records a user-facing soft failure. Also writes a ERROR entry to the debug log. */
 export async function fail(
   category: FailureCategory,
