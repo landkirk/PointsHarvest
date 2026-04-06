@@ -3,6 +3,7 @@ import type { Context } from '../util/context.js';
 import { TabManager } from '../util/tab-manager.js';
 import { ActivityRunner } from '../util/activity-runner.js';
 import { waitForPopupUnblock, type PermissionWaitHandle } from '../steps/wait-for-popup-unblock.js';
+import { clearSetupFailures } from '../util/failures.js';
 
 export { StoppedError };
 
@@ -42,6 +43,8 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
     this._currentPermissionWait = wait;
     await wait.promise;
     this._currentPermissionWait = null;
+    await clearSetupFailures();
+    await ctx.broadcastProgress();
   }
 
   onTabUpdated(tabId: number, changeInfo: { status?: string }): void {
