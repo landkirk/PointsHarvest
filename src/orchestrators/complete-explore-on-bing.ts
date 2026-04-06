@@ -11,6 +11,7 @@ import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '.
 import type { Activity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
+import { TabCaptureStatus } from '../util/tab-manager.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
@@ -131,13 +132,18 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
   ): Promise<boolean | null> {
     const rewardsTabId = this.rewardsTabId;
     if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
-    const searchTab = await this.tabs.clickCardAndCaptureTab(
+    const result = await this.tabs.clickCardAndCaptureTab(
       ctx,
       rewardsTabId,
       activity.id,
       activity.title,
     );
-    if (!searchTab) return null;
+    if (result.status === TabCaptureStatus.Failed) return null;
+    if (result.status === TabCaptureStatus.Blocked) {
+      await this._waitForPopupUnblock(ctx, activity.title);
+      return null;
+    }
+    const searchTab = result.tab;
 
     ctx.signal.throwIfAborted();
     await performSearch.run(ctx, searchTab.id, searchQuery);
