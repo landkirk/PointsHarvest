@@ -1,5 +1,5 @@
 import type { DebugEntry } from './debug.js';
-import type { Failure } from './failures.js';
+import type { FailureEntry } from './failures.js';
 import type { ActivityState } from './activity.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
@@ -71,7 +71,7 @@ export interface RunState {
   searchCounters: SearchCounter[];
   rewardsTabId: number | null;
   activityState: ActivityState | null;
-  failures: Failure[];
+  failures: FailureEntry[];
   header: HeaderState;
   debug: DebugState;
 }
@@ -183,9 +183,9 @@ export async function getDebugLog(): Promise<DebugEntry[]> {
 }
 
 /** Read current failures from storage. */
-export async function getFailures(): Promise<Failure[]> {
+export async function getFailures(): Promise<FailureEntry[]> {
   const stored = await chrome.storage.local.get('failures');
-  return (stored.failures as Failure[]) ?? [];
+  return (stored.failures as FailureEntry[]) ?? [];
 }
 
 /** Reset run state to initial values. Preference keys are unaffected (storage.local.set is additive). */

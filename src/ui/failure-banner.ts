@@ -1,4 +1,4 @@
-import type { Failure } from '../util/failures.js';
+import type { FailureEntry } from '../util/failures.js';
 import { esc } from './debug-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
@@ -25,7 +25,7 @@ function updateFailureSummary(count: number): void {
   failureSummary.textContent = `${count} failure${count === 1 ? '' : 's'} — click to ${failureListExpanded ? 'collapse' : 'expand'}`;
 }
 
-export function renderFailures(failures: Failure[]): void {
+export function renderFailures(failures: FailureEntry[]): void {
   if (!failures || failures.length === 0) {
     failureBanner.style.display = 'none';
     setupBanner.style.display = 'none';
@@ -51,7 +51,7 @@ export function renderFailures(failures: Failure[]): void {
   failureList.innerHTML = nonSetup.map((f) => failureItemHtml(f)).join('');
 }
 
-export function appendFailure(f: Failure): void {
+export function appendFailure(f: FailureEntry): void {
   if (f.category === 'setup') {
     setupBanner.style.display = 'block';
     return;
@@ -63,8 +63,16 @@ export function appendFailure(f: Failure): void {
   updateFailureSummary(failureList.children.length);
 }
 
-function failureItemHtml(f: Failure): string {
-  return `<div class="failure-item"><span class="f-time">${esc(f.time)}</span><span class="f-cat">[${esc(f.category)}]</span><span class="f-msg">${esc(f.message)}</span></div>`;
+function failureItemHtml(f: FailureEntry): string {
+  const ctxParts: [string, string][] = [];
+  if (f.orchestrator?.name) ctxParts.push(['orch', f.orchestrator.name]);
+  if (f.step?.name) ctxParts.push(['step', f.step.name]);
+  if (f.activity?.title) ctxParts.push(['activity', f.activity.title]);
+  const ctxInner = ctxParts
+    .map(([label, val]) => `<span class="f-ctx-label">${label}</span>${esc(val)}`)
+    .join('<span class="f-ctx-sep"> › </span>');
+  const ctxSpan = ctxInner ? `<span class="f-ctx">${ctxInner}</span>` : '';
+  return `<div class="failure-item"><span class="f-time">${esc(f.time)}</span><span class="f-cat">[${esc(f.category)}]</span><span class="f-msg">${esc(f.message)}</span>${ctxSpan}</div>`;
 }
 
 failureSummary.addEventListener('click', () => {
