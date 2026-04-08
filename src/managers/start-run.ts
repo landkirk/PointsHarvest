@@ -2,7 +2,7 @@ import { DBG } from '../util/debug.js';
 import { resetState, loadState, setHeaderState } from '../util/persistent-state.js';
 import { setActiveOrchestrator } from '../util/runtime-state.js';
 import { TabManager } from '../util/tab-manager.js';
-import { REWARDS_URL } from '../util/config.js';
+import { REWARDS_URL, KEEPALIVE_ALARM } from '../util/config.js';
 import { createContext } from '../util/context.js';
 import {
   NotLoggedInError,
@@ -35,6 +35,7 @@ class StartRun {
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 
     activeController = new AbortController();
+    await chrome.alarms.create(KEEPALIVE_ALARM, { periodInMinutes: 0.5 });
     const ctx = createContext(activeController.signal);
     await ctx.broadcastProgress();
 
@@ -126,6 +127,7 @@ class StartRun {
     success: boolean,
   ): Promise<void> {
     activeController = null;
+    await chrome.alarms.clear(KEEPALIVE_ALARM);
     await this.tabs.closeAll();
     const { rewardsTabId } = await loadState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
