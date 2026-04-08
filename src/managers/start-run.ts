@@ -1,5 +1,10 @@
 import { DBG } from '../util/debug.js';
-import { resetRunState, loadRunState, setHeaderState } from '../util/persistent-state.js';
+import {
+  resetRunState,
+  loadRunState,
+  setHeaderState,
+  loadPreferences,
+} from '../util/persistent-state.js';
 import { setActiveOrchestrator } from '../util/runtime-state.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
@@ -131,13 +136,16 @@ class StartRun {
     await setHeaderState({ headerMessage: status, activePhase: null });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
     await ctx.broadcastProgress();
-    const iconUrl = await this._iconDataUrl();
-    chrome.notifications.create({
-      type: 'basic',
-      iconUrl,
-      title: success ? 'PointsHarvest — Done!' : 'PointsHarvest — Failed',
-      message: status,
-    });
+    const prefs = await loadPreferences();
+    if (!prefs.disableNotifications) {
+      const iconUrl = await this._iconDataUrl();
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl,
+        title: success ? 'PointsHarvest — Done!' : 'PointsHarvest — Failed',
+        message: status,
+      });
+    }
   }
 
   private async _iconDataUrl(): Promise<string> {
