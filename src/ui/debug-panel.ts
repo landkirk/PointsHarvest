@@ -134,7 +134,19 @@ function renderActivitySection(
     html += queryListHtml(data.queue, 'Not yet built.', LIST_SIZE.SMALL);
   }
 
+  const prevFilter = container.querySelector<HTMLElement>('.dbg-list')?.dataset.activeFilter ?? '';
+
   container.innerHTML = html;
+
+  if (prevFilter) {
+    const list = container.querySelector<HTMLElement>('.dbg-list');
+    if (list) {
+      list.dataset.activeFilter = prevFilter;
+      container.querySelectorAll<HTMLElement>('[data-filter]').forEach((s) => {
+        s.classList.toggle('filter-active', s.dataset.filter === prevFilter);
+      });
+    }
+  }
 
   // Attach filter delegation once per container (survives re-renders).
   if (!container.dataset.filterInit) {
