@@ -1,4 +1,5 @@
 import { MSG_ACTION } from '../util/messaging.js';
+import { KEEPALIVE_PORT } from '../util/config.js';
 import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
 import { PHASE, PHASE_TIME_LABEL } from '../util/persistent-state.js';
 import type { AppState, PhasePointsMap } from '../util/persistent-state.js';
@@ -242,6 +243,33 @@ btnDone.addEventListener('click', () => {
 btnPurge.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }).then(() => window.close());
 });
+
+// ── Service worker keepalive ───────────────────────────────────────────────
+// A long-lived port prevents Chrome from killing the service worker while the
+// side panel is open.  A heartbeat every 20s guards against Chrome's 30s port
+// idle timeout.
+
+let keepalivePort: chrome.runtime.Port | null = null;
+let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
+
+function connectKeepalive(): void {
+  keepalivePort = chrome.runtime.connect(undefined, { name: KEEPALIVE_PORT });
+  keepalivePort.onDisconnect.addListener(() => {
+    keepalivePort = null;
+    if (keepaliveInterval) clearInterval(keepaliveInterval);
+    keepaliveInterval = null;
+    // Extension context invalidated — stop reconnecting.
+    if (chrome.runtime.id === undefined) return;
+    // Reconnect after a brief delay — the disconnect may be a transient worker restart.
+    setTimeout(connectKeepalive, 1_000);
+  });
+  if (keepaliveInterval) clearInterval(keepaliveInterval);
+  keepaliveInterval = setInterval(() => {
+    keepalivePort?.postMessage({ type: 'heartbeat' });
+  }, 20_000);
+}
+
+connectKeepalive();
 
 // ── Debug panel toggle ──────────────────────────────────────────────────────
 

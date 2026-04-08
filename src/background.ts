@@ -4,7 +4,7 @@ import { loadState, resetState, setState, setHeaderState } from './util/persiste
 import { getActiveOrchestrator } from './util/runtime-state.js';
 import { StartRun, getActiveController } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
-import { KEEPALIVE_ALARM } from './util/config.js';
+import { KEEPALIVE_PORT } from './util/config.js';
 
 const startRun = new StartRun();
 const stopRun = new StopRun(startRun.tabs);
@@ -17,12 +17,14 @@ try {
   /* setPanelBehavior requires a user-gesture context; unavailable during SW cold boot in some Chrome builds */
 }
 
-// ── Keepalive alarm ───────────────────────────────────────────────────────
+// ── Keepalive ─────────────────────────────────────────────────────────────
+// A long-lived port from the side panel keeps the worker alive continuously.
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === KEEPALIVE_ALARM) {
-    // Any Chrome API call resets the 30s service worker idle timer.
-    chrome.storage.local.get('isRunning');
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === KEEPALIVE_PORT) {
+    port.onMessage.addListener(() => {
+      // Heartbeat received — no action needed; the message itself resets the idle timer.
+    });
   }
 });
 
@@ -69,17 +71,15 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
       orch.onUserActionComplete();
     } else {
       // Worker restarted mid-linger — clear stale UI state
-      chrome.alarms.clear(KEEPALIVE_ALARM);
       setState({ isRunning: false, isLingering: false }).then(() =>
         setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
       );
     }
   }
   if (msg.action === MSG_ACTION.RESET_STALE) {
-    Promise.all([
-      chrome.alarms.clear(KEEPALIVE_ALARM),
-      setState({ isRunning: false, isLingering: false }),
-    ]).then(() => setHeaderState({ headerMessage: 'Stopped', activePhase: null }));
+    setState({ isRunning: false, isLingering: false }).then(() =>
+      setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
+    );
   }
   if (msg.action === MSG_ACTION.SET_PREFERENCE) {
     setState(msg.updates);
@@ -90,5 +90,5 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async () => {
-  await Promise.all([chrome.alarms.clear(KEEPALIVE_ALARM), resetState()]);
+  await resetState();
 });

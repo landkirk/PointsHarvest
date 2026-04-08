@@ -3,7 +3,6 @@ import { getActiveOrchestrator } from '../util/runtime-state.js';
 import { dbg, DBG } from '../util/debug.js';
 import { createContext } from '../util/context.js';
 import { TabManager } from '../util/tab-manager.js';
-import { KEEPALIVE_ALARM } from '../util/config.js';
 import { getActiveController } from './start-run.js';
 import { StoppedError } from '../interfaces/stoppable.js';
 
@@ -12,7 +11,6 @@ class StopRun {
 
   async run(): Promise<void> {
     getActiveController()?.abort(new StoppedError());
-    await chrome.alarms.clear(KEEPALIVE_ALARM);
     await setState({ isRunning: false, isLingering: false });
     const ctx = createContext(AbortSignal.abort(new StoppedError()));
     await getActiveOrchestrator()?.stop(ctx);
