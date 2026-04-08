@@ -325,6 +325,48 @@
         margin-top: 6px;
       }
 
+      /* ── Prefs panel ── */
+      #prefs-panel {
+        margin-top: 14px;
+        padding: 10px 12px;
+        background: #161616;
+        border: 1px solid #2a2a2a;
+        border-radius: 6px;
+      }
+
+      .prefs-header {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .pref-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        user-select: none;
+        width: fit-content;
+      }
+
+      .pref-row + .pref-row {
+        margin-top: 6px;
+      }
+
+      .pref-row input {
+        cursor: pointer;
+        accent-color: #3b82f6;
+      }
+
+      .pref-row label {
+        font-size: 11px;
+        color: #999;
+        cursor: pointer;
+      }
+
       /* ── Debug panel ── */
       #debug-panel {
         display: none;
@@ -627,14 +669,18 @@
       <button id="btn-done">Done — I completed the action</button>
       <div class="last-search" id="last-search"></div>
 
-      <div class="debug-toggle">
-        <input type="checkbox" id="skip-warmup-check" />
-        <label for="skip-warmup-check">Skip warm-up searches</label>
-      </div>
+      <div id="prefs-panel">
+        <div class="prefs-header">Preferences</div>
 
-      <div class="debug-toggle">
-        <input type="checkbox" id="disable-notifications-check" />
-        <label for="disable-notifications-check">Disable notifications</label>
+        <div class="pref-row">
+          <input type="checkbox" id="skip-warmup-check" />
+          <label for="skip-warmup-check">Skip warm-up searches</label>
+        </div>
+
+        <div class="pref-row">
+          <input type="checkbox" id="disable-notifications-check" />
+          <label for="disable-notifications-check">Disable notifications</label>
+        </div>
       </div>
 
       <div class="debug-toggle">

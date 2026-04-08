@@ -8,6 +8,7 @@ import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
 import { renderDebug, appendLogEntry, renderActivitiesAndCounters } from './debug-panel.js';
 import { renderFailures, appendFailure } from './failure-banner.js';
+import { renderPrefs, bindPrefs, getSkipWarmUp } from './prefs-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
@@ -48,10 +49,6 @@ const mainEl = document.getElementById('main') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
-const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
-const disableNotificationsCheck = document.getElementById(
-  'disable-notifications-check',
-) as HTMLInputElement;
 const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
 const debugPanel = document.getElementById('debug-panel') as HTMLElement;
 const btnPurge = document.getElementById('btn-purge') as HTMLElement;
@@ -117,8 +114,7 @@ async function render(): Promise<void> {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isDone = !isRunning && hasAnyPhases(phases);
 
-  skipWarmUpCheck.checked = prefs.skipWarmUp;
-  disableNotificationsCheck.checked = prefs.disableNotifications;
+  renderPrefs(prefs);
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
 
@@ -234,7 +230,7 @@ btnStart.addEventListener('click', () => {
     if (!win.id) return;
     chrome.runtime.sendMessage({
       action: MSG_ACTION.START,
-      skipWarmUp: skipWarmUpCheck.checked,
+      skipWarmUp: getSkipWarmUp(),
       windowId: win.id,
     });
   });
@@ -278,6 +274,7 @@ function connectKeepalive(): void {
 }
 
 connectKeepalive();
+bindPrefs();
 
 // ── Debug panel toggle ──────────────────────────────────────────────────────
 
@@ -285,20 +282,6 @@ document.querySelectorAll('.dbg-section h2').forEach((h2) => {
   h2.addEventListener('click', () =>
     (h2.closest('.dbg-section') as HTMLElement).classList.toggle('collapsed'),
   );
-});
-
-skipWarmUpCheck.addEventListener('change', () => {
-  chrome.runtime.sendMessage({
-    action: MSG_ACTION.SET_PREFERENCE,
-    updates: { skipWarmUp: skipWarmUpCheck.checked },
-  });
-});
-
-disableNotificationsCheck.addEventListener('change', () => {
-  chrome.runtime.sendMessage({
-    action: MSG_ACTION.SET_PREFERENCE,
-    updates: { disableNotifications: disableNotificationsCheck.checked },
-  });
 });
 
 debugCheck.addEventListener('change', () => {
