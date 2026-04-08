@@ -47,9 +47,13 @@ class StartRun {
     await ctx.broadcastProgress();
 
     this._executeRun(ctx, skipWarmUp) // fire and forget
-      .catch((err) =>
-        ctx.fail('setup', `Fatal run error: ${err instanceof Error ? err.message : String(err)}`),
-      );
+      .catch(async (err) => {
+        await ctx.fail(
+          'setup',
+          `Fatal run error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        await this._endRun(ctx, 'Fatal error', 'Run aborted due to fatal error', false);
+      });
   }
 
   private async _executeRun(ctx: Context, skipWarmUp: boolean): Promise<void> {
@@ -101,7 +105,10 @@ class StartRun {
       throw err;
     }
 
-    if (ctx.signal.aborted) return;
+    if (ctx.signal.aborted) {
+      await this._endRun(ctx, 'Stopped', 'Run stopped by user', false);
+      return;
+    }
     await this._endRun(ctx, 'Done for today!', 'All tasks complete', true);
   }
 
@@ -143,7 +150,7 @@ class StartRun {
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
     await ctx.broadcastProgress();
     const prefs = await loadPreferences();
-    if (!prefs.disableNotifications) {
+    if (!prefs.disableNotifications && !ctx.signal.aborted) {
       const iconUrl = await this._iconDataUrl();
       chrome.notifications.create({
         type: 'basic',
