@@ -3,6 +3,48 @@
   <head>
     <meta charset="UTF-8" />
     <style>
+      :root {
+        /* Backgrounds */
+        --bg-base: #0f0f0f;
+        --bg-raised: #161616;
+        --bg-mid: #1a1a1a;
+        --bg-subtle: #222;
+
+        /* Text — all bright for readability */
+        --text-primary: #f5f5f5;
+        --text-secondary: #d4d4d4;
+        --text-disabled: #888;
+
+        /* Borders */
+        --border: #2a2a2a;
+        --border-mid: #333;
+
+        /* Semantic — 4 base colors; variants stay hardcoded at their 1–2 use sites */
+        --green: #22c55e;
+        --blue: #3b82f6;
+        --red: #ef4444;
+        --amber: #f59e0b;
+
+        /* Neutral UI buttons */
+        --gray: #374151;
+        --gray-lite: #4b5563;
+
+        /* Orange accent — done btn, settings btn, setup banner border */
+        --orange-dark: #78350f;
+        --orange: #92400e;
+        --orange-lite: #b45309;
+
+        /* Danger — purge btn, failure banner */
+        --danger-bg: #1f0f0f;
+        --danger-hover: #2d1212;
+        --danger-border: #3f1515;
+
+        /* Banners */
+        --bg-setup: #1a1200;
+        --bg-failure: #1a0f0f;
+        --failure-sep: #2a1515;
+      }
+
       * {
         box-sizing: border-box;
         margin: 0;
@@ -13,15 +55,15 @@
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         width: 100%;
         box-sizing: border-box;
-        background: #0f0f0f;
-        color: #e8e8e8;
+        background: var(--bg-base);
+        color: var(--text-primary);
         padding: 16px;
       }
 
       h1 {
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
+        color: var(--text-primary);
         margin-bottom: 12px;
         display: flex;
         align-items: center;
@@ -32,19 +74,19 @@
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: #555;
+        background: var(--text-secondary);
         display: inline-block;
         flex-shrink: 0;
       }
       h1 span.dot.running {
-        background: #22c55e;
+        background: var(--green);
         animation: pulse 1.2s infinite;
       }
       h1 span.dot.done {
-        background: #3b82f6;
+        background: var(--blue);
       }
       h1 span.dot.waiting {
-        background: #f59e0b;
+        background: var(--amber);
         animation: pulse 1.2s infinite;
       }
 
@@ -60,7 +102,7 @@
 
       .status {
         font-size: 12px;
-        color: #ccc;
+        color: var(--text-primary);
         margin-bottom: 10px;
         white-space: nowrap;
         overflow: hidden;
@@ -68,7 +110,7 @@
       }
 
       .progress-bar-wrap {
-        background: #222;
+        background: var(--bg-subtle);
         border-radius: 4px;
         height: 6px;
         margin-bottom: 12px;
@@ -76,7 +118,7 @@
       }
       .progress-bar {
         height: 100%;
-        background: #3b82f6;
+        background: var(--blue);
         border-radius: 4px;
         transition: width 0.4s ease;
         width: 0%;
@@ -94,96 +136,96 @@
       }
 
       #btn-start {
-        background: #3b82f6;
-        color: #fff;
+        background: var(--blue);
+        color: var(--text-primary);
       }
       #btn-start:hover {
         background: #2563eb;
       }
       #btn-start:disabled {
         background: #1e3a5f;
-        color: #555;
+        color: var(--text-disabled);
         cursor: default;
       }
 
       #btn-stop {
-        background: #374151;
-        color: #e8e8e8;
+        background: var(--gray);
+        color: var(--text-primary);
         margin-top: 8px;
         display: none;
       }
       #btn-stop:hover {
-        background: #4b5563;
+        background: var(--gray-lite);
       }
 
       #btn-done {
-        background: #92400e;
+        background: var(--orange);
         color: #fde68a;
         margin-top: 8px;
         display: none;
       }
       #btn-done:hover {
-        background: #b45309;
+        background: var(--orange-lite);
       }
 
       #btn-purge {
-        background: #1f0f0f;
-        color: #ef4444;
+        background: var(--danger-bg);
+        color: var(--red);
         margin-top: 10px;
-        border: 1px solid #3f1515;
+        border: 1px solid var(--danger-border);
         font-size: 11px;
         padding: 6px;
       }
       #btn-purge:hover {
-        background: #2d1212;
+        background: var(--danger-hover);
       }
 
       /* ── Setup warning banner ── */
       #setup-banner {
         margin-bottom: 12px;
-        background: #1a1200;
-        border: 1px solid #92400e;
+        background: var(--bg-setup);
+        border: 1px solid var(--orange);
         border-radius: 6px;
         padding: 8px 10px;
         font-size: 11px;
       }
       #setup-msg {
-        color: #f59e0b;
+        color: var(--amber);
         font-weight: 600;
         margin-bottom: 4px;
       }
       #setup-instructions {
-        color: #bbb;
+        color: var(--text-secondary);
         line-height: 1.5;
         margin-bottom: 6px;
       }
       #setup-instructions strong {
-        color: #e8e8e8;
+        color: var(--text-primary);
       }
       #btn-open-settings {
         width: auto;
         padding: 4px 10px;
         font-size: 11px;
         font-weight: 500;
-        background: #78350f;
+        background: var(--orange-dark);
         color: #fde68a;
         border-radius: 4px;
       }
       #btn-open-settings:hover {
-        background: #92400e;
+        background: var(--orange);
       }
 
       /* ── Failure banner ── */
       #failure-banner {
         margin-bottom: 12px;
-        background: #1a0f0f;
-        border: 1px solid #3f1515;
+        background: var(--bg-failure);
+        border: 1px solid var(--danger-border);
         border-radius: 6px;
         padding: 7px 10px;
         font-size: 11px;
       }
       #failure-summary {
-        color: #ef4444;
+        color: var(--red);
         cursor: pointer;
         user-select: none;
       }
@@ -202,12 +244,12 @@
         background: transparent;
       }
       #failure-list::-webkit-scrollbar-thumb {
-        background: #333;
+        background: var(--border-mid);
         border-radius: 2px;
       }
       .failure-item {
         padding: 2px 0;
-        border-bottom: 1px solid #2a1515;
+        border-bottom: 1px solid var(--failure-sep);
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -217,32 +259,32 @@
         border-bottom: none;
       }
       .failure-item .f-time {
-        color: #777;
+        color: var(--text-secondary);
         flex-shrink: 0;
       }
       .failure-item .f-cat {
-        color: #f59e0b;
+        color: var(--amber);
         font-size: 10px;
         flex-shrink: 0;
       }
       .failure-item .f-msg {
-        color: #bbb;
+        color: var(--text-secondary);
       }
       .failure-item .f-ctx {
         flex-basis: 100%;
-        color: #555;
+        color: #6b7280;
         font-size: 10px;
         margin-top: 1px;
       }
       .failure-item .f-ctx-label {
-        color: #444;
+        color: var(--text-secondary);
         margin-right: 2px;
       }
       .failure-item .f-ctx-label::after {
         content: ':';
       }
       .failure-item .f-ctx-sep {
-        color: #3a3a3a;
+        color: var(--gray-lite);
       }
 
       /* ── Phase rows ── */
@@ -261,49 +303,49 @@
       }
       .phase-label {
         font-size: 11px;
-        color: #aaa;
+        color: var(--text-primary);
         width: 80px;
         flex-shrink: 0;
       }
       .phase-row.active .phase-label {
-        color: #ddd;
+        color: var(--text-primary);
       }
       .phase-row.done .phase-label {
-        color: #22c55e;
+        color: var(--green);
       }
       .phase-count {
         font-size: 11px;
-        color: #888;
+        color: var(--text-primary);
         width: 42px;
         text-align: right;
         flex-shrink: 0;
       }
       .phase-row.active .phase-count {
-        color: #bbb;
+        color: var(--text-primary);
       }
       .phase-row.done .phase-count {
-        color: #22c55e;
+        color: var(--green);
       }
       .phase-bar-wrap {
         flex: 1;
-        background: #1a1a1a;
+        background: var(--bg-mid);
         border-radius: 3px;
         height: 4px;
         overflow: hidden;
       }
       .phase-bar {
         height: 100%;
-        background: #3b82f6;
+        background: var(--blue);
         border-radius: 3px;
         transition: width 0.4s ease;
         width: 0%;
       }
       .phase-row.done .phase-bar {
-        background: #22c55e;
+        background: var(--green);
       }
       .phase-earned {
         font-size: 10px;
-        color: #888;
+        color: var(--text-secondary);
         flex-shrink: 0;
         white-space: nowrap;
         width: 80px;
@@ -323,8 +365,8 @@
       #prefs-panel {
         margin-top: 14px;
         padding: 10px 12px;
-        background: #161616;
-        border: 1px solid #2a2a2a;
+        background: var(--bg-raised);
+        border: 1px solid var(--border);
         border-radius: 6px;
       }
 
@@ -333,7 +375,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #666;
+        color: var(--text-primary);
         margin-bottom: 8px;
         cursor: pointer;
         user-select: none;
@@ -355,7 +397,7 @@
         display: none;
       }
       .prefs-header.saved {
-        color: #22c55e;
+        color: var(--green);
       }
       .prefs-header.saved::after {
         content: ' · Saved';
@@ -381,7 +423,7 @@
 
       .pref-text label {
         font-size: 11px;
-        color: #ccc;
+        color: var(--text-primary);
         cursor: pointer;
         display: block;
         line-height: 1.3;
@@ -389,7 +431,7 @@
 
       .pref-desc {
         font-size: 10px;
-        color: #555;
+        color: var(--text-secondary);
         margin-top: 2px;
         line-height: 1.4;
       }
@@ -412,11 +454,11 @@
       .toggle-slider {
         position: absolute;
         inset: 0;
-        background: #2a2a2a;
+        background: var(--border);
         border-radius: 16px;
         transition: background 0.2s;
         cursor: pointer;
-        border: 1px solid #333;
+        border: 1px solid var(--border-mid);
       }
       .toggle-slider::before {
         content: '';
@@ -425,7 +467,7 @@
         height: 10px;
         left: 2px;
         top: 2px;
-        background: #555;
+        background: var(--text-secondary);
         border-radius: 50%;
         transition:
           transform 0.2s,
@@ -437,14 +479,14 @@
       }
       .toggle-switch input:checked + .toggle-slider::before {
         transform: translateX(12px);
-        background: #3b82f6;
+        background: var(--blue);
       }
 
       /* ── Debug panel ── */
       #debug-panel {
         display: none;
         margin-top: 12px;
-        border-top: 1px solid #222;
+        border-top: 1px solid var(--bg-subtle);
         padding-top: 12px;
       }
       #debug-panel.open {
@@ -459,7 +501,7 @@
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #888;
+        color: var(--text-primary);
         margin-bottom: 6px;
         cursor: pointer;
         user-select: none;
@@ -486,7 +528,7 @@
         overflow-y: auto;
         resize: vertical;
         font-size: 11px;
-        color: #ccc;
+        color: var(--text-secondary);
         line-height: 1.5;
       }
       .dbg-list--small {
@@ -505,12 +547,12 @@
         background: transparent;
       }
       .dbg-list::-webkit-scrollbar-thumb {
-        background: #333;
+        background: var(--border-mid);
         border-radius: 2px;
       }
 
       .dbg-card {
-        background: #161616;
+        background: var(--bg-raised);
         border-radius: 4px;
         padding: 5px 7px;
         margin-bottom: 4px;
@@ -531,10 +573,10 @@
         vertical-align: middle;
       }
       .dbg-card .card-title.skipped {
-        color: #888;
+        color: var(--text-secondary);
       }
       .dbg-card .card-desc {
-        color: #aaa;
+        color: var(--text-secondary);
         font-size: 10px;
         margin-top: 1px;
         overflow: hidden;
@@ -542,7 +584,7 @@
         white-space: nowrap;
       }
       .dbg-card .card-query {
-        color: #3b82f6;
+        color: var(--blue);
         font-size: 10px;
         margin-top: 2px;
         overflow: hidden;
@@ -550,27 +592,27 @@
         white-space: nowrap;
       }
       .dbg-card .card-skip {
-        color: #ef4444;
+        color: var(--red);
         font-size: 10px;
         margin-top: 1px;
       }
       .dbg-card .card-skip--locked {
-        color: #f59e0b;
+        color: var(--amber);
       }
       .dbg-card .card-skip--completed {
-        color: #22c55e;
+        color: var(--green);
       }
       .dbg-card .card-kw {
-        color: #aaa;
+        color: var(--text-secondary);
         font-size: 10px;
       }
       .dbg-card .card-fallback {
-        color: #f59e0b;
+        color: var(--amber);
         font-size: 10px;
         margin-top: 2px;
       }
       .dbg-card .card-query-fb {
-        color: #f59e0b;
+        color: var(--amber);
         font-size: 10px;
         margin-top: 2px;
       }
@@ -593,13 +635,13 @@
 
       .dbg-queue-item {
         padding: 2px 0;
-        border-bottom: 1px solid #1a1a1a;
+        border-bottom: 1px solid var(--bg-mid);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
       .dbg-queue-item .idx {
-        color: #777;
+        color: var(--text-secondary);
         margin-right: 4px;
       }
 
@@ -611,30 +653,30 @@
         align-items: baseline;
       }
       .log-entry .log-time {
-        color: #777;
+        color: var(--text-secondary);
         flex-shrink: 0;
       }
       .log-entry .log-orch {
-        color: #4b5563;
+        color: var(--gray-lite);
         font-size: 10px;
         flex-shrink: 0;
         font-style: italic;
       }
       .log-entry .log-msg {
-        color: #bbb;
+        color: var(--text-secondary);
       }
       .log-entry.success .log-msg {
-        color: #22c55e;
+        color: var(--green);
       }
       .log-entry.warn .log-msg {
-        color: #f59e0b;
+        color: var(--amber);
       }
       .log-entry.error .log-msg {
-        color: #ef4444;
+        color: var(--red);
       }
 
       .dbg-empty {
-        color: #777;
+        color: var(--text-secondary);
         font-style: italic;
         font-size: 11px;
       }
@@ -648,14 +690,14 @@
 
       .dom-stats {
         font-size: 11px;
-        color: #aaa;
+        color: var(--text-secondary);
         margin-bottom: 6px;
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
       }
       .dom-stats span {
-        background: #1a1a1a;
+        background: var(--bg-mid);
         padding: 2px 6px;
         border-radius: 3px;
       }
@@ -688,12 +730,12 @@
       <h1>
         <span class="dot" id="dot"></span> PointsHarvest<span
           id="total-pts"
-          style="margin-left: auto; font-size: 12px; font-weight: 500; color: #aaa"
+          style="margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-secondary)"
         ></span>
       </h1>
       <div
         id="update-status"
-        style="font-size: 11px; color: #666; margin-bottom: 8px; margin-top: -8px"
+        style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; margin-top: -8px"
       ></div>
       <div class="status" id="status">Idle</div>
       <div class="progress-bar-wrap">
