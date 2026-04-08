@@ -4,6 +4,7 @@ import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 import type { StepBase } from '../interfaces/step.js';
+import type { Activity } from './activity.js';
 import type { RunState } from './persistent-state.js';
 import type { DebugType } from './debug.js';
 import type { FailureCategory } from './failures.js';
@@ -18,6 +19,7 @@ export interface Context {
   signal: AbortSignal;
   activeOrchestrator: AnyOrchestrator | null;
   activeStep: AnyStep | null;
+  activeActivity: Activity | null;
   setState: (updates: Partial<RunState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
@@ -30,6 +32,7 @@ export function createContext(signal: AbortSignal): Context {
     signal,
     activeOrchestrator: null,
     activeStep: null,
+    activeActivity: null,
     setState: setRunState,
     dbg(type: DebugType, message: string): Promise<void> {
       return dbg(type, message, ctx.activeOrchestrator?.name);

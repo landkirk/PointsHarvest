@@ -64,65 +64,72 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
     for (let i = 0; i < activities.length; i++) {
       ctx.signal.throwIfAborted();
+      ctx.activeActivity = activities[i];
+      try {
+        const { id, searchQuery, title, fallbackQuery, points } = activities[i];
 
-      const { id, searchQuery, title, fallbackQuery, points } = activities[i];
+        if (!searchQuery) {
+          await ctx.dbg(
+            DBG.WARN,
+            `Skipping card ${i + 1} — no query could be generated for "${title}"`,
+          );
+          continue;
+        }
 
-      if (!searchQuery) {
+        const truncate = (s: string) => (s.length > 40 ? s.slice(0, 40) + '…' : s);
+        const label = truncate(searchQuery);
+        await ctx.updateHeader({
+          headerMessage: `Searching: "${label}"`,
+          activePhase: PHASE.EXPLORE,
+          phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
+          phasePoints: { explore: earnedPts },
+        });
         await ctx.dbg(
-          DBG.WARN,
-          `Skipping card ${i + 1} — no query could be generated for "${title}"`,
+          DBG.INFO,
+          `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`,
         );
-        continue;
-      }
 
-      const truncate = (s: string) => (s.length > 40 ? s.slice(0, 40) + '…' : s);
-      const label = truncate(searchQuery);
-      await ctx.updateHeader({
-        headerMessage: `Searching: "${label}"`,
-        activePhase: PHASE.EXPLORE,
-        phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-        phasePoints: { explore: earnedPts },
-      });
-      await ctx.dbg(DBG.INFO, `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`);
+        const succeeded = await ActivityRunner.executeActivityWithValidation(
+          ctx,
+          () => this.runSearchForActivity(ctx, activities[i], searchQuery),
+          fallbackQuery ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery) : null,
+          {
+            retryLogMessage: `Validation failed — retrying with lookup query: "${fallbackQuery}"`,
+            lingerLabel: 'explore on bing validation retry',
+            failCategory: 'validation',
+            failMessage: `Validation failed after retry for: "${searchQuery}"`,
+            noRetryFailMessage: `Validation failed — no lookup query for: "${searchQuery}"`,
+            retryHeaderPayload: fallbackQuery
+              ? {
+                  headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
+                  activePhase: PHASE.EXPLORE,
+                  phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
+                  phasePoints: { explore: earnedPts },
+                }
+              : undefined,
+          },
+        );
+        if (!succeeded) continue;
 
-      const succeeded = await ActivityRunner.executeActivityWithValidation(
-        ctx,
-        () => this.runSearchForActivity(ctx, activities[i], searchQuery),
-        fallbackQuery ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery) : null,
-        {
-          retryLogMessage: `Validation failed — retrying with lookup query: "${fallbackQuery}"`,
-          lingerLabel: 'explore on bing validation retry',
-          failCategory: 'validation',
-          failMessage: `Validation failed after retry for: "${searchQuery}"`,
-          noRetryFailMessage: `Validation failed — no lookup query for: "${searchQuery}"`,
-          retryHeaderPayload: fallbackQuery
-            ? {
-                headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
-                activePhase: PHASE.EXPLORE,
-                phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-                phasePoints: { explore: earnedPts },
-              }
-            : undefined,
-        },
-      );
-      if (!succeeded) continue;
-
-      await markActivityCompleted(id);
-      earnedPts += points;
-      successCount++;
-      await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${successCount}/${activities.length} complete`);
-      ctx.signal.throwIfAborted();
-
-      await ctx.updateHeader({
-        headerMessage: `Explore on Bing (${alreadyCompletedCount + successCount} / ${phaseTotal})`,
-        activePhase: PHASE.EXPLORE,
-        phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-        phasePoints: { explore: earnedPts },
-      });
-
-      if (i < activities.length - 1) {
-        await lingerOnPage('between explore on bing searches', undefined, ctx.signal);
+        await markActivityCompleted(id);
+        earnedPts += points;
+        successCount++;
+        await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${successCount}/${activities.length} complete`);
         ctx.signal.throwIfAborted();
+
+        await ctx.updateHeader({
+          headerMessage: `Explore on Bing (${alreadyCompletedCount + successCount} / ${phaseTotal})`,
+          activePhase: PHASE.EXPLORE,
+          phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
+          phasePoints: { explore: earnedPts },
+        });
+
+        if (i < activities.length - 1) {
+          await lingerOnPage('between explore on bing searches', undefined, ctx.signal);
+          ctx.signal.throwIfAborted();
+        }
+      } finally {
+        ctx.activeActivity = null;
       }
     }
   }
