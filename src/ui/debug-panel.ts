@@ -45,13 +45,18 @@ export function clearDebug(): void {
   dbgLog.innerHTML = '<div class="dbg-empty">No events yet.</div>';
 }
 
+function isNearBottom(): boolean {
+  return dbgLog.scrollHeight - dbgLog.scrollTop - dbgLog.clientHeight < 40;
+}
+
 export function appendLogEntry(entry: DebugEntry): void {
+  const nearBottom = isNearBottom();
   const empty = dbgLog.querySelector('.dbg-empty');
   if (empty) empty.remove();
   const div = document.createElement('div');
   div.innerHTML = entryHtml(entry);
   dbgLog.appendChild(div.firstElementChild as Element);
-  dbgLog.scrollTop = dbgLog.scrollHeight;
+  if (nearBottom) dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
 export function renderActivitiesAndCounters(state: AppState): void {
@@ -285,8 +290,9 @@ function renderLog(debugLog: DebugEntry[]): void {
     dbgLog.innerHTML = '<div class="dbg-empty">No events yet.</div>';
     return;
   }
+  const nearBottom = isNearBottom();
   dbgLog.innerHTML = debugLog.map(entryHtml).join('');
-  dbgLog.scrollTop = dbgLog.scrollHeight;
+  if (nearBottom) dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
 function entryHtml(e: DebugEntry): string {
