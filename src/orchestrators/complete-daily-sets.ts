@@ -40,6 +40,7 @@ class CompleteDailySets extends OrchestratorBase {
 
     const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
     let earnedPts = dailyAlreadyCompletedPoints;
+    let successCount = 0;
     await ctx.updateHeader({
       headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
       activePhase: PHASE.DAILY,
@@ -75,15 +76,16 @@ class CompleteDailySets extends OrchestratorBase {
 
       await markActivityCompleted(dailySets[i].id);
       earnedPts += dailySets[i].points;
+      successCount++;
       ctx.signal.throwIfAborted();
       await ctx.dbg(
         DBG.SUCCESS,
-        `[${dailySets[i].id}] Daily set activity ${i + 1}/${dailySets.length} complete`,
+        `[${dailySets[i].id}] Daily set activity ${successCount}/${dailySets.length} complete`,
       );
       await ctx.updateHeader({
-        headerMessage: `Daily sets (${dailyAlreadyCompletedCount + i + 1} / ${dailyPhaseTotal})`,
+        headerMessage: `Daily sets (${dailyAlreadyCompletedCount + successCount} / ${dailyPhaseTotal})`,
         activePhase: PHASE.DAILY,
-        phaseProgress: { done: dailyAlreadyCompletedCount + i + 1, total: dailyPhaseTotal },
+        phaseProgress: { done: dailyAlreadyCompletedCount + successCount, total: dailyPhaseTotal },
         phasePoints: { daily: earnedPts },
       });
 
