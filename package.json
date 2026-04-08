@@ -2,6 +2,7 @@
   "name": "pointsharvest",
   "version": "1.11.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "build": "npm run lint:fix && npm run build:clean && npm run build:type-check && npm run build:main && npm run build:content && npm run build:assets && npm run build:blog",
     "build:blog": "node scripts/build-blog.js",
