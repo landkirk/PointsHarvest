@@ -54,6 +54,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
     const phaseTotal = alreadyCompletedCount + activities.length;
     let earnedPts = alreadyCompletedPoints;
+    let successCount = 0;
     await ctx.updateHeader({
       headerMessage: `Explore on Bing (${alreadyCompletedCount} / ${phaseTotal})`,
       activePhase: PHASE.EXPLORE,
@@ -79,7 +80,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       await ctx.updateHeader({
         headerMessage: `Searching: "${label}"`,
         activePhase: PHASE.EXPLORE,
-        phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
+        phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
         phasePoints: { explore: earnedPts },
       });
       await ctx.dbg(DBG.INFO, `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`);
@@ -98,7 +99,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
             ? {
                 headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
                 activePhase: PHASE.EXPLORE,
-                phaseProgress: { done: alreadyCompletedCount + i, total: phaseTotal },
+                phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
                 phasePoints: { explore: earnedPts },
               }
             : undefined,
@@ -108,14 +109,14 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
       await markActivityCompleted(id);
       earnedPts += points;
-      const completed = i + 1;
-      await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${completed}/${activities.length} complete`);
+      successCount++;
+      await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${successCount}/${activities.length} complete`);
       ctx.signal.throwIfAborted();
 
       await ctx.updateHeader({
-        headerMessage: `Explore on Bing (${alreadyCompletedCount + completed} / ${phaseTotal})`,
+        headerMessage: `Explore on Bing (${alreadyCompletedCount + successCount} / ${phaseTotal})`,
         activePhase: PHASE.EXPLORE,
-        phaseProgress: { done: alreadyCompletedCount + completed, total: phaseTotal },
+        phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
         phasePoints: { explore: earnedPts },
       });
 
