@@ -1,7 +1,6 @@
 import { StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
 import { TabManager } from '../util/tab-manager.js';
-import { ActivityRunner } from '../util/activity-runner.js';
 import { waitForPopupUnblock, type PermissionWaitHandle } from '../steps/wait-for-popup-unblock.js';
 import { clearSetupFailures } from '../util/failures.js';
 
@@ -12,10 +11,7 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
 
   protected _currentPermissionWait: PermissionWaitHandle | null = null;
 
-  constructor(
-    protected readonly tabs: TabManager,
-    protected readonly runner: ActivityRunner | null = null,
-  ) {}
+  constructor(protected readonly tabs: TabManager) {}
 
   abstract run(ctx: Context, ...args: TArgs): Promise<void>;
 

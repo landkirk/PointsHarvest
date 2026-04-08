@@ -5,7 +5,7 @@ import type { FailureCategory } from './failures.js';
 import type { ProgressPayload } from './messaging.js';
 
 export class ActivityRunner {
-  async executeActivityWithValidation(
+  static async executeActivityWithValidation(
     ctx: Context,
     activityFn: () => Promise<boolean | null>,
     retryFn: (() => Promise<boolean | null>) | null,
@@ -39,7 +39,7 @@ export class ActivityRunner {
     if (opts.retryHeaderPayload) await ctx.updateHeader(opts.retryHeaderPayload);
 
     try {
-      await this.retryAfterLinger(
+      await ActivityRunner.retryAfterLinger(
         ctx,
         opts.lingerLabel,
         retryFn,
@@ -54,7 +54,7 @@ export class ActivityRunner {
     return true;
   }
 
-  private async retryAfterLinger(
+  private static async retryAfterLinger(
     ctx: Context,
     lingerLabel: string,
     retry: () => Promise<boolean | null>,

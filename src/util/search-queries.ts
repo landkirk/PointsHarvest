@@ -7,6 +7,7 @@ export const VALIDATION_RETRY_QUERIES: { pattern: RegExp; retryQuery: string }[]
   { pattern: /your shopping list/i, retryQuery: 'eggs' },
   { pattern: /your package/i, retryQuery: 'where is my package 1Z662F416878787827' },
   { pattern: /translate/i, retryQuery: 'translate amigo to english' },
+  { pattern: /a flight to your perfect vacation/i, retryQuery: 'flight to bahamas' },
 ];
 
 export const WARMUP_SEARCH_QUERIES: string[] = [
