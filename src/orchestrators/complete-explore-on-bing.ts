@@ -62,6 +62,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       phasePoints: { explore: earnedPts },
     });
 
+    const truncate = (s: string) => (s.length > 40 ? s.slice(0, 40) + '…' : s);
     for (let i = 0; i < activities.length; i++) {
       ctx.signal.throwIfAborted();
       ctx.activeActivity = activities[i];
@@ -76,7 +77,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
           continue;
         }
 
-        const truncate = (s: string) => (s.length > 40 ? s.slice(0, 40) + '…' : s);
         const label = truncate(searchQuery);
         await ctx.updateHeader({
           headerMessage: `Searching: "${label}"`,
