@@ -11,7 +11,7 @@ export const VALIDATION_RETRY_QUERIES: { pattern: RegExp; retryQuery: string }[]
     retryQuery: 'directions to las vegas',
   },
   { pattern: /your team|who won/i, retryQuery: 'Tampa Bay Lightning games' },
-  { pattern: /your shopping list|shopping.*done.*faster/i, retryQuery: 'grocery list' },
+  { pattern: /your shopping list|shopping.*done.*faster/i, retryQuery: 'grocery list eggs' },
   { pattern: /your package|track package/i, retryQuery: 'track UPS package' },
   { pattern: /translate/i, retryQuery: 'translate amigo to english' },
   {
