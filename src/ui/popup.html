@@ -209,6 +209,7 @@
         padding: 2px 0;
         border-bottom: 1px solid #2a1515;
         display: flex;
+        flex-wrap: wrap;
         gap: 6px;
         align-items: baseline;
       }
@@ -226,6 +227,22 @@
       }
       .failure-item .f-msg {
         color: #bbb;
+      }
+      .failure-item .f-ctx {
+        flex-basis: 100%;
+        color: #555;
+        font-size: 10px;
+        margin-top: 1px;
+      }
+      .failure-item .f-ctx-label {
+        color: #444;
+        margin-right: 2px;
+      }
+      .failure-item .f-ctx-label::after {
+        content: ':';
+      }
+      .failure-item .f-ctx-sep {
+        color: #3a3a3a;
       }
 
       /* ── Phase rows ── */

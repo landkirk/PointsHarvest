@@ -38,7 +38,7 @@ export function createContext(signal: AbortSignal): Context {
       return dbg(type, message, ctx.activeOrchestrator?.name);
     },
     fail(category: FailureCategory, message: string): Promise<void> {
-      return fail(category, message, ctx.activeOrchestrator?.name);
+      return fail(category, message, ctx);
     },
     async updateHeader(payload: ProgressPayload): Promise<void> {
       const { headerMessage, activePhase, phaseProgress, phasePoints } = payload;
