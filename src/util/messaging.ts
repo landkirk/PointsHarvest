@@ -5,7 +5,7 @@ import type {
   PhasePointsMap,
 } from './persistent-state.js';
 import type { DebugEntry } from './debug.js';
-import type { Failure } from './failures.js';
+import type { FailureEntry } from './failures.js';
 
 export type { PhaseKey, PhaseProgressMap };
 
@@ -78,7 +78,7 @@ export type AppMessage =
   // Background → Popup (broadcast)
   | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressBroadcast)
   | { action: typeof MSG_ACTION.DEBUG_ENTRY; entry: DebugEntry }
-  | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: Failure }
+  | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: FailureEntry }
   // Background ↔ Rewards content script
   | { action: typeof MSG_ACTION.START_EXTRACT }
   | {
