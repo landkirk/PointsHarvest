@@ -7,6 +7,21 @@ const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInpu
 const disableNotificationsCheck = document.getElementById(
   'disable-notifications-check',
 ) as HTMLInputElement;
+const prefsPanel = document.getElementById('prefs-panel') as HTMLElement;
+const prefsHeader = prefsPanel.querySelector('.prefs-header') as HTMLElement;
+
+// ── Saved flash ──────────────────────────────────────────────────────────────
+
+let savedTimeout: ReturnType<typeof setTimeout> | null = null;
+
+function flashSaved(): void {
+  prefsHeader.classList.add('saved');
+  if (savedTimeout) clearTimeout(savedTimeout);
+  savedTimeout = setTimeout(() => {
+    prefsHeader.classList.remove('saved');
+    savedTimeout = null;
+  }, 1200);
+}
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -22,11 +37,16 @@ export function renderPrefs(prefs: UserPreferences): void {
 
 /** Attach change listeners. Call once at startup. */
 export function bindPrefs(): void {
+  prefsHeader.addEventListener('click', () => {
+    prefsPanel.classList.toggle('collapsed');
+  });
+
   skipWarmUpCheck.addEventListener('change', () => {
     chrome.runtime.sendMessage({
       action: MSG_ACTION.SET_PREFERENCE,
       updates: { skipWarmUp: skipWarmUpCheck.checked },
     });
+    flashSaved();
   });
 
   disableNotificationsCheck.addEventListener('change', () => {
@@ -34,5 +54,6 @@ export function bindPrefs(): void {
       action: MSG_ACTION.SET_PREFERENCE,
       updates: { disableNotifications: disableNotificationsCheck.checked },
     });
+    flashSaved();
   });
 }
