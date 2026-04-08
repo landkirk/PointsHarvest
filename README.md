@@ -188,6 +188,7 @@ The debug panel also includes a **Purge all state** button that clears all store
 - Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (5–7s) should be sufficient, but you can increase it by raising `TIMING.LINGER_ON_PAGE` in `src/util/timing.ts` if you notice missed points
 - After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using queries from the pool in `util/search-queries.ts`
 - Enable **Skip warm-up searches** in the popup to bypass the initial warm-up phase and jump straight to Explore cards
-- If Chrome's popup blocker prevents activity tabs from opening, a banner appears with a link to the Chrome settings page where you can allow pop-ups from `rewards.bing.com`
+- All activity and search tabs open in the same browser window as the extension side panel
+- If Chrome's popup blocker prevents an activity tab from opening, the extension pauses and shows exact fix instructions; allow pop-ups for `rewards.bing.com` in Chrome settings, then click **Done** to continue. The failure banner clears automatically once the issue is fixed.
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - Service worker state is preserved across restarts, allowing mid-run resumption

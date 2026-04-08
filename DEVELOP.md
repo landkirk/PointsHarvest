@@ -59,15 +59,16 @@ src/                    Source files (edit these)
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
     warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
-    fetch-counters.ts       Poll breakdown tab for search point counters
-    perform-search.ts       Dwell and execute a single search in a tab
-    linger-on-tab.ts        Pause automation and wait for user to complete a tile
-    validate-activity.ts    Confirm an activity is marked complete on the rewards page
+    fetch-counters.ts          Poll breakdown tab for search point counters
+    perform-search.ts          Dwell and execute a single search in a tab
+    linger-on-tab.ts           Pause automation and wait for user to complete a tile
+    validate-activity.ts       Confirm an activity is marked complete on the rewards page
+    wait-for-popup-unblock.ts  Wait for user to fix Chrome popup blocker after a tab is blocked
   util/
     activity-runner.ts  ActivityRunner class — executes an activity with optional retry logic
     activity.ts         Activity type, CardState enum, classifyCard(), enrichSearchQueries(), enrichUserActions()
     array.ts            Array utility helpers
-    config.ts           URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
+    config.ts           URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL) and KEEPALIVE_PORT
     context.ts          createContext() — bundles setState/dbg/setHeaderMessage for orchestrators
     debug.ts            Logging helpers (dbg, resetLog) and debug type definitions
     failures.ts         Failure type and helpers
@@ -103,11 +104,12 @@ dist/                   Compiled output (generated — do not edit)
 - Tab event listeners: load detection, tab capture, tab removal
 - Message routing: `START` / `STOP` / `GET_STATE` / `PING` / `PURGE` / `USER_ACTION_COMPLETE`
 - Delegates all run logic to `managers/start-run.ts` and `managers/stop-run.ts`
+- **Keepalive port**: listens for a long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` from the side panel; incoming heartbeat messages reset Chrome's 30s service worker idle timer, keeping the worker alive while the panel is open
 
 ### managers/start-run.ts
 - Implemented as a `StartRun` class that owns a `TabManager` instance shared across all orchestrators
 - Loads state, resets session/log/storage, creates a context object with an `AbortController` signal
-- Opens the rewards tab and focuses it before starting the orchestrator chain
+- Opens the rewards tab and focuses it before starting the orchestrator chain; all tabs are opened in the same window as the extension (the `windowId` is passed in the `START` message from the popup)
 - Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
 - `_executeRun` chains five sub-orchestrators (ActivityExtraction → WarmUp → ExploreOnBing → DailySets → FarmPcSearches) via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `runtime-state.ts` around each run
@@ -127,11 +129,13 @@ dist/                   Compiled output (generated — do not edit)
 ### orchestrators/complete-explore-on-bing.ts
 - Iterates the mapped activity list from a given `startIndex`
 - Sends `clickCard` to content script via `TabManager.clickCardAndCaptureTab`, waits for load
+- If the tab was blocked by Chrome's popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt the user to fix permissions
 - Calls `steps/perform-search`, validates the activity via `ActivityRunner`, sends progress updates to popup
 
 ### orchestrators/complete-daily-sets.ts
 - Iterates daily set activities extracted from the rewards page
 - Uses `clickCardAndCaptureTab` (with `MSG_TARGET.DAILY_SET`) to click the card element on the rewards page — this is how Bing registers the activity as started, matching the same flow used for Explore cards
+- If the tab was blocked by Chrome's popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt the user to fix permissions
 - If the activity title matches `quiz|poll|test|puzzle`, calls `steps/linger-on-tab` to pause for user interaction; otherwise dwells and closes
 - Calls `steps/validate-activity` after each activity
 
@@ -155,6 +159,10 @@ dist/                   Compiled output (generated — do not edit)
 ### steps/perform-search.ts
 - Pre-search `lingerOnPage()` dwell, sends `PERFORM_SEARCH` to search-content.ts, post-search `lingerOnPage()` dwell
 
+### steps/wait-for-popup-unblock.ts
+- Records a `setup` failure with fix instructions, sets `isLingering: true`, and waits for the user to click **Done** (via `USER_ACTION_COMPLETE`) or for a `PERMISSION_WAIT` timeout
+- Returns a `PermissionWaitHandle` `{ promise, resolve }` so the caller (via `OrchestratorBase._waitForPopupUnblock`) can resolve it early on stop
+
 ### util/context.ts
 - `createContext()` returns `{ setState, dbg, setHeaderMessage }` — a lightweight bundle passed through all orchestrators and steps so they don't import globals directly
 - The `dbg` wrapper automatically tags each log entry with the currently active orchestrator's name (read from `state.ts` at call time)
@@ -173,9 +181,10 @@ dist/                   Compiled output (generated — do not edit)
 - `TabManager` class — owns the `openedTabIds` Set and all tab lifecycle operations
 - `openTab` / `closeTab` / `focusTab` / `untrackTab` — core tab operations
 - `openAndFocusTab` — opens, waits for load, then focuses a tab
-- `clickCardAndCaptureTab` — sends `CLICK_CARD`, captures the newly opened tab, waits for load
+- `setWindowId(id)` — pins the manager to a specific window so all new tabs open there
+- `clickCardAndCaptureTab` — sends `CLICK_CARD`, captures the newly opened tab, waits for load; returns a `TabCaptureResult` discriminated union (`TabCaptureStatus.Ok` / `Blocked` / `Failed`) so callers can distinguish a popup-blocked tab from a generic failure
 - `assertTabExists` — checks that a tracked tab is still open; surfaces a failure if not
-- `closeAll` — closes all owned tabs (called by stop-run.ts)
+- `closeAll` — closes all owned tabs (called by `_endRun` in start-run.ts)
 - Integrates with the `AbortController` cancel signal so all waits respect stop requests
 
 ### util/activity-runner.ts
@@ -183,7 +192,7 @@ dist/                   Compiled output (generated — do not edit)
 - `executeActivityWithValidation` — runs `activityFn`, lingers and retries via `retryFn` on failure, surfaces a failure entry if retry also fails
 
 ### util/config.ts
-- URL constants (`REWARDS_URL`, `REWARDS_BREAKDOWN_URL`) shared across modules
+- URL constants (`REWARDS_URL`, `REWARDS_BREAKDOWN_URL`) and `KEEPALIVE_PORT` name shared across modules
 
 ### util/search-queries.ts
 - `PC_SEARCH_QUERIES` — pool of queries used by `farm-pc-searches.ts`
@@ -197,7 +206,9 @@ dist/                   Compiled output (generated — do not edit)
 - Phase-based progress display: renders per-phase (Explore, Daily, Farm) progress bars and earned-points labels using `PHASE` / `PHASE_TIME_LABEL` from `util/state.ts`
 - Delegates debug rendering to `ui/debug-panel.ts` and failure rendering to `ui/failure-banner.ts`
 - **Skip warm-up** checkbox — persisted to `chrome.storage.local`; passed as `skipWarmUp` in the `START` message to background
-- **Setup banner** — shown when a `'setup'`-category failure occurs (e.g. Chrome popup blocker blocked a tab); includes a button that opens `chrome://settings/content/popups`
+- **Setup banner** — shown when a `'setup'`-category failure occurs (e.g. Chrome popup blocker blocked a tab); includes a button that opens `chrome://settings/content/popups`; clears automatically once the issue is resolved
+- **Keepalive port** — opens a long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` on load and sends a heartbeat every 20s to prevent Chrome from killing the service worker while the panel is open
+- Sends `windowId` (from `chrome.windows.getCurrent()`) in the `START` message so all extension tabs open in the same window
 - Start / Stop / Purge actions
 
 ### ui/debug-panel.ts
