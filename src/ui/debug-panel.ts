@@ -1,6 +1,5 @@
 import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
-import { PHASE, PHASE_TIME_LABEL } from '../util/persistent-state.js';
-import type { RunState, PhaseKey, SearchCounter } from '../util/persistent-state.js';
+import type { RunState, SearchCounter } from '../util/persistent-state.js';
 import type { Activity } from '../util/activity.js';
 import type { DebugEntry } from '../util/debug.js';
 
@@ -60,27 +59,14 @@ export function appendLogEntry(entry: DebugEntry): void {
 }
 
 export function renderActivitiesAndCounters(state: RunState): void {
-  const phasePoints = state.header.phasePoints;
   const allActivities = state.activityState?.allActivities ?? [];
   const exploreActivities = allActivities.filter(
     (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
   );
   const dailyActivities = allActivities.filter((a) => a.activityType === ACTIVITY_TYPE.DAILY_SET);
-  renderActivitySection(
-    dbgExplore,
-    exploreToActivityData(exploreActivities),
-    LIST_SIZE.LARGE,
-    phasePoints[PHASE.EXPLORE],
-    PHASE.EXPLORE,
-  );
-  renderActivitySection(
-    dbgDaily,
-    dailySetsToActivityData(dailyActivities),
-    LIST_SIZE.MEDIUM,
-    phasePoints[PHASE.DAILY],
-    PHASE.DAILY,
-  );
-  renderPcCounters(state.searchCounters, phasePoints[PHASE.FARM]);
+  renderActivitySection(dbgExplore, exploreToActivityData(exploreActivities), LIST_SIZE.LARGE);
+  renderActivitySection(dbgDaily, dailySetsToActivityData(dailyActivities), LIST_SIZE.MEDIUM);
+  renderPcCounters(state.searchCounters);
 }
 
 export function esc(str: string): string {
@@ -100,14 +86,8 @@ function renderActivitySection(
   container: HTMLElement,
   data: ActivityDebugData,
   listSize: ListSize = LIST_SIZE.LARGE,
-  pts?: number,
-  phase?: PhaseKey,
 ): void {
   let html = '';
-
-  if (pts !== undefined && pts > 0) {
-    html += `<div class="dbg-run-stat">+${pts} pts ${esc(phase ? PHASE_TIME_LABEL[phase] : '')}</div>`;
-  }
 
   if (data.stats) {
     const { total, actionable, locked, completed } = data.stats;
@@ -278,11 +258,8 @@ function renderWarmUp(queries: string[]): void {
 
 // ── PC Search Farming ──────────────────────────────────────────────────────
 
-function renderPcCounters(searchCounters: SearchCounter[], pts?: number): void {
+function renderPcCounters(searchCounters: SearchCounter[]): void {
   let html = '';
-  if (pts !== undefined && pts > 0) {
-    html += `<div class="dbg-run-stat">+${pts} pts today</div>`;
-  }
   if (searchCounters.length === 0) {
     html += '<div class="dbg-empty">No counter data yet.</div>';
     dbgPcCounters.innerHTML = html;
