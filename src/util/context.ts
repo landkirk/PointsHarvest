@@ -1,16 +1,16 @@
-import { setState, setHeaderState, getHeaderState } from './persistent-state.js';
+import { setRunState, setHeaderState, getHeaderState } from './persistent-state.js';
 import { getActiveOrchestrator } from './runtime-state.js';
 import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
-import type { AppState } from './persistent-state.js';
+import type { RunState } from './persistent-state.js';
 import type { DebugType } from './debug.js';
 import type { FailureCategory } from './failures.js';
 import type { ProgressPayload } from './messaging.js';
 
 export interface Context {
   signal: AbortSignal;
-  setState: (updates: Partial<AppState>) => Promise<void>;
+  setState: (updates: Partial<RunState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
   updateHeader: (payload: ProgressPayload) => Promise<void>;
@@ -20,7 +20,7 @@ export interface Context {
 export function createContext(signal: AbortSignal): Context {
   const ctx: Context = {
     signal,
-    setState,
+    setState: setRunState,
     dbg(type: DebugType, message: string): Promise<void> {
       return dbg(type, message, getActiveOrchestrator()?.name);
     },

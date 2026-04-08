@@ -2,7 +2,7 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { KEEPALIVE_PORT } from '../util/config.js';
 import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
 import { PHASE, PHASE_TIME_LABEL } from '../util/persistent-state.js';
-import type { AppState, PhasePointsMap } from '../util/persistent-state.js';
+import type { RunState, UserPreferences, PhasePointsMap } from '../util/persistent-state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
@@ -98,12 +98,14 @@ function renderPhases(phases: PhaseProgressMap | null | undefined, activePhase?:
 }
 
 async function render(): Promise<void> {
-  const state = (await chrome.runtime.sendMessage({
-    action: MSG_ACTION.GET_STATE,
-  })) as AppState;
-  if (!state) return;
-
-  const { isRunning, isLingering, header } = state;
+  const [run, prefs] = await Promise.all([
+    chrome.runtime.sendMessage({ action: MSG_ACTION.GET_RUN_STATE }) as Promise<RunState | null>,
+    chrome.runtime.sendMessage({
+      action: MSG_ACTION.GET_PREFERENCES,
+    }) as Promise<UserPreferences | null>,
+  ]);
+  if (!run || !prefs) return;
+  const { isRunning, isLingering, header } = run;
   const { headerMessage, activePhase, phases, phasePoints } = header;
 
   const activeProgress = activePhase ? (phases?.[activePhase] ?? null) : null;
@@ -112,7 +114,7 @@ async function render(): Promise<void> {
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
   const isDone = !isRunning && hasAnyPhases(phases);
 
-  skipWarmUpCheck.checked = state.skipWarmUp;
+  skipWarmUpCheck.checked = prefs.skipWarmUp;
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
 
@@ -127,10 +129,10 @@ async function render(): Promise<void> {
 
   renderPhases(phases, activePhase ?? undefined);
   renderPhasePoints(phasePoints);
-  renderFailures(state.failures ?? []);
+  renderFailures(run.failures ?? []);
   if (debugCheck.checked) {
-    renderDebug(state);
-    renderActivitiesAndCounters(state);
+    renderDebug(run);
+    renderActivitiesAndCounters(run);
   }
 }
 
@@ -139,11 +141,11 @@ async function render(): Promise<void> {
 // and we reset rather than showing a permanently-stuck running state.
 async function initPopup(): Promise<void> {
   mainEl.style.display = '';
-  const state = (await chrome.runtime.sendMessage({
-    action: MSG_ACTION.GET_STATE,
-  })) as AppState;
-  if (!state) return;
-  if (state.isRunning) {
+  const run = (await chrome.runtime.sendMessage({
+    action: MSG_ACTION.GET_RUN_STATE,
+  })) as RunState | null;
+  if (!run) return;
+  if (run.isRunning) {
     const response = (await chrome.runtime.sendMessage({
       action: MSG_ACTION.PING,
     })) as { running: boolean };
@@ -154,8 +156,8 @@ async function initPopup(): Promise<void> {
   await render();
 }
 
-function showPendingOrInit(state: AppState): void {
-  const seen = new Set(state.seenScreenIds ?? []);
+function showPendingOrInit(prefs: UserPreferences): void {
+  const seen = new Set(prefs.seenScreenIds ?? []);
   const pending = SCREENS.filter((s) => !seen.has(s.id));
   if (pending.length > 0) {
     showOnboarding(pending, initPopup);
@@ -165,10 +167,12 @@ function showPendingOrInit(state: AppState): void {
 }
 
 Promise.all([
-  chrome.runtime.sendMessage({ action: MSG_ACTION.GET_STATE }) as Promise<AppState>,
+  chrome.runtime.sendMessage({
+    action: MSG_ACTION.GET_PREFERENCES,
+  }) as Promise<UserPreferences | null>,
   checkForUpdate(),
-]).then(async ([state, updateResult]) => {
-  if (!state) {
+]).then(async ([prefs, updateResult]) => {
+  if (!prefs) {
     void initPopup();
     return;
   }
@@ -177,13 +181,13 @@ Promise.all([
     updateStatusEl.textContent = 'Update check failed or timed out';
   } else if (updateResult.hasUpdate) {
     updateStatusEl.textContent =
-      state.ignoredUpdateVersion === updateResult.latestVersion
+      prefs.ignoredUpdateVersion === updateResult.latestVersion
         ? `Update v${updateResult.latestVersion} ignored`
         : `Update available: v${updateResult.latestVersion} (installed: v${updateResult.installedVersion})`;
   } else {
     updateStatusEl.textContent = `Up to date: v${updateResult.installedVersion}`;
   }
-  if (updateResult?.hasUpdate && state.ignoredUpdateVersion !== updateResult.latestVersion) {
+  if (updateResult?.hasUpdate && prefs.ignoredUpdateVersion !== updateResult.latestVersion) {
     let ignoreChecked = false;
     const onIgnoreChange = (e: Event) => {
       if ((e.target as HTMLElement).id === 'ignore-update-checkbox')
@@ -197,10 +201,10 @@ Promise.all([
           action: MSG_ACTION.SET_PREFERENCE,
           updates: { ignoredUpdateVersion: updateResult.latestVersion },
         });
-      showPendingOrInit(state);
+      showPendingOrInit(prefs);
     });
   } else {
-    showPendingOrInit(state);
+    showPendingOrInit(prefs);
   }
 });
 

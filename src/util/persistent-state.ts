@@ -45,44 +45,48 @@ export interface PhaseProgressMap {
 
 export type PhasePointsMap = Record<PhaseKey, number>;
 
-export interface AppHeaderState {
+export interface HeaderState {
   headerMessage: string;
   activePhase: PhaseKey | null;
   phases: PhaseProgressMap;
   phasePoints: PhasePointsMap;
 }
 
-export interface AppDebugState {
+export interface DebugState {
   debugLog: DebugEntry[];
 }
 
-export interface AppState {
+export interface UserPreferences {
+  skipWarmUp: boolean;
+  ignoredUpdateVersion: string | null;
+  seenScreenIds: string[];
+}
+
+export interface RunState {
   isRunning: boolean;
   isLingering: boolean;
-  lastRunDate: string | null;
   warmUpQueries: string[];
   searchCounters: SearchCounter[];
   rewardsTabId: number | null;
   activityState: ActivityState | null;
-  seenScreenIds: string[];
-  ignoredUpdateVersion: string | null;
-  skipWarmUp: boolean;
   failures: Failure[];
-  header: AppHeaderState;
-  debug: AppDebugState;
+  header: HeaderState;
+  debug: DebugState;
 }
 
-export const INITIAL_STATE: AppState = {
+export const INITIAL_PREFERENCES: UserPreferences = {
+  skipWarmUp: false,
+  ignoredUpdateVersion: null,
+  seenScreenIds: [],
+};
+
+export const INITIAL_RUN_STATE: RunState = {
   isRunning: false,
   isLingering: false,
-  lastRunDate: null,
   warmUpQueries: [],
   searchCounters: [],
   rewardsTabId: null,
   activityState: null,
-  seenScreenIds: [],
-  ignoredUpdateVersion: null,
-  skipWarmUp: false,
   failures: [],
   header: {
     headerMessage: 'idle',
@@ -102,14 +106,22 @@ function enqueueWrite(fn: () => Promise<void>): Promise<void> {
   return writeQueue;
 }
 
-/** Load full state from storage. */
-export async function loadState(): Promise<AppState> {
-  const stored = await chrome.storage.local.get();
-  return { ...INITIAL_STATE, ...stored } as AppState;
+/** Load run state from storage. */
+export async function loadRunState(): Promise<RunState> {
+  const keys = Object.keys(INITIAL_RUN_STATE) as (keyof RunState)[];
+  const stored = await chrome.storage.local.get(keys);
+  return { ...INITIAL_RUN_STATE, ...stored } as RunState;
 }
 
-/** Write partial updates to storage. */
-export function setState(updates: Partial<AppState>): Promise<void> {
+/** Load user preferences from storage. */
+export async function loadPreferences(): Promise<UserPreferences> {
+  const keys = Object.keys(INITIAL_PREFERENCES) as (keyof UserPreferences)[];
+  const stored = await chrome.storage.local.get(keys);
+  return { ...INITIAL_PREFERENCES, ...stored } as UserPreferences;
+}
+
+/** Write partial run-state updates to storage. */
+export function setRunState(updates: Partial<RunState>): Promise<void> {
   return enqueueWrite(() => chrome.storage.local.set(updates));
 }
 
@@ -122,11 +134,11 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
  *  clobbering sibling keys. Arrays and primitives replace outright. */
 function setSubState<K extends 'header' | 'debug'>(
   key: K,
-  updates: Partial<AppState[K]>,
+  updates: Partial<RunState[K]>,
 ): Promise<void> {
   return enqueueWrite(async () => {
     const stored = await chrome.storage.local.get(key);
-    const current: Record<string, unknown> = stored[key] ?? INITIAL_STATE[key];
+    const current: Record<string, unknown> = stored[key] ?? INITIAL_RUN_STATE[key];
     const merged: Record<string, unknown> = { ...current };
     for (const [k, v] of Object.entries(updates)) {
       const cur = merged[k];
@@ -141,7 +153,7 @@ function setSubState<K extends 'header' | 'debug'>(
 }
 
 export type HeaderStateUpdate = Partial<
-  Omit<AppHeaderState, 'phases' | 'phasePoints'> & {
+  Omit<HeaderState, 'phases' | 'phasePoints'> & {
     phases: Partial<PhaseProgressMap>;
     phasePoints: Partial<PhasePointsMap>;
   }
@@ -149,21 +161,21 @@ export type HeaderStateUpdate = Partial<
 
 /** Write header-specific updates, merging into the header subobject. */
 export const setHeaderState = (u: HeaderStateUpdate) =>
-  setSubState('header', u as Partial<AppHeaderState>);
+  setSubState('header', u as Partial<HeaderState>);
 
 /** Read current header state from storage. */
-export async function getHeaderState(): Promise<AppHeaderState> {
+export async function getHeaderState(): Promise<HeaderState> {
   const stored = await chrome.storage.local.get('header');
-  return (stored.header as AppHeaderState) ?? INITIAL_STATE.header;
+  return (stored.header as HeaderState) ?? INITIAL_RUN_STATE.header;
 }
 
 /** Write debug-specific updates, merging into the debug subobject. */
-export const setDebugState = (u: Partial<AppDebugState>) => setSubState('debug', u);
+export const setDebugState = (u: Partial<DebugState>) => setSubState('debug', u);
 
 /** Read current debug log from storage. */
 export async function getDebugLog(): Promise<DebugEntry[]> {
   const stored = await chrome.storage.local.get('debug');
-  return (stored.debug as AppDebugState)?.debugLog ?? [];
+  return (stored.debug as DebugState)?.debugLog ?? [];
 }
 
 /** Read current failures from storage. */
@@ -172,18 +184,12 @@ export async function getFailures(): Promise<Failure[]> {
   return (stored.failures as Failure[]) ?? [];
 }
 
-/** Reset all persistent state to initial values, with optional overrides applied atomically.
- *  seenScreenIds and ignoredUpdateVersion are preserved by default — pass explicit overrides to wipe them (e.g. purge). */
-export async function resetState(overrides: Partial<AppState> = {}): Promise<void> {
-  const current = await loadState();
-  return enqueueWrite(() => {
-    const newState = {
-      ...INITIAL_STATE,
-      seenScreenIds: current.seenScreenIds,
-      ignoredUpdateVersion: current.ignoredUpdateVersion,
-      skipWarmUp: current.skipWarmUp,
-      ...overrides,
-    };
-    return chrome.storage.local.set(newState);
-  });
+/** Reset run state to initial values. Preference keys are unaffected (storage.local.set is additive). */
+export function resetRunState(overrides: Partial<RunState> = {}): Promise<void> {
+  return enqueueWrite(() => chrome.storage.local.set({ ...INITIAL_RUN_STATE, ...overrides }));
+}
+
+/** Write preference updates to storage. */
+export function setPreference(updates: Partial<UserPreferences>): Promise<void> {
+  return enqueueWrite(() => chrome.storage.local.set(updates));
 }

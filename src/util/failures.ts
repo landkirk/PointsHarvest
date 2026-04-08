@@ -1,5 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
-import { setState, getFailures } from './persistent-state.js';
+import { setRunState, getFailures } from './persistent-state.js';
 import { dbg, DBG } from './debug.js';
 
 export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter' | 'setup';
@@ -18,7 +18,7 @@ export async function clearSetupFailures(): Promise<void> {
   const failures = await getFailures();
   const filtered = failures.filter((f) => f.category !== 'setup');
   if (filtered.length !== failures.length) {
-    await setState({ failures: filtered });
+    await setRunState({ failures: filtered });
   }
 }
 
@@ -37,7 +37,7 @@ export async function fail(
   };
   const failures = [...(await getFailures()), entry];
   if (failures.length > MAX_FAILURES) failures.shift();
-  await setState({ failures });
+  await setRunState({ failures });
   chrome.runtime.sendMessage({ action: MSG_ACTION.FAILURE_ENTRY, failure: entry }).catch(() => {
     /* popup may be closed */
   });
