@@ -9,8 +9,7 @@ import {
   setPreference,
   INITIAL_PREFERENCES,
 } from './util/persistent-state.js';
-import { getActiveOrchestrator } from './util/runtime-state.js';
-import { StartRun, getActiveController } from './managers/start-run.js';
+import { StartRun, getActiveController, getActiveContext } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
 import { KEEPALIVE_PORT } from './util/config.js';
 
@@ -39,15 +38,15 @@ chrome.runtime.onConnect.addListener((port) => {
 // ── Tab event listeners ────────────────────────────────────────────────────
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  getActiveOrchestrator()?.onTabUpdated(tabId, changeInfo);
+  getActiveContext()?.activeOrchestrator?.onTabUpdated(tabId, changeInfo);
 });
 
 chrome.tabs.onCreated.addListener((tab) => {
-  getActiveOrchestrator()?.onTabCreated(tab);
+  getActiveContext()?.activeOrchestrator?.onTabCreated(tab);
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
-  getActiveOrchestrator()?.onTabRemoved(tabId);
+  getActiveContext()?.activeOrchestrator?.onTabRemoved(tabId);
 });
 
 // ── Message routing ────────────────────────────────────────────────────────
@@ -78,7 +77,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     return true;
   }
   if (msg.action === MSG_ACTION.USER_ACTION_COMPLETE) {
-    const orch = getActiveOrchestrator();
+    const orch = getActiveContext()?.activeOrchestrator;
     if (orch) {
       orch.onUserActionComplete();
     } else {
