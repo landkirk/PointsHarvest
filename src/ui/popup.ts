@@ -49,6 +49,9 @@ const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
 const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
+const disableNotificationsCheck = document.getElementById(
+  'disable-notifications-check',
+) as HTMLInputElement;
 const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
 const debugPanel = document.getElementById('debug-panel') as HTMLElement;
 const btnPurge = document.getElementById('btn-purge') as HTMLElement;
@@ -115,6 +118,7 @@ async function render(): Promise<void> {
   const isDone = !isRunning && hasAnyPhases(phases);
 
   skipWarmUpCheck.checked = prefs.skipWarmUp;
+  disableNotificationsCheck.checked = prefs.disableNotifications;
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
 
@@ -287,6 +291,13 @@ skipWarmUpCheck.addEventListener('change', () => {
   chrome.runtime.sendMessage({
     action: MSG_ACTION.SET_PREFERENCE,
     updates: { skipWarmUp: skipWarmUpCheck.checked },
+  });
+});
+
+disableNotificationsCheck.addEventListener('change', () => {
+  chrome.runtime.sendMessage({
+    action: MSG_ACTION.SET_PREFERENCE,
+    updates: { disableNotifications: disableNotificationsCheck.checked },
   });
 });
 

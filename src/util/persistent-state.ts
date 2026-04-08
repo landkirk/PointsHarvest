@@ -58,6 +58,7 @@ export interface DebugState {
 
 export interface UserPreferences {
   skipWarmUp: boolean;
+  disableNotifications: boolean;
   ignoredUpdateVersion: string | null;
   seenScreenIds: string[];
 }
@@ -76,6 +77,7 @@ export interface RunState {
 
 export const INITIAL_PREFERENCES: UserPreferences = {
   skipWarmUp: false,
+  disableNotifications: false,
   ignoredUpdateVersion: null,
   seenScreenIds: [],
 };
