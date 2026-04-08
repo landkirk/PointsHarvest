@@ -8,7 +8,7 @@ import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
 import { renderDebug, appendLogEntry, renderActivitiesAndCounters } from './debug-panel.js';
 import { renderFailures, appendFailure } from './failure-banner.js';
-import { renderPrefs, bindPrefs, getSkipWarmUp } from './prefs-panel.js';
+import { renderPrefs, bindPrefs, getSkipWarmUp, getDebugMode } from './prefs-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
@@ -49,7 +49,6 @@ const mainEl = document.getElementById('main') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
-const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
 const debugPanel = document.getElementById('debug-panel') as HTMLElement;
 const btnPurge = document.getElementById('btn-purge') as HTMLElement;
 
@@ -115,6 +114,7 @@ async function render(): Promise<void> {
   const isDone = !isRunning && hasAnyPhases(phases);
 
   renderPrefs(prefs);
+  debugPanel.classList.toggle('open', prefs.debugMode);
   statusEl.textContent = headerMessage || 'Idle';
   bar.style.width = pct + '%';
 
@@ -130,7 +130,7 @@ async function render(): Promise<void> {
   renderPhases(phases, activePhase ?? undefined);
   renderPhasePoints(phasePoints);
   renderFailures(run.failures ?? []);
-  if (debugCheck.checked) {
+  if (getDebugMode()) {
     renderDebug(run);
     renderActivitiesAndCounters(run);
   }
@@ -214,7 +214,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage): undefined => {
   if (msg.action === MSG_ACTION.PROGRESS) {
     void render();
   }
-  if (msg.action === MSG_ACTION.DEBUG_ENTRY && debugCheck.checked) {
+  if (msg.action === MSG_ACTION.DEBUG_ENTRY && getDebugMode()) {
     appendLogEntry(msg.entry);
   }
   if (msg.action === MSG_ACTION.FAILURE_ENTRY) {
@@ -276,17 +276,10 @@ function connectKeepalive(): void {
 connectKeepalive();
 bindPrefs();
 
-// ── Debug panel toggle ──────────────────────────────────────────────────────
+// ── Debug panel section collapse ────────────────────────────────────────────
 
 document.querySelectorAll('.dbg-section h2').forEach((h2) => {
   h2.addEventListener('click', () =>
     (h2.closest('.dbg-section') as HTMLElement).classList.toggle('collapsed'),
   );
-});
-
-debugCheck.addEventListener('change', () => {
-  debugPanel.classList.toggle('open', debugCheck.checked);
-  if (debugCheck.checked) {
-    void render();
-  }
 });

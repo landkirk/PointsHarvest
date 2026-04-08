@@ -93,7 +93,9 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     );
   }
   if (msg.action === MSG_ACTION.SET_PREFERENCE) {
-    setPreference(msg.updates);
+    setPreference(msg.updates).then(() => {
+      chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS }).catch(() => {});
+    });
   }
   return undefined;
 });
