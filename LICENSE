@@ -1,5 +1,5 @@
-Mozilla Public License Version 2.0
-==================================
+Mozilla Public License Version 2.0 with Additional Restrictions
+================================================================
 
 1. Definitions
 --------------
@@ -371,3 +371,23 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 
   This Source Code Form is "Incompatible With Secondary Licenses", as
   defined by the Mozilla Public License, v. 2.0.
+
+Exhibit C - Additional Terms
+-----------------------------
+
+Notwithstanding any other provision of this License, the following
+additional terms apply to all use of the Covered Software:
+
+1. Amazon.com, Inc., its subsidiaries, affiliates, and any entity that
+   controls, is controlled by, or is under common control with
+   Amazon.com, Inc. (collectively, "Amazon Entities") are expressly
+   denied all rights granted under this License. No Amazon Entity may
+   use, copy, modify, merge, distribute, sublicense, or otherwise
+   exploit the Covered Software or any portion thereof, in any form,
+   for any purpose whatsoever.
+
+2. This restriction applies regardless of whether the Amazon Entity is
+   acting on its own behalf or on behalf of any third party.
+
+3. Any attempt by an Amazon Entity to exercise rights under this License
+   is void and constitutes a material breach of this License.
