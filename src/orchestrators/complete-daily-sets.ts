@@ -56,42 +56,54 @@ class CompleteDailySets extends OrchestratorBase {
 
     for (let i = 0; i < dailySets.length; i++) {
       ctx.signal.throwIfAborted();
+      ctx.activeActivity = dailySets[i];
+      try {
+        const label = dailySets[i].title.slice(0, 60);
+        await ctx.dbg(
+          DBG.INFO,
+          `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
+        );
 
-      const label = dailySets[i].title.slice(0, 60);
-      await ctx.dbg(
-        DBG.INFO,
-        `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
-      );
+        const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
+        const succeeded = await ActivityRunner.executeActivityWithValidation(
+          ctx,
+          attempt,
+          attempt,
+          {
+            retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
+            lingerLabel: 'daily set activity retry',
+            failCategory: 'validation',
+            failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
+            navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
+            retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
+          },
+        );
+        if (!succeeded) continue;
 
-      const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
-      const succeeded = await ActivityRunner.executeActivityWithValidation(ctx, attempt, attempt, {
-        retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
-        lingerLabel: 'daily set activity retry',
-        failCategory: 'validation',
-        failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
-        navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
-        retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
-      });
-      if (!succeeded) continue;
-
-      await markActivityCompleted(dailySets[i].id);
-      earnedPts += dailySets[i].points;
-      successCount++;
-      ctx.signal.throwIfAborted();
-      await ctx.dbg(
-        DBG.SUCCESS,
-        `[${dailySets[i].id}] Daily set activity ${successCount}/${dailySets.length} complete`,
-      );
-      await ctx.updateHeader({
-        headerMessage: `Daily sets (${dailyAlreadyCompletedCount + successCount} / ${dailyPhaseTotal})`,
-        activePhase: PHASE.DAILY,
-        phaseProgress: { done: dailyAlreadyCompletedCount + successCount, total: dailyPhaseTotal },
-        phasePoints: { daily: earnedPts },
-      });
-
-      if (i < dailySets.length - 1) {
-        await lingerOnPage('between daily set activities', undefined, ctx.signal);
+        await markActivityCompleted(dailySets[i].id);
+        earnedPts += dailySets[i].points;
+        successCount++;
         ctx.signal.throwIfAborted();
+        await ctx.dbg(
+          DBG.SUCCESS,
+          `[${dailySets[i].id}] Daily set activity ${successCount}/${dailySets.length} complete`,
+        );
+        await ctx.updateHeader({
+          headerMessage: `Daily sets (${dailyAlreadyCompletedCount + successCount} / ${dailyPhaseTotal})`,
+          activePhase: PHASE.DAILY,
+          phaseProgress: {
+            done: dailyAlreadyCompletedCount + successCount,
+            total: dailyPhaseTotal,
+          },
+          phasePoints: { daily: earnedPts },
+        });
+
+        if (i < dailySets.length - 1) {
+          await lingerOnPage('between daily set activities', undefined, ctx.signal);
+          ctx.signal.throwIfAborted();
+        }
+      } finally {
+        ctx.activeActivity = null;
       }
     }
 
