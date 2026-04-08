@@ -75,7 +75,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         if (tab.url.startsWith(REWARDS_URL)) {
           chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
         } else {
-          ctx.dbg(DBG.ERROR, `Not logged in — redirected to: ${tab.url}`).catch(() => {});
+          ctx.fail('setup', `Not logged in — redirected to: ${tab.url}`).catch(() => {});
           cleanup();
           resolve({ ...this.emptyResult(rewardsTabId), loggedIn: false });
         }

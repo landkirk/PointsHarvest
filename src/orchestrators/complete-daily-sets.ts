@@ -6,6 +6,7 @@ import { ACTIVITY_TYPE, CardState, markActivityCompleted, sumCompleted } from '.
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { ActivityRunner } from '../util/activity-runner.js';
 import { PHASE, loadState } from '../util/persistent-state.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
@@ -62,7 +63,7 @@ class CompleteDailySets extends OrchestratorBase {
       );
 
       const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
-      const succeeded = await this.runner!.executeActivityWithValidation(ctx, attempt, attempt, {
+      const succeeded = await ActivityRunner.executeActivityWithValidation(ctx, attempt, attempt, {
         retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
         lingerLabel: 'daily set activity retry',
         failCategory: 'validation',

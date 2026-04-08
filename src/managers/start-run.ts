@@ -41,7 +41,7 @@ class StartRun {
 
     this._executeRun(ctx, skipWarmUp) // fire and forget
       .catch((err) =>
-        ctx.dbg(DBG.ERROR, `Fatal run error: ${err instanceof Error ? err.message : String(err)}`),
+        ctx.fail('setup', `Fatal run error: ${err instanceof Error ? err.message : String(err)}`),
       );
   }
 
@@ -110,8 +110,8 @@ class StartRun {
     } catch (err) {
       if (err instanceof NotLoggedInError) throw err;
       if (err instanceof StoppedError) return;
-      await ctx.dbg(
-        DBG.ERROR,
+      await ctx.fail(
+        'setup',
         `${orchestrator.name} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {

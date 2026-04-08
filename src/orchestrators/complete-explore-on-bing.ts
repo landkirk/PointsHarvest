@@ -5,6 +5,7 @@ import { lingerOnPage } from '../util/timing.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { ActivityRunner } from '../util/activity-runner.js';
 import { PHASE, loadState } from '../util/persistent-state.js';
 
 import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
@@ -83,7 +84,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       });
       await ctx.dbg(DBG.INFO, `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`);
 
-      const succeeded = await this.runner!.executeActivityWithValidation(
+      const succeeded = await ActivityRunner.executeActivityWithValidation(
         ctx,
         () => this.runSearchForActivity(ctx, activities[i], searchQuery),
         fallbackQuery ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery) : null,
