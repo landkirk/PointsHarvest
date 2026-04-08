@@ -5,7 +5,6 @@ import {
   setHeaderState,
   loadPreferences,
 } from '../util/persistent-state.js';
-import { setActiveOrchestrator } from '../util/runtime-state.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
@@ -22,9 +21,14 @@ import { StoppedError } from '../interfaces/stoppable.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 
 let activeController: AbortController | null = null;
+let activeContext: Context | null = null;
 
 export function getActiveController(): AbortController | null {
   return activeController;
+}
+
+export function getActiveContext(): Context | null {
+  return activeContext;
 }
 
 type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
@@ -39,6 +43,7 @@ class StartRun {
 
     activeController = new AbortController();
     const ctx = createContext(activeController.signal);
+    activeContext = ctx;
     await ctx.broadcastProgress();
 
     this._executeRun(ctx, skipWarmUp) // fire and forget
@@ -106,7 +111,7 @@ class StartRun {
     run: () => Promise<void>,
   ): Promise<void> {
     if (ctx.signal.aborted) return;
-    setActiveOrchestrator(orchestrator);
+    ctx.activeOrchestrator = orchestrator;
     try {
       await run();
     } catch (err) {
@@ -118,7 +123,7 @@ class StartRun {
       );
     } finally {
       await orchestrator.stop(ctx);
-      setActiveOrchestrator(null);
+      ctx.activeOrchestrator = null;
     }
   }
 
@@ -129,6 +134,7 @@ class StartRun {
     success: boolean,
   ): Promise<void> {
     activeController = null;
+    activeContext = null;
     await this.tabs.closeAll();
     const { rewardsTabId } = await loadRunState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);

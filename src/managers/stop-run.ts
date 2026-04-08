@@ -1,9 +1,8 @@
 import { setRunState, loadRunState, setHeaderState } from '../util/persistent-state.js';
-import { getActiveOrchestrator } from '../util/runtime-state.js';
 import { dbg, DBG } from '../util/debug.js';
 import { createContext } from '../util/context.js';
 import { TabManager } from '../util/tab-manager.js';
-import { getActiveController } from './start-run.js';
+import { getActiveController, getActiveContext } from './start-run.js';
 import { StoppedError } from '../interfaces/stoppable.js';
 
 class StopRun {
@@ -13,7 +12,7 @@ class StopRun {
     getActiveController()?.abort(new StoppedError());
     await setRunState({ isRunning: false, isLingering: false });
     const ctx = createContext(AbortSignal.abort(new StoppedError()));
-    await getActiveOrchestrator()?.stop(ctx);
+    await getActiveContext()?.activeOrchestrator?.stop(ctx);
     await this.tabs.closeAll();
     const { rewardsTabId } = await loadRunState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
