@@ -3,7 +3,7 @@ import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { TIMEOUTS } from '../util/timing.js';
-import { setState, loadState } from '../util/persistent-state.js';
+import { setRunState, loadRunState } from '../util/persistent-state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import {
   classifyCard,
@@ -26,10 +26,10 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
 
-    const rewardsTabId = (await loadState()).rewardsTabId;
+    const rewardsTabId = (await loadRunState()).rewardsTabId;
     if (!rewardsTabId) {
       await ctx.fail('navigation', 'Rewards tab not open — cannot extract activities');
-      await setState({ activityState: this.emptyResult(null) });
+      await setRunState({ activityState: this.emptyResult(null) });
       return;
     }
 
@@ -49,7 +49,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       `Extracted ${result.allActivities.length} cards: ${explore} explore, ${daily} daily, ${ignored} ignored`,
     );
 
-    await setState({ activityState: result });
+    await setRunState({ activityState: result });
   }
 
   private waitForExtraction(ctx: Context, rewardsTabId: number): Promise<ActivityState> {

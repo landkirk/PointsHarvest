@@ -1,6 +1,6 @@
 import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
 import { PHASE, PHASE_TIME_LABEL } from '../util/persistent-state.js';
-import type { AppState, PhaseKey, SearchCounter } from '../util/persistent-state.js';
+import type { RunState, PhaseKey, SearchCounter } from '../util/persistent-state.js';
 import type { Activity } from '../util/activity.js';
 import type { DebugEntry } from '../util/debug.js';
 
@@ -23,7 +23,7 @@ const dbgLog = document.getElementById('dbg-log') as HTMLElement;
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-export function renderDebug(state: AppState): void {
+export function renderDebug(state: RunState): void {
   renderWarmUp(state.warmUpQueries);
   renderActivitiesAndCounters(state);
   renderLog(state.debug.debugLog);
@@ -59,7 +59,7 @@ export function appendLogEntry(entry: DebugEntry): void {
   if (nearBottom) dbgLog.scrollTop = dbgLog.scrollHeight;
 }
 
-export function renderActivitiesAndCounters(state: AppState): void {
+export function renderActivitiesAndCounters(state: RunState): void {
   const phasePoints = state.header.phasePoints;
   const allActivities = state.activityState?.allActivities ?? [];
   const exploreActivities = allActivities.filter(

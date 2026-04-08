@@ -1,5 +1,5 @@
 import type { OnboardingScreen } from '../util/screens.js';
-import { setState, loadState } from '../util/persistent-state.js';
+import { setPreference, loadPreferences } from '../util/persistent-state.js';
 
 export async function showOnboarding(
   screens: OnboardingScreen[],
@@ -58,9 +58,9 @@ export async function showOnboarding(
       await render();
     } else {
       // Save all shown screen IDs
-      const state = await loadState();
-      const merged = Array.from(new Set([...state.seenScreenIds, ...screens.map((s) => s.id)]));
-      await setState({ seenScreenIds: merged });
+      const prefs = await loadPreferences();
+      const merged = Array.from(new Set([...prefs.seenScreenIds, ...screens.map((s) => s.id)]));
+      await setPreference({ seenScreenIds: merged });
 
       overlay.classList.remove('active');
       wrap.remove();

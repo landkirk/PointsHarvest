@@ -1,4 +1,4 @@
-import { setState, loadState, setHeaderState } from '../util/persistent-state.js';
+import { setRunState, loadRunState, setHeaderState } from '../util/persistent-state.js';
 import { getActiveOrchestrator } from '../util/runtime-state.js';
 import { dbg, DBG } from '../util/debug.js';
 import { createContext } from '../util/context.js';
@@ -11,11 +11,11 @@ class StopRun {
 
   async run(): Promise<void> {
     getActiveController()?.abort(new StoppedError());
-    await setState({ isRunning: false, isLingering: false });
+    await setRunState({ isRunning: false, isLingering: false });
     const ctx = createContext(AbortSignal.abort(new StoppedError()));
     await getActiveOrchestrator()?.stop(ctx);
     await this.tabs.closeAll();
-    const { rewardsTabId } = await loadState();
+    const { rewardsTabId } = await loadRunState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
     await setHeaderState({ headerMessage: 'Stopped', activePhase: null });
     await dbg(DBG.WARN, 'Run stopped by user');

@@ -407,7 +407,6 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - Persistent state stored in `chrome.storage.local` (`util/persistent-state.ts`) — includes `skipWarmUp` preference (survives resets; preserved across `resetState` calls alongside `seenScreenIds` and `ignoredUpdateVersion`)
 - All storage writes are serialized through a `writeQueue` promise chain (`enqueueWrite()`) to prevent race conditions when multiple async operations try to write simultaneously
 - Runtime state (`activeOrchestrator`) lives in `util/runtime-state.ts` and resets on service worker restart
-- `lastRunDate` comparison enables daily reset without manual clearing
 - Phase progress (`PHASE.WARMUP`, `PHASE.EXPLORE`, `PHASE.DAILY`, `PHASE.FARM`) and per-phase point totals are stored in `header.phases` and `header.phasePoints` and read by the popup for real-time display
 
 ### Tab Management
