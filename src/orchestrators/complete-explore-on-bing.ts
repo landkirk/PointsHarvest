@@ -148,11 +148,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     const searchTab = result.tab;
 
     ctx.signal.throwIfAborted();
-    await performSearch.run(ctx, searchTab.id, searchQuery);
+    await performSearch._run(ctx, searchTab.id, searchQuery);
     this.tabs.closeTab(searchTab.id);
     ctx.signal.throwIfAborted();
 
-    const r = await validateActivity.run(ctx, activity, rewardsTabId);
+    const r = await validateActivity._run(ctx, activity, rewardsTabId);
     return r.status === ValidationStatus.Completed
       ? true
       : r.status === ValidationStatus.Incomplete
