@@ -7,7 +7,7 @@ import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { ActivityRunner } from '../util/activity-runner.js';
-import { PHASE, loadState } from '../util/persistent-state.js';
+import { PHASE, loadRunState } from '../util/persistent-state.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
@@ -19,7 +19,7 @@ class CompleteDailySets extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
-    const extraction = (await loadState()).activityState ?? null;
+    const extraction = (await loadRunState()).activityState ?? null;
     if (!extraction || !extraction.rewardsTabId) {
       await ctx.dbg(DBG.WARN, 'No extraction result — skipping daily sets');
       return;

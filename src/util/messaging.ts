@@ -26,7 +26,7 @@ export interface ProgressBroadcast {
 }
 
 import type { RawCard } from './activity.js';
-import type { AppState } from './persistent-state.js';
+import type { UserPreferences } from './persistent-state.js';
 
 // ── Message actions ────────────────────────────────────────────────────────
 
@@ -41,7 +41,8 @@ export const MSG_ACTION = {
   // Popup → background
   START: 'start',
   STOP: 'stop',
-  GET_STATE: 'getState',
+  GET_RUN_STATE: 'getRunState',
+  GET_PREFERENCES: 'getPreferences',
   PING: 'ping',
   PURGE: 'purgeState',
   // Background/steps → popup
@@ -64,14 +65,15 @@ export type AppMessage =
   // Popup → Background
   | { action: typeof MSG_ACTION.START; skipWarmUp: boolean; windowId: number }
   | { action: typeof MSG_ACTION.STOP }
-  | { action: typeof MSG_ACTION.GET_STATE }
+  | { action: typeof MSG_ACTION.GET_RUN_STATE }
+  | { action: typeof MSG_ACTION.GET_PREFERENCES }
   | { action: typeof MSG_ACTION.PING }
   | { action: typeof MSG_ACTION.PURGE }
   | { action: typeof MSG_ACTION.USER_ACTION_COMPLETE }
   | { action: typeof MSG_ACTION.RESET_STALE }
   | {
       action: typeof MSG_ACTION.SET_PREFERENCE;
-      updates: Partial<Pick<AppState, 'skipWarmUp' | 'ignoredUpdateVersion'>>;
+      updates: Partial<UserPreferences>;
     }
   // Background → Popup (broadcast)
   | ({ action: typeof MSG_ACTION.PROGRESS } & ProgressBroadcast)

@@ -1,6 +1,14 @@
 import { MSG_ACTION } from './util/messaging.js';
 import type { AppMessage } from './util/messaging.js';
-import { loadState, resetState, setState, setHeaderState } from './util/persistent-state.js';
+import {
+  loadRunState,
+  loadPreferences,
+  resetRunState,
+  setRunState,
+  setHeaderState,
+  setPreference,
+  INITIAL_PREFERENCES,
+} from './util/persistent-state.js';
 import { getActiveOrchestrator } from './util/runtime-state.js';
 import { StartRun, getActiveController } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
@@ -51,8 +59,12 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
   if (msg.action === MSG_ACTION.STOP) {
     stopRun.run();
   }
-  if (msg.action === MSG_ACTION.GET_STATE) {
-    loadState().then(sendResponse);
+  if (msg.action === MSG_ACTION.GET_RUN_STATE) {
+    loadRunState().then((run) => sendResponse(run));
+    return true;
+  }
+  if (msg.action === MSG_ACTION.GET_PREFERENCES) {
+    loadPreferences().then((prefs) => sendResponse(prefs));
     return true;
   }
   if (msg.action === MSG_ACTION.PING) {
@@ -60,7 +72,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     return true;
   }
   if (msg.action === MSG_ACTION.PURGE) {
-    resetState({ seenScreenIds: [], ignoredUpdateVersion: null }).then(() =>
+    Promise.all([resetRunState(), setPreference(INITIAL_PREFERENCES)]).then(() =>
       sendResponse({ ok: true }),
     );
     return true;
@@ -71,18 +83,18 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
       orch.onUserActionComplete();
     } else {
       // Worker restarted mid-linger — clear stale UI state
-      setState({ isRunning: false, isLingering: false }).then(() =>
+      setRunState({ isRunning: false, isLingering: false }).then(() =>
         setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
       );
     }
   }
   if (msg.action === MSG_ACTION.RESET_STALE) {
-    setState({ isRunning: false, isLingering: false }).then(() =>
+    setRunState({ isRunning: false, isLingering: false }).then(() =>
       setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
     );
   }
   if (msg.action === MSG_ACTION.SET_PREFERENCE) {
-    setState(msg.updates);
+    setPreference(msg.updates);
   }
   return undefined;
 });
@@ -90,5 +102,5 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
 // ── Lifecycle ──────────────────────────────────────────────────────────────
 
 chrome.runtime.onInstalled.addListener(async () => {
-  await resetState();
+  await resetRunState();
 });

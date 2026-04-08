@@ -1,5 +1,5 @@
 import { DBG } from '../util/debug.js';
-import { resetState, loadState, setHeaderState } from '../util/persistent-state.js';
+import { resetRunState, loadRunState, setHeaderState } from '../util/persistent-state.js';
 import { setActiveOrchestrator } from '../util/runtime-state.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
@@ -28,10 +28,8 @@ class StartRun {
   readonly tabs = new TabManager();
 
   async run(skipWarmUp: boolean, windowId: number): Promise<void> {
-    const today = new Date().toDateString();
-
     this.tabs.setWindowId(windowId);
-    await resetState({ isRunning: true, lastRunDate: today });
+    await resetRunState({ isRunning: true });
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 
     activeController = new AbortController();
@@ -127,7 +125,7 @@ class StartRun {
   ): Promise<void> {
     activeController = null;
     await this.tabs.closeAll();
-    const { rewardsTabId } = await loadState();
+    const { rewardsTabId } = await loadRunState();
     if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
     await ctx.setState({ isRunning: false });
     await setHeaderState({ headerMessage: status, activePhase: null });

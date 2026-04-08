@@ -1,5 +1,5 @@
 import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
-import { loadState, setState } from './persistent-state.js';
+import { loadRunState, setRunState } from './persistent-state.js';
 
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
@@ -112,14 +112,14 @@ export function sumCompleted(activities: Activity[]): { count: number; points: n
 }
 
 export async function markActivityCompleted(activityId: string): Promise<void> {
-  const state = await loadState();
-  const activityState = state.activityState;
+  const run = await loadRunState();
+  const activityState = run.activityState;
   if (!activityState) return;
 
   const activity = activityState.allActivities.find((a) => a.id === activityId);
   if (activity) {
     activity.cardState = CardState.Completed;
-    await setState({ activityState });
+    await setRunState({ activityState });
   }
 }
 
