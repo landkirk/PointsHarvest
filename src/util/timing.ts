@@ -16,6 +16,9 @@ export const TIMEOUTS = {
   REWARDS_DOM_POLL: 500, // DOM poll interval
   VALIDATE_ACTIVITY: 2_000, // post-click settle delay
   TAB_LOAD: 30_000, // default waitForTabLoad timeout
+  TAB_CAPTURE: 10_000, // wait for a card-click to open a new tab
+  USER_ACTION_POLL: 2 * 60_000, // 2 min — poll activity (single click)
+  USER_ACTION_QUIZ: 10 * 60_000, // 10 min — quiz/test/puzzle activity
   PERMISSION_WAIT: 10 * 60_000, // max wait for user to fix Chrome popup permissions
 };
 

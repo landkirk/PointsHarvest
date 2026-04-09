@@ -1,5 +1,6 @@
 import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
 import { loadRunState, setRunState } from './persistent-state.js';
+import { TIMEOUTS } from './timing.js';
 
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
@@ -124,8 +125,6 @@ export async function markActivityCompleted(activityId: string): Promise<void> {
 }
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
-const POLL_TIMEOUT_MS = 2 * 60 * 1000; // 2 min — poll is a single click
-const QUIZ_TIMEOUT_MS = 10 * 60 * 1000; // 10 min — quiz/test/puzzle
 
 export function enrichUserActions(activities: Activity[]): Activity[] {
   for (const activity of activities) {
@@ -134,7 +133,11 @@ export function enrichUserActions(activities: Activity[]): Activity[] {
     const isPoll =
       needsAction && (/\bpoll\b/i.test(activity.title) || /\bpoll\b/i.test(activity.description));
     activity.requiresUserAction = needsAction;
-    activity.userActionTimeoutMs = needsAction ? (isPoll ? POLL_TIMEOUT_MS : QUIZ_TIMEOUT_MS) : 0;
+    activity.userActionTimeoutMs = needsAction
+      ? isPoll
+        ? TIMEOUTS.USER_ACTION_POLL
+        : TIMEOUTS.USER_ACTION_QUIZ
+      : 0;
   }
   return activities;
 }

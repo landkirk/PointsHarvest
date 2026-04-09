@@ -118,7 +118,7 @@ export class TabManager {
     id: string,
     label: string,
   ): Promise<TabCaptureResult> {
-    const capturePromise = this._captureNextTab(10000, ctx.signal);
+    const capturePromise = this._captureNextTab(TIMEOUTS.TAB_CAPTURE, ctx.signal);
 
     const clickResult = await chrome.tabs
       .sendMessage(rewardsTabId, { action: MSG_ACTION.CLICK_CARD, id })
@@ -200,7 +200,7 @@ export class TabManager {
   }
 
   private async _captureNextTab(
-    timeoutMs = 10000,
+    timeoutMs = TIMEOUTS.TAB_CAPTURE,
     signal?: AbortSignal,
   ): Promise<chrome.tabs.Tab | null> {
     const capturePromise = abortable<chrome.tabs.Tab | null>(signal, (resolve) => {
