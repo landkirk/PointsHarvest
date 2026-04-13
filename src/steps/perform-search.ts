@@ -10,7 +10,7 @@ class PerformSearchStep extends StepBase<[number, string]> {
   readonly name = 'perform-search';
 
   async run(ctx: Context, tabId: number, query: string): Promise<void> {
-    await lingerOnPage('search tab', TIMING.LINGER_ON_SEARCH, ctx.signal);
+    await lingerOnPage('search tab', TIMING.LINGER_ON_SEARCH, ctx.signal, false);
     ctx.signal.throwIfAborted();
 
     const result = await chrome.tabs
