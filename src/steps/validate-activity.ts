@@ -1,7 +1,7 @@
 import { CardState } from '../util/activity.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
-import { sleep, randMs } from '../util/timing.js';
+import { sleep, randMs, TIMING } from '../util/timing.js';
 import { StepBase } from '../interfaces/step.js';
 
 import type { Activity } from '../util/activity.js';
@@ -26,7 +26,7 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
     chrome.tabs.update(rewardsTabId, { active: true }).catch(() => {
       /* non-critical: tab may have closed */
     });
-    await sleep(randMs(1400, 3800), ctx.signal);
+    await sleep(randMs(...TIMING.VALIDATE_ACTIVITY), ctx.signal);
     const response = await chrome.tabs
       .sendMessage(rewardsTabId, {
         action: MSG_ACTION.VALIDATE_ACTIVITY,
