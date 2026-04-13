@@ -12,6 +12,12 @@ const SELECTORS = {
 } as const;
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.action === MSG_ACTION.SCROLL_PAGE) {
+    window.scrollBy({ top: msg.y, behavior: msg.behavior });
+    sendResponse({ ok: true });
+    return;
+  }
+
   if (msg.action !== MSG_ACTION.PERFORM_SEARCH) return;
 
   const textarea =
