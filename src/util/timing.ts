@@ -8,15 +8,18 @@ export const TIMING: Record<string, [number, number]> = {
   DELAY_BETWEEN_FARMING_SEARCHES: [4000, 8000], // pause between PC farm searches
   FETCH_COUNTERS_POLL: [700, 1800], // jittered counter poll interval
   REWARDS_PRE_EXTRACT_SCROLL_PAUSE: [700, 1800], // pause between scrolls before card extraction
+  VALIDATE_ACTIVITY: [1400, 3800], // delay after clicking before validating activity completion
+  SCROLL_RANGE_PX: [200, 500], // pixels to scroll per action before card extraction
+  CLICK_SIMULATION_MOVE_DELAY: [8, 25], // delay between pointer move events during click simulation
+  CLICK_SIMULATION_HOLD_DOWN_DELAY: [60, 180], // delay between pointerdown and pointerup during click simulation
+  CLICK_SIMULATION_RELEASE_DELAY: [10, 40], // delay after pointerup before click event
 };
 
 export const TIMEOUTS = {
   FETCH_ACTIVITIES: 20_000, // rewards page extraction timeout
-  FETCH_COUNTERS_POLL: 1_000, // counter poll interval
   FETCH_COUNTERS_MAX_POLLS: 20, // max polls before giving up
   REWARDS_DOM_MAX_WAIT: 15_000, // max wait for DOM to render activities
   REWARDS_DOM_POLL: 500, // DOM poll interval
-  VALIDATE_ACTIVITY: 2_000, // post-click settle delay
   TAB_LOAD: 30_000, // default waitForTabLoad timeout
   TAB_CAPTURE: 10_000, // wait for a card-click to open a new tab
   USER_ACTION_POLL: 2 * 60_000, // 2 min — poll activity (single click)

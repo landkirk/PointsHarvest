@@ -29,9 +29,6 @@ const SELECTORS = {
 const CLICK_SIMULATION = {
   COORD_OFFSET_RANGE: 3, // ±3px jitter from element center
   MOVE_COUNT_RANGE: 3, // 1–3 mouse move events
-  MOVE_DELAY_MS: [8, 25] as const, // delay between moves
-  HOLD_DOWN_DELAY_MS: [60, 180] as const, // delay between pointerdown and pointerup
-  RELEASE_DELAY_MS: [10, 40] as const, // delay after pointerup before click
   POINTER_ID: 1 as const,
 } as const;
 
@@ -44,7 +41,6 @@ function parseCardPoints(card: Element): number {
 
 const MAX_WAIT_MS = TIMEOUTS.REWARDS_DOM_MAX_WAIT;
 const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_DOM_POLL;
-const SCROLL_PX: [number, number] = [200, 500];
 
 // Card elements retained after extraction so they can be clicked on demand.
 const extractedEls = new Map<string, HTMLAnchorElement>();
@@ -212,9 +208,9 @@ function waitAndExtract(): void {
       }
     }
 
-    window.scrollBy({ top: randMs(...SCROLL_PX), behavior: 'smooth' });
+    window.scrollBy({ top: randMs(...TIMING.SCROLL_RANGE_PX), behavior: 'smooth' });
     await sleep(randMs(...TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE));
-    window.scrollBy({ top: randMs(...SCROLL_PX), behavior: 'smooth' });
+    window.scrollBy({ top: randMs(...TIMING.SCROLL_RANGE_PX), behavior: 'smooth' });
     await sleep(randMs(...TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE));
 
     const { cards, hasDailySection, cardEls } = extractAllCards();
@@ -240,8 +236,9 @@ function resolveEl(id: string): HTMLAnchorElement | undefined {
   return extractedEls.get(id);
 }
 
+// Return a random offset in [-range, +range]
 function randomOffset(range: number): number {
-  return Math.random() * range * 2 - range;
+  return (Math.random() * 2 - 1) * range;
 }
 
 async function simulateClick(el: HTMLAnchorElement): Promise<void> {
@@ -272,15 +269,16 @@ async function simulateClick(el: HTMLAnchorElement): Promise<void> {
   const moveCount = Math.floor(Math.random() * CLICK_SIMULATION.MOVE_COUNT_RANGE) + 1;
   for (let i = 0; i < moveCount; i++) {
     el.dispatchEvent(new PointerEvent('pointermove', eventOptions));
-    await sleep(rawRandMs(...CLICK_SIMULATION.MOVE_DELAY_MS));
+    await sleep(rawRandMs(...TIMING.CLICK_SIMULATION_MOVE_DELAY));
   }
 
   const pointerdownOptions = { ...eventOptions, buttons: 1 };
   el.dispatchEvent(new PointerEvent('pointerdown', pointerdownOptions));
-  await sleep(rawRandMs(...CLICK_SIMULATION.HOLD_DOWN_DELAY_MS));
+  await sleep(rawRandMs(...TIMING.CLICK_SIMULATION_HOLD_DOWN_DELAY));
 
+  // pointerup has buttons: 0 per pointer event spec (button released)
   el.dispatchEvent(new PointerEvent('pointerup', eventOptions));
-  await sleep(rawRandMs(...CLICK_SIMULATION.RELEASE_DELAY_MS));
+  await sleep(rawRandMs(...TIMING.CLICK_SIMULATION_RELEASE_DELAY));
 
   el.dispatchEvent(new MouseEvent('click', eventOptions));
 }
