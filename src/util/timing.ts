@@ -29,15 +29,23 @@ export function setTimingMultiplier(m: number): void {
   _timingMultiplier = m;
 }
 
-/** Triangular distribution biased toward the middle of [min, max], scaled by the current speed multiplier. */
-export function randMs(min: number, max: number): number {
-  const raw = min + ((Math.random() + Math.random()) / 2) * (max - min);
-  return Math.round(raw * _timingMultiplier);
+/** Long-tail human timing distribution: 80% normal triangular, 15% quick burst, 5% distracted pause. */
+function _humanMs(min: number, max: number): number {
+  const tri = (lo: number, hi: number) => lo + ((Math.random() + Math.random()) / 2) * (hi - lo);
+  const p = Math.random();
+  if (p < 0.8) return tri(min, max);
+  if (p < 0.95) return tri(min * 0.3, min * 0.7);
+  return tri(max, max * 2.0);
 }
 
-/** Same as randMs but ignores the speed multiplier — use for delays that should stay fixed regardless of speed setting. */
+/** Long-tail human timing, scaled by the current speed multiplier. */
+export function randMs(min: number, max: number): number {
+  return Math.round(_humanMs(min, max) * _timingMultiplier);
+}
+
+/** Same long-tail distribution but ignores the speed multiplier — use for delays that should stay fixed regardless of speed setting. */
 export function rawRandMs(min: number, max: number): number {
-  return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));
+  return Math.round(_humanMs(min, max));
 }
 
 export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
