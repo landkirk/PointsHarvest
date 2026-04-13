@@ -62,6 +62,7 @@ export interface UserPreferences {
   debugMode: boolean;
   ignoredUpdateVersion: string | null;
   seenScreenIds: string[];
+  timingMultiplier: number;
 }
 
 export interface RunState {
@@ -82,6 +83,7 @@ export const INITIAL_PREFERENCES: UserPreferences = {
   debugMode: false,
   ignoredUpdateVersion: null,
   seenScreenIds: [],
+  timingMultiplier: 1.0,
 };
 
 export const INITIAL_RUN_STATE: RunState = {

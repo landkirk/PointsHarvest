@@ -10,6 +10,18 @@ const disableNotificationsCheck = document.getElementById(
 const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
 const prefsPanel = document.getElementById('prefs-panel') as HTMLElement;
 const prefsHeader = prefsPanel.querySelector('.prefs-header') as HTMLElement;
+const speedButtonsContainer = document.getElementById('speed-buttons') as HTMLElement;
+const speedButtons = Array.from(
+  speedButtonsContainer.querySelectorAll<HTMLButtonElement>('.speed-btn'),
+);
+const speedDescEl = document.getElementById('speed-desc') as HTMLElement;
+
+const SPEED_DESCRIPTIONS: Record<number, string> = {
+  0.6: 'Shorter pauses between actions. Runs complete faster but are more likely to be flagged.',
+  1: 'Balanced pacing. A good starting point for most accounts.',
+  4: 'Longer pauses between actions. Takes more time but mimics human browsing more closely.',
+  8: 'Maximum delay between every action. Lowest detection risk — runs may take significantly longer.',
+};
 
 // ── Saved flash ──────────────────────────────────────────────────────────────
 
@@ -34,11 +46,19 @@ export function getDebugMode(): boolean {
   return debugCheck.checked;
 }
 
+function setActiveSpeedButton(multiplier: number): void {
+  for (const btn of speedButtons) {
+    btn.classList.toggle('active', Number(btn.dataset.multiplier) === multiplier);
+  }
+  speedDescEl.textContent = SPEED_DESCRIPTIONS[multiplier] ?? '';
+}
+
 /** Sync checkbox states from a freshly-loaded UserPreferences object. */
 export function renderPrefs(prefs: UserPreferences): void {
   skipWarmUpCheck.checked = prefs.skipWarmUp;
   disableNotificationsCheck.checked = prefs.disableNotifications;
   debugCheck.checked = prefs.debugMode;
+  setActiveSpeedButton(prefs.timingMultiplier ?? 1.0);
 }
 
 /** Attach change listeners. Call once at startup. */
@@ -70,4 +90,16 @@ export function bindPrefs(): void {
     });
     flashSaved();
   });
+
+  for (const btn of speedButtons) {
+    btn.addEventListener('click', () => {
+      const multiplier = Number(btn.dataset.multiplier);
+      setActiveSpeedButton(multiplier);
+      chrome.runtime.sendMessage({
+        action: MSG_ACTION.SET_PREFERENCE,
+        updates: { timingMultiplier: multiplier },
+      });
+      flashSaved();
+    });
+  }
 }

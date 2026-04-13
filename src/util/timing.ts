@@ -1,10 +1,11 @@
 import { dbg, DBG } from './debug.js';
 
 // Named timing ranges — change here to affect all call sites.
+// These are the base values at 1.0× multiplier (Normal speed).
 export const TIMING: Record<string, [number, number]> = {
-  LINGER_ON_PAGE: [3000, 5000], // dwell time on any page
-  LINGER_ON_SEARCH: [1500, 3000], // dwell time on search tab
-  DELAY_BETWEEN_FARMING_SEARCHES: [2000, 4000], // pause between PC farm searches
+  LINGER_ON_PAGE: [6000, 10000], // dwell time on any page
+  LINGER_ON_SEARCH: [3000, 6000], // dwell time on search tab
+  DELAY_BETWEEN_FARMING_SEARCHES: [4000, 8000], // pause between PC farm searches
 };
 
 export const TIMEOUTS = {
@@ -18,8 +19,21 @@ export const TIMEOUTS = {
   PERMISSION_WAIT: 10 * 60_000, // max wait for user to fix Chrome popup permissions
 };
 
-/** Triangular distribution biased toward the middle of [min, max]. */
+// Speed multiplier — set once at run start via setTimingMultiplier().
+// 1.0 = Normal (default), 0.6 = Fast, 4.0 = Slow, 8.0 = Stealth.
+let _timingMultiplier = 1.0;
+export function setTimingMultiplier(m: number): void {
+  _timingMultiplier = m;
+}
+
+/** Triangular distribution biased toward the middle of [min, max], scaled by the current speed multiplier. */
 export function randMs(min: number, max: number): number {
+  const raw = min + ((Math.random() + Math.random()) / 2) * (max - min);
+  return Math.round(raw * _timingMultiplier);
+}
+
+/** Same as randMs but ignores the speed multiplier — use for delays that should stay fixed regardless of speed setting. */
+function rawRandMs(min: number, max: number): number {
   return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));
 }
 
@@ -41,13 +55,15 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
-/** Dwell on a page for a random duration and log it. */
+/** Dwell on a page for a random duration and log it.
+ *  Pass `scaled = false` to ignore the speed multiplier for this linger. */
 export async function lingerOnPage(
   label = 'page',
   timing = TIMING.LINGER_ON_PAGE,
   signal?: AbortSignal,
+  scaled = true,
 ): Promise<void> {
-  const ms = randMs(...timing);
+  const ms = scaled ? randMs(...timing) : rawRandMs(...timing);
   await dbg(DBG.INFO, `Lingering on ${label} for ${(ms / 1000).toFixed(1)}s`);
   await sleep(ms, signal);
 }

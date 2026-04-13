@@ -5,6 +5,7 @@ import {
   setHeaderState,
   loadPreferences,
 } from '../util/persistent-state.js';
+import { setTimingMultiplier } from '../util/timing.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
@@ -42,6 +43,8 @@ class StartRun {
     await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
 
     activeController = new AbortController();
+    const prefs = await loadPreferences();
+    setTimingMultiplier(prefs.timingMultiplier ?? 1.0);
     const ctx = createContext(activeController.signal);
     activeContext = ctx;
     await ctx.broadcastProgress();
