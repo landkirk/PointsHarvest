@@ -1,4 +1,4 @@
-import { sleep, TIMEOUTS } from './timing.js';
+import { sleep, randMs, TIMEOUTS } from './timing.js';
 import { MSG_ACTION } from './messaging.js';
 import type { Context } from './context.js';
 
@@ -175,7 +175,10 @@ export class TabManager {
   async closeAll(): Promise<void> {
     const ids = [...this.openedTabIds];
     this.openedTabIds.clear();
-    if (ids.length) chrome.tabs.remove(ids).catch(() => {});
+    for (const id of ids) {
+      chrome.tabs.remove(id).catch(() => {});
+      await sleep(randMs(300, 1200));
+    }
   }
 
   // ── Private ─────────────────────────────────────────────────────────────
