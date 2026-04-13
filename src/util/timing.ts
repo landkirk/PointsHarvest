@@ -6,6 +6,7 @@ export const TIMING: Record<string, [number, number]> = {
   LINGER_ON_PAGE: [6000, 10000], // dwell time on any page
   LINGER_ON_SEARCH: [3000, 6000], // dwell time on search tab
   DELAY_BETWEEN_FARMING_SEARCHES: [4000, 8000], // pause between PC farm searches
+  FETCH_COUNTERS_POLL: [700, 1800], // jittered counter poll interval
 };
 
 export const TIMEOUTS = {
