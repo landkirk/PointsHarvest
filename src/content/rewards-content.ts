@@ -6,7 +6,7 @@
 // "Search on Bing" activities are identified via aria-label on the card element.
 
 import { CardState, CARD_SOURCE } from '../util/activity.js';
-import { TIMEOUTS } from '../util/timing.js';
+import { TIMEOUTS, rawRandMs, sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
 import type { RawCard } from '../util/activity.js';
@@ -24,6 +24,15 @@ const SELECTORS = {
   COUNTER_DETAIL: 'p.pointsDetail',
   CARD_DESCRIPTION: '.contentContainer p',
   POINTS_VALUE: '.pointsString',
+} as const;
+
+const CLICK_SIMULATION = {
+  COORD_OFFSET_RANGE: 3, // ±3px jitter from element center
+  MOVE_COUNT_RANGE: 3, // 1–3 mouse move events
+  MOVE_DELAY_MS: [8, 25] as const, // delay between moves
+  HOLD_DOWN_DELAY_MS: [60, 180] as const, // delay between pointerdown and pointerup
+  RELEASE_DELAY_MS: [10, 40] as const, // delay after pointerup before click
+  POINTER_ID: 1 as const,
 } as const;
 
 function parseCardPoints(card: Element): number {
@@ -225,6 +234,51 @@ function resolveEl(id: string): HTMLAnchorElement | undefined {
   return extractedEls.get(id);
 }
 
+function randomOffset(range: number): number {
+  return Math.random() * range * 2 - range;
+}
+
+async function simulateClick(el: HTMLAnchorElement): Promise<void> {
+  const rect = el.getBoundingClientRect();
+  // Validate element is visible; getBoundingClientRect still returns coords for hidden elements
+  if (rect.width === 0 || rect.height === 0) {
+    throw new Error('Cannot click invisible element');
+  }
+
+  // Add jitter to avoid detection by click-pattern analysis
+  const cx = rect.left + rect.width / 2 + randomOffset(CLICK_SIMULATION.COORD_OFFSET_RANGE);
+  const cy = rect.top + rect.height / 2 + randomOffset(CLICK_SIMULATION.COORD_OFFSET_RANGE);
+
+  const eventOptions = {
+    bubbles: true,
+    cancelable: true,
+    clientX: cx,
+    clientY: cy,
+    screenX: cx + window.screenX,
+    screenY: cy + window.screenY,
+    view: window,
+    pointerId: CLICK_SIMULATION.POINTER_ID,
+    pointerType: 'mouse' as const,
+  };
+
+  el.dispatchEvent(new PointerEvent('pointerover', eventOptions));
+
+  const moveCount = Math.floor(Math.random() * CLICK_SIMULATION.MOVE_COUNT_RANGE) + 1;
+  for (let i = 0; i < moveCount; i++) {
+    el.dispatchEvent(new PointerEvent('pointermove', eventOptions));
+    await sleep(rawRandMs(...CLICK_SIMULATION.MOVE_DELAY_MS));
+  }
+
+  const pointerdownOptions = { ...eventOptions, buttons: 1 };
+  el.dispatchEvent(new PointerEvent('pointerdown', pointerdownOptions));
+  await sleep(rawRandMs(...CLICK_SIMULATION.HOLD_DOWN_DELAY_MS));
+
+  el.dispatchEvent(new PointerEvent('pointerup', eventOptions));
+  await sleep(rawRandMs(...CLICK_SIMULATION.RELEASE_DELAY_MS));
+
+  el.dispatchEvent(new MouseEvent('click', eventOptions));
+}
+
 chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START_EXTRACT) {
     waitAndExtract();
@@ -237,12 +291,10 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
       sendResponse({ clicked: false, error: `no card with id ${msg.id}` });
       return true;
     }
-    try {
-      card.click();
-      sendResponse({ clicked: true });
-    } catch (err) {
-      sendResponse({ clicked: false, error: String(err) });
-    }
+    // Return promise directly so Chrome properly awaits the response
+    simulateClick(card)
+      .then(() => sendResponse({ clicked: true }))
+      .catch((err) => sendResponse({ clicked: false, error: String(err) }));
     return true;
   }
 
