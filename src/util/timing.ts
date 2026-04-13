@@ -36,7 +36,7 @@ export function randMs(min: number, max: number): number {
 }
 
 /** Same as randMs but ignores the speed multiplier — use for delays that should stay fixed regardless of speed setting. */
-function rawRandMs(min: number, max: number): number {
+export function rawRandMs(min: number, max: number): number {
   return Math.round(min + ((Math.random() + Math.random()) / 2) * (max - min));
 }
 
