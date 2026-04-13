@@ -39,6 +39,7 @@ export const MSG_ACTION = {
   // Background ↔ search content script
   PERFORM_SEARCH: 'performSearch',
   SCROLL_PAGE: 'scrollPage',
+  CLICK_RESULT: 'clickResult',
   // Popup → background
   START: 'start',
   STOP: 'stop',
@@ -92,4 +93,5 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.GET_COUNTERS }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string }
-  | { action: typeof MSG_ACTION.SCROLL_PAGE; y: number; behavior: 'smooth' | 'instant' };
+  | { action: typeof MSG_ACTION.SCROLL_PAGE; y: number; behavior: 'smooth' | 'instant' }
+  | { action: typeof MSG_ACTION.CLICK_RESULT };
