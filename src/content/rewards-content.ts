@@ -6,7 +6,7 @@
 // "Search on Bing" activities are identified via aria-label on the card element.
 
 import { CardState, CARD_SOURCE } from '../util/activity.js';
-import { TIMEOUTS, rawRandMs, sleep } from '../util/timing.js';
+import { TIMING, TIMEOUTS, randMs, rawRandMs, sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
 import type { RawCard } from '../util/activity.js';
@@ -44,6 +44,7 @@ function parseCardPoints(card: Element): number {
 
 const MAX_WAIT_MS = TIMEOUTS.REWARDS_DOM_MAX_WAIT;
 const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_DOM_POLL;
+const SCROLL_PX: [number, number] = [200, 500];
 
 // Card elements retained after extraction so they can be clicked on demand.
 const extractedEls = new Map<string, HTMLAnchorElement>();
@@ -186,7 +187,7 @@ function isLoggedIn(rawText: string): boolean | null {
 function waitAndExtract(): void {
   const start = Date.now();
 
-  const poll = () => {
+  const poll = async () => {
     const bodyText = document.body?.textContent || '';
     if (bodyText.trim().length < 50) {
       if (Date.now() - start < MAX_WAIT_MS) {
@@ -210,6 +211,11 @@ function waitAndExtract(): void {
         return;
       }
     }
+
+    window.scrollBy({ top: randMs(...SCROLL_PX), behavior: 'smooth' });
+    await sleep(randMs(...TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE));
+    window.scrollBy({ top: randMs(...SCROLL_PX), behavior: 'smooth' });
+    await sleep(randMs(...TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE));
 
     const { cards, hasDailySection, cardEls } = extractAllCards();
 
