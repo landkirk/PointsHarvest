@@ -2,7 +2,7 @@
 // Polling runs in the background service worker (not the tab) to avoid
 // Chrome's background-tab timer throttling.
 
-import { sleep, TIMEOUTS } from '../util/timing.js';
+import { sleep, TIMEOUTS, randMs, TIMING } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { StepBase } from '../interfaces/step.js';
@@ -10,7 +10,6 @@ import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/persistent-state.js';
 import { PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
 
-const POLL_INTERVAL_MS = TIMEOUTS.FETCH_COUNTERS_POLL;
 const MAX_POLLS = TIMEOUTS.FETCH_COUNTERS_MAX_POLLS;
 
 class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null> {
@@ -52,7 +51,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
         return valid;
       }
 
-      if (i < MAX_POLLS - 1) await sleep(POLL_INTERVAL_MS, ctx.signal);
+      if (i < MAX_POLLS - 1) await sleep(randMs(...TIMING.FETCH_COUNTERS_POLL), ctx.signal);
     }
 
     await ctx.fail('counter', `Counter fetch timed out after ${MAX_POLLS}s`);
