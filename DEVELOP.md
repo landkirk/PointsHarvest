@@ -11,6 +11,62 @@
 7. Make your changes to files in `src/`
 8. Rebuild with `npm run build` (or let `watch` pick up the change), then click the refresh icon on the extension card
 
+## Timing System
+
+All timing uses a **human-like distribution algorithm** defined in `src/util/timing.ts`:
+
+### Human Distribution (80% + 15% + 5%)
+The extension simulates realistic human behavior by mixing three timing patterns:
+- **80% triangular distribution**: Biased toward the middle of a range (realistic)
+- **15% quick burst**: 30–70% of the minimum (user rushes through a step)
+- **5% distracted pause**: 100–200% of the maximum (user gets distracted)
+
+This creates a "long-tail" distribution that avoids detectable patterns like constant delays.
+
+### Speed Multiplier
+The extension supports configurable speed presets via `setTimingMultiplier()`:
+- **Normal (1.0×)** — Default behavior
+- **Fast (0.6×)** — Reduced delays (60% of base times)
+- **Slow (4.0×)** — Extended delays (400% of base times)
+- **Stealth (8.0×)** — Maximum delays (800% of base times, slowest humanization)
+
+The speed multiplier is loaded from user preferences at run start and applied to most timing constants (via `randMs()`). **Exception**: `LINGER_ON_SEARCH` is **not scaled** and always uses `rawRandMs()` to maintain realistic search dwell times.
+
+### TIMING Constants
+
+All values are `[min, max]` in milliseconds at 1.0× multiplier. Multiply by `timingMultiplier` when called via `randMs()`.
+
+| Constant | Range (ms) | Purpose |
+|----------|-----------|---------|
+| `LINGER_ON_PAGE` | 6,000–10,000 | Default dwell time on any page (tiles, results, etc.) |
+| `LINGER_ON_SEARCH` | 3,000–6,000 | Dwell on Bing search results **not scaled by multiplier** |
+| `DELAY_BETWEEN_FARMING_SEARCHES` | 4,000–8,000 | Pause between consecutive PC farm searches |
+| `FETCH_COUNTERS_POLL` | 700–1,800 | Jittered interval between counter extraction polls |
+| `REWARDS_PRE_EXTRACT_SCROLL_PAUSE` | 700–1,800 | Pause between scroll events before card extraction |
+| `VALIDATE_ACTIVITY` | 1,400–3,800 | Delay after completing an activity before validating |
+| `SCROLL_RANGE_PX` | 200–500 | Pixels to scroll per action during page dwell |
+| `CLICK_SIMULATION_MOVE_DELAY` | 8–25 | Delay between pointer move events during card click |
+| `CLICK_SIMULATION_HOLD_DOWN_DELAY` | 60–180 | Hold time between pointerdown and pointerup |
+| `CLICK_SIMULATION_RELEASE_DELAY` | 10–40 | Delay after pointerup before final click event |
+| `RESULT_CLICK_HOVER` | 500–1,500 | Pause after scrolling result into view, before clicking |
+| `RESULT_CLICK_DWELL` | 2,000–6,000 | Additional dwell time after clicking an organic result |
+
+### TIMEOUTS Constants
+
+Fixed limits (not affected by speed multiplier):
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `FETCH_ACTIVITIES` | 20,000 ms | Max wait for activity extraction on rewards page |
+| `FETCH_COUNTERS_MAX_POLLS` | 20 | Max poll attempts for counter fetch (×700–1800 ms each = up to 36s) |
+| `REWARDS_DOM_MAX_WAIT` | 15,000 ms | Max wait for DOM to render before starting extraction |
+| `REWARDS_DOM_POLL` | 500 ms | Poll interval while waiting for DOM |
+| `TAB_LOAD` | 30,000 ms | Default timeout for a tab to finish loading |
+| `TAB_CAPTURE` | 10,000 ms | Max wait for a new tab to be created (card click) |
+| `USER_ACTION_POLL` | 2 min | Timeout for user to complete a single-click activity (poll) |
+| `USER_ACTION_QUIZ` | 10 min | Timeout for user to complete a quiz/test/puzzle |
+| `PERMISSION_WAIT` | 10 min | Max wait for user to fix Chrome popup permissions |
+
 ## Build System
 
 The project uses two tools for compilation:
@@ -97,23 +153,88 @@ dist/                   Compiled output (generated — do not edit)
 .github/workflows/      GitHub Actions for automated releases
 ```
 
+## All Message Constants (MSG_ACTION)
+
+The extension uses Chrome's `runtime.sendMessage` API for all cross-context communication. All message action constants are defined in `src/util/messaging.ts`:
+
+| Action | Direction | Payload | Purpose |
+|--------|-----------|---------|---------|
+| `START_EXTRACT` | BG → rewards content | (none) | Trigger DOM extraction on rewards.bing.com |
+| `ACTIVITIES_FOUND` | rewards content → BG | `{ cards: RawCard[], loggedIn: boolean }` | Return extracted card data to background |
+| `CLICK_CARD` | BG → rewards content | `{ id: string }` | Click a card on rewards page, open its tab |
+| `VALIDATE_ACTIVITY` | BG → rewards content | `{ id: string }` | Check if activity is marked complete |
+| `GET_COUNTERS` | BG → rewards content | (none) | Extract search point counters from page |
+| `PERFORM_SEARCH` | BG → search content | `{ query: string }` | Type query, submit search form |
+| `SCROLL_PAGE` | BG → search content | `{ y: number, behavior: 'smooth' \| 'instant' }` | Scroll the page during dwell |
+| `CLICK_RESULT` | BG → search content | (none) | Simulate click on top 3 organic result (35% CTR) |
+| `START` | popup → BG | `{ skipWarmUp: boolean, windowId: number }` | Start a run with preferences |
+| `STOP` | popup → BG | (none) | Cancel active run |
+| `GET_RUN_STATE` | popup → BG | (none) | Fetch current run state |
+| `GET_PREFERENCES` | popup → BG | (none) | Fetch user preferences |
+| `PING` | popup → BG | (none) | Check if background is alive |
+| `PURGE` | popup → BG | (none) | Clear all stored state |
+| `USER_ACTION_COMPLETE` | popup → BG | (none) | User finished quiz/poll, resume automation |
+| `RESET_STALE` | popup → BG | (none) | Clear stale run flag on service worker restart |
+| `SET_PREFERENCE` | popup → BG | `{ updates: Partial<UserPreferences> }` | Update user preferences (timing, debug, etc.) |
+| `PROGRESS` | BG → popup (push) | `ProgressBroadcast` | Broadcast run progress update (per-phase counts, header) |
+| `DEBUG_ENTRY` | BG → popup (push) | `{ entry: DebugEntry }` | Append log entry to debug panel |
+| `FAILURE_ENTRY` | BG → popup (push) | `{ failure: FailureEntry }` | Append failure to failure banner |
+
+## Failure System
+
+The extension records user-facing failures in a persistent queue. Failures are soft-fail events (non-fatal) that provide visibility into what went wrong without stopping the run.
+
+### FailureEntry Structure
+
+```typescript
+interface FailureEntry {
+  time: string;                 // ISO time of failure
+  category: FailureCategory;    // one of 5 categories
+  message: string;              // user-facing description
+  orchestrator?: OrchestratorBase; // which phase (optional)
+  step?: StepBase;              // which step (optional)
+  activity?: Activity;          // which activity (optional)
+}
+```
+
+### Failure Categories
+
+| Category | Examples |
+|----------|----------|
+| `'navigation'` | Tab didn't load, card click failed, rewards tab missing |
+| `'search'` | Search input failed, query validation error |
+| `'validation'` | Activity not marked complete after dwell |
+| `'counter'` | Counter extraction timed out or returned NaN |
+| `'setup'` | Not logged in, Chrome popup blocker, missing DOM selectors |
+
+### Recording & Storage
+
+- Failures are recorded via `ctx.fail(category, message)` called from anywhere in the orchestrator/step chain
+- Each failure is timestamped, tagged with the active orchestrator/step/activity (read from `ctx` at call time)
+- Max 50 failures stored per session (older ones shift out)
+- Failures are persisted to `chrome.storage.local` and pushed to the popup in real time via `FAILURE_ENTRY` broadcast
+- The popup's failure banner displays all recorded failures in a scrollable list
+
 ## Key Components
 
 ### background.ts
 - Calls `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })` on startup so clicking the extension icon opens the side panel
-- Tab event listeners: load detection, tab capture, tab removal
-- Message routing: `START` / `STOP` / `GET_STATE` / `PING` / `PURGE` / `USER_ACTION_COMPLETE`
+- Tab event listeners: load detection via `onUpdated`, tab removal via `onRemoved`, tab creation via `onCreated` — all delegated to `activeOrchestrator` if one exists
+- Message routing: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`, `SET_PREFERENCE`
 - Delegates all run logic to `managers/start-run.ts` and `managers/stop-run.ts`
-- **Keepalive port**: listens for a long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` from the side panel; incoming heartbeat messages reset Chrome's 30s service worker idle timer, keeping the worker alive while the panel is open
+- **Keepalive port**: listens for a long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` from the side panel; the popup sends heartbeat messages every 20s to prevent Chrome from terminating the service worker while the panel is open
 
 ### managers/start-run.ts
 - Implemented as a `StartRun` class that owns a `TabManager` instance shared across all orchestrators
-- Loads state, resets session/log/storage, creates a context object with an `AbortController` signal
+- Loads preferences at run start via `loadPreferences()` and applies the `timingMultiplier` via `setTimingMultiplier(prefs.timingMultiplier ?? 1.0)` so all downstream timing scales appropriately
+- Resets run state to `INITIAL_RUN_STATE` (preserving preferences: `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds`)
 - Opens the rewards tab and focuses it before starting the orchestrator chain; all tabs are opened in the same window as the extension (the `windowId` is passed in the `START` message from the popup)
 - Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
 - `_executeRun` chains five sub-orchestrators (ActivityExtraction → WarmUp → ExploreOnBing → DailySets → FarmPcSearches) via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `runtime-state.ts` around each run
-- On completion, sends a desktop notification using the extension icon
+- On completion, closes all opened tabs with staggered random delays (300–1200 ms between closes) to avoid bot-detection patterns
+- Sends a desktop notification on success (controlled by `disableNotifications` preference)
+- On fatal error (not logged in, stopped, or exception), calls `_endRun` with error context
 
 ### managers/stop-run.ts
 - Calls `setIsActivelyRunning(false)` and persists stopped status
@@ -121,75 +242,157 @@ dist/                   Compiled output (generated — do not edit)
 - Removes all tabs tracked in `openedTabIds`
 
 ### orchestrators/activity-extraction.ts
-- Opens the rewards tab (already opened by `start-run.ts`), waits for `ACTIVITIES_FOUND` from the content script
-- Classifies raw cards via `classifyCard()` (explore, daily, ignored); enriches explore cards with search queries and daily cards with user-action metadata
-- Stores the result as `activityState` in persistent storage for downstream orchestrators
-- Throws `NotLoggedInError` if the rewards tab redirects away from `rewards.bing.com`
+- Runs once at the start of every run to extract and classify activities from rewards.bing.com
+- Scrolls the rewards page twice (700–1800 ms pauses between scrolls) before extraction to ensure all cards render
+- Sends `START_EXTRACT` to the content script and waits up to 20s for `ACTIVITIES_FOUND` response containing `{ cards: RawCard[], loggedIn: boolean }`
+- Throws `NotLoggedInError` if rewards page redirects away from `rewards.bing.com` (e.g., user not logged in)
+- Classifies each raw card via `classifyCard()` into `EXPLORE_ON_BING`, `DAILY_SET`, or `IGNORED` based on title/description patterns and source
+- Enriches explore cards with `searchQuery` and `fallbackQuery` via `enrichSearchQueries()`
+- Enriches daily cards with `requiresUserAction` and `userActionTimeoutMs` via `enrichUserActions()` (2 min for polls, 10 min for quizzes)
+- Stores the full `ActivityState` (all cards, rewardsTabId, loggedIn flag) to persistent storage for downstream orchestrators
+- Logs extraction stats (total, explore, daily, ignored counts) and unmapped card count
 
 ### orchestrators/complete-explore-on-bing.ts
-- Iterates the mapped activity list from a given `startIndex`
-- Sends `clickCard` to content script via `TabManager.clickCardAndCaptureTab`, waits for load
-- If the tab was blocked by Chrome's popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt the user to fix permissions
-- Calls `steps/perform-search`, validates the activity via `ActivityRunner`, sends progress updates to popup
+- Runs after activity extraction to complete "Search on Bing" activities
+- Filters for actionable explore cards (`activityType === EXPLORE_ON_BING`, `cardState === Actionable`)
+- Iterates each activity:
+  - Uses `TabManager.clickCardAndCaptureTab()` to send `CLICK_CARD` message and capture the resulting search tab
+  - If tab creation blocked by Chrome popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt user to enable popups
+  - Calls `steps/perform-search` with the search query (or fallback query if primary fails)
+  - Validates completion via `ActivityRunner.executeActivityWithValidation()` with retry logic (retry function runs another search with fallback query if available)
+  - Updates per-phase progress header after each activity
+- Closes all search tabs after completion
 
 ### orchestrators/complete-daily-sets.ts
-- Iterates daily set activities extracted from the rewards page
-- Uses `clickCardAndCaptureTab` (with `MSG_TARGET.DAILY_SET`) to click the card element on the rewards page — this is how Bing registers the activity as started, matching the same flow used for Explore cards
-- If the tab was blocked by Chrome's popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt the user to fix permissions
-- If the activity title matches `quiz|poll|test|puzzle`, calls `steps/linger-on-tab` to pause for user interaction; otherwise dwells and closes
-- Calls `steps/validate-activity` after each activity
+- Runs to complete daily set activities (quizzes, polls, surveys, offers, etc.)
+- Filters for actionable daily set cards (`activityType === DAILY_SET`, `cardState === Actionable`)
+- Iterates each activity:
+  - Uses `TabManager.clickCardAndCaptureTab()` to click the card on rewards page and capture the activity's page
+  - If tab blocked by popup blocker, calls `_waitForPopupUnblock`
+  - Classifies the activity as user-interactive or auto-closeable based on title matching `quiz|poll|test|puzzle`
+    - **User-interactive**: calls `steps/linger-on-tab` to activate the tab and wait for user to click **Done** (timeout: 2 min for polls, 10 min for quizzes from `enrichUserActions()`)
+    - **Auto-closeable**: calls `lingerOnPage()` (standard 6–10s dwell), then closes the tab
+  - Validates completion via `ActivityRunner` after each activity
+  - Tracks phase progress (done vs total)
 
 ### orchestrators/farm-pc-searches.ts
-- Opens a breakdown tab if one isn't already open, then polls for the PC Search counter
-- Runs Bing searches in a loop until the cap is reached or no progress after `MAX_NO_PROGRESS` (3) consecutive searches
-- Surfaces a failure and breaks on no-progress, allowing the run to continue to the next orchestrator
+- Runs after all activity cards to maximize PC search points by farming until the daily cap is reached
+- Opens a breakdown tab (or reuses existing) and polls counters to determine available remaining capacity
+- Runs searches in a loop with random queries from `PC_SEARCH_QUERIES` pool
+- Stops when:
+  - Counter reaches max (cap achieved)
+  - No progress detected for 3 consecutive searches (surface failure and continue to next orchestrator)
+  - Run is aborted or error occurs
+- Each search runs via `steps/perform-search` with dwell and optional CTR click
 
 ### steps/fetch-counters.ts
-- Sends `GET_COUNTERS` to the breakdown tab and polls up to 20 times (1s interval)
-- Returns `SearchCounter[]` — each counter is typed `{ type, current, max }`
+- Polls the breakdown tab to extract current search point counters
+- Sends `GET_COUNTERS` message to the breakdown tab (rewards content script)
+- Polls up to 20 times with jittered intervals (700–1800 ms) using `randMs(TIMING.FETCH_COUNTERS_POLL)`
+- Normalizes counter values by dividing by `PC_SEARCH_POINTS_PER_SEARCH` (5 points per search) to convert from point values to search counts
+- Returns `SearchCounter[]` with structure: `{ type, current, max, currentPoints, maxPoints }`
+- Logs counter state after successful extraction
+- On timeout (20 polls without valid response), records a `'counter'` failure
 
 ### steps/validate-activity.ts
-- Sends `VALIDATE_ACTIVITY` to the rewards tab content script after completing an activity
-- Logs whether the activity is marked completed, not found, or still pending
+- Validates that an activity is marked complete after its dwell period
+- Activates the rewards tab, waits 1.4–3.8s jitter (`randMs(TIMING.VALIDATE_ACTIVITY)`), then sends `VALIDATE_ACTIVITY` message to rewards content script
+- Returns `ActivityValidationResult` enum (`Completed`, `Incomplete`, or `Error`):
+  - `Completed`: Card shows completed state (points-earned span present)
+  - `Incomplete`: Card still shows actionable/in-progress state (activity not credited)
+  - `Error`: No response or card not found
+- Logs validation result with activity ID and title for debugging
 
 ### steps/linger-on-tab.ts
-- Activates the given tab so the user can complete a quiz/poll/etc.
-- Resolves when the user clicks **Done** in the popup (`USER_ACTION_COMPLETE` message) or closes the tab directly
+- Pauses automation and waits for user to complete an interactive activity (quiz, poll, test, puzzle)
+- Activates the tab so it's visible to the user
+- Resolves when:
+  - User clicks **Done** button in popup (sends `USER_ACTION_COMPLETE` message), OR
+  - User manually closes the tab (detected via `onTabRemoved` listener), OR
+  - Timeout expires (2 min for polls, 10 min for quizzes from `enrichUserActions()`)
+- Returns a resolver handle `{ promise, resolve }` so caller can early-exit on stop
 
 ### steps/perform-search.ts
-- Pre-search `lingerOnPage()` dwell, sends `PERFORM_SEARCH` to search-content.ts, post-search `lingerOnPage()` dwell
+- Executes a complete search: dwell → search → dwell → optional CTR click
+- Pre-search dwell: calls `lingerOnPage()` with `TIMING.LINGER_ON_SEARCH` (3–6s, **not scaled** by speed multiplier to maintain realistic search dwell)
+- Sends `PERFORM_SEARCH` message to search tab content script with the query string
+- If search fails, records a `'search'` failure with error details
+- Post-search dwell: calls `lingerOnPage()` with standard dwell (scaled), with `onStart` callback that schedules 2–3 scroll events at random points during the dwell window
+- **CTR simulation**: 35% chance to click an organic result from top 3 results, then wait 2–6s additional dwell (`TIMING.RESULT_CLICK_DWELL`)
+- Scrolling details:
+  - 2 or 3 scrolls with 50% probability each
+  - Total scroll distance: 300–900 px
+  - Individual scroll: `totalPx / count` per event
+  - Scroll times: randomly distributed across 20–80% of dwell window
+  - 20% chance of an upward scroll near end of dwell (25% of total downward distance)
+  - All scroll sends are fire-and-forget; failures silently ignored
 
 ### steps/wait-for-popup-unblock.ts
 - Records a `setup` failure with fix instructions, sets `isLingering: true`, and waits for the user to click **Done** (via `USER_ACTION_COMPLETE`) or for a `PERMISSION_WAIT` timeout
 - Returns a `PermissionWaitHandle` `{ promise, resolve }` so the caller (via `OrchestratorBase._waitForPopupUnblock`) can resolve it early on stop
 
 ### util/context.ts
-- `createContext()` returns `{ setState, dbg, setHeaderMessage }` — a lightweight bundle passed through all orchestrators and steps so they don't import globals directly
-- The `dbg` wrapper automatically tags each log entry with the currently active orchestrator's name (read from `state.ts` at call time)
+- `createContext(signal)` returns a `Context` object that bundles all orchestrator/step utilities:
+  - `signal: AbortSignal` — allows stops to propagate (throw errors in awaited code)
+  - `activeOrchestrator`, `activeStep`, `activeActivity` — tracked from caller (read-only for logging)
+  - `setState(updates)` — persist partial run state to `chrome.storage.local`
+  - `dbg(type, message)` — log to debug panel, auto-tagged with active orchestrator name
+  - `fail(category, message)` — record soft failure with category, message, and context (orchestrator/step/activity)
+  - `updateHeader(payload)` — update header state and phase progress, then broadcast to popup
+  - `broadcastProgress()` — push current header state to popup via `PROGRESS` message
+- All methods respect the abort signal, so stopping a run propagates cleanly through the entire orchestrator chain
 
 ### util/persistent-state.ts
-- `setState` / `loadState` / `resetState` — write-through cache backed by `chrome.storage.local`; all writes go through `enqueueWrite()` to serialize concurrent storage operations and prevent race conditions
-- `setHeaderState` / `getHeaderState` — deep-merge writes to the `header` subobject (`headerMessage`, `activePhase`, `phases`, `phasePoints`)
-- `setDebugState` / `getDebugLog` / `getFailures` — accessors for debug and failure sub-state
-- `PHASE` constants (`warmup`, `explore`, `daily`, `farm`) and `PhaseProgress` / `PhaseProgressMap` / `PhasePointsMap` types used by the popup to render per-phase progress bars and point totals
+- **Preferences & Run State**: Separated into two independent storage objects
+  - `UserPreferences`: `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds` — survives `resetRunState()`
+  - `RunState`: `isRunning`, `isLingering`, warmUpQueries, searchCounters, rewardsTabId, activityState, failures, header, debug — cleared on run start
+- `loadPreferences()` / `setPreference(updates)` — load/save user preferences
+- `loadRunState()` / `setRunState(updates)` — load/save run state; all writes serialized through `enqueueWrite()` to prevent race conditions
+- `resetRunState(overrides)` — reset all run fields to `INITIAL_RUN_STATE` (preserves preference keys; storage.local.set is additive)
+- `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phases, phasePoints)
+- `setDebugState()` / `getDebugLog()` / `getFailures()` — accessors for debug and failure sub-state
+- `PHASE` constants: `'warmup'`, `'explore'`, `'daily'`, `'farm'` — used as keys in `PhaseProgressMap` and `PhasePointsMap`
 
 ### util/runtime-state.ts
-- `activeOrchestrator` — in-memory only (not persisted); resets on service worker restart
-- `getActiveOrchestrator` / `setActiveOrchestrator` — tracks which orchestrator is currently executing; used by `context.ts` to label log entries
+- `activeOrchestrator` / `activeContext` — in-memory only (not persisted); reset on service worker restart
+- `getActiveOrchestrator()` / `setActiveOrchestrator()` — tracks which orchestrator is currently executing; used by `context.dbg()` to label log entries with orchestrator name
 
 ### util/tab-manager.ts
-- `TabManager` class — owns the `openedTabIds` Set and all tab lifecycle operations
-- `openTab` / `closeTab` / `focusTab` / `untrackTab` — core tab operations
-- `openAndFocusTab` — opens, waits for load, then focuses a tab
-- `setWindowId(id)` — pins the manager to a specific window so all new tabs open there
-- `clickCardAndCaptureTab` — sends `CLICK_CARD`, captures the newly opened tab, waits for load; returns a `TabCaptureResult` discriminated union (`TabCaptureStatus.Ok` / `Blocked` / `Failed`) so callers can distinguish a popup-blocked tab from a generic failure
-- `assertTabExists` — checks that a tracked tab is still open; surfaces a failure if not
-- `closeAll` — closes all owned tabs (called by `_endRun` in start-run.ts)
-- Integrates with the `AbortController` cancel signal so all waits respect stop requests
+- `TabManager` class — owns all tab lifecycle operations and state
+- **Core operations**:
+  - `openTab(url)` — create new tab, track it, return it; throw if creation fails
+  - `closeTab(tabId)` — close tab and untrack it
+  - `focusTab(tabId)` — activate tab (make it visible to user)
+  - `untrackTab(tabId)` — stop tracking a tab without closing (e.g., user closed it)
+  - `openAndFocusTab(url)` — open, wait for load, then focus
+  - `setWindowId(id)` — pin manager to a specific window so all new tabs open there
+- **Complex operations**:
+  - `clickCardAndCaptureTab(ctx, rewardsTabId, id, label)` — send `CLICK_CARD` message to rewards content script, wait for new tab to be created (up to 10s), wait for that tab to load (up to 30s), focus it, return `TabCaptureResult` discriminated union:
+    - `{ status: 'ok', tab }` — success, tab is ready
+    - `{ status: 'blocked' }` — tab creation blocked by Chrome popup blocker; caller should pause and wait for user fix
+    - `{ status: 'failed' }` — card click message failed or tab didn't load; call `ctx.fail()`
+  - `assertTabExists(ctx, tabId, phase)` — check if tab still exists; call `ctx.fail()` if not
+  - `closeAll()` — close all tracked tabs with staggered random delays (300–1200 ms between each close) to simulate human behavior and avoid bot detection
+- **Signal integration**: All waits (`_waitForTabLoad`, `_captureNextTab`) respect the `AbortController` signal, allowing stops to abort waiting code immediately
 
 ### util/activity-runner.ts
-- `ActivityRunner` class — executes an activity function with optional retry logic
-- `executeActivityWithValidation` — runs `activityFn`, lingers and retries via `retryFn` on failure, surfaces a failure entry if retry also fails
+- `ActivityRunner` class — executes activity functions with validation and optional retry logic
+- `executeActivityWithValidation(ctx, activityFn, retryFn, opts)` — pattern for execute-validate-retry:
+  - Calls `activityFn()` and waits for boolean result
+  - If succeeds (`true`), returns `true` immediately
+  - If fails (`false` or `null`) and no retry available, records failure and returns `false`
+  - If fails and retry available, logs warning, lingers (standard dwell), then calls `retryFn()`
+  - If retry also fails, records failure and returns `false`
+  - Catches exceptions as navigation errors (records `'navigation'` category failure)
+- **Options**:
+  - `retryLogMessage` — debug message before retry linger
+  - `lingerLabel` — label for retry linger dwell
+  - `failCategory` — failure category if validation fails
+  - `failMessage` — user-facing failure message
+  - `noRetryFailMessage` — override message when no retry (optional)
+  - `navFailMessage` — message if activityFn throws (optional)
+  - `retryNavFailMessage` — message if retryFn throws (optional)
+  - `retryHeaderPayload` — optional header update to send before retry linger
 
 ### util/config.ts
 - URL constants (`REWARDS_URL`, `REWARDS_BREAKDOWN_URL`) and `KEEPALIVE_PORT` name shared across modules
@@ -202,58 +405,174 @@ dist/                   Compiled output (generated — do not edit)
 - Exports types: `DebugEntry`
 
 ### ui/popup.ts
-- Real-time UI updates via `chrome.runtime.onMessage`
-- Phase-based progress display: renders per-phase (Explore, Daily, Farm) progress bars and earned-points labels using `PHASE` / `PHASE_TIME_LABEL` from `util/state.ts`
-- Delegates debug rendering to `ui/debug-panel.ts` and failure rendering to `ui/failure-banner.ts`
-- **Skip warm-up** checkbox — persisted to `chrome.storage.local`; passed as `skipWarmUp` in the `START` message to background
-- **Setup banner** — shown when a `'setup'`-category failure occurs (e.g. Chrome popup blocker blocked a tab); includes a button that opens `chrome://settings/content/popups`; clears automatically once the issue is resolved
-- **Keepalive port** — opens a long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` on load and sends a heartbeat every 20s to prevent Chrome from killing the service worker while the panel is open
-- Sends `windowId` (from `chrome.windows.getCurrent()`) in the `START` message so all extension tabs open in the same window
-- Start / Stop / Purge actions
+- Main side panel UI that displays run state, phase progress, and provides Start/Stop buttons
+- Real-time updates via `chrome.runtime.onMessage` listening for `PROGRESS`, `DEBUG_ENTRY`, `FAILURE_ENTRY` broadcasts
+- **Phase-based progress display**:
+  - Renders per-phase (Warmup, Explore, Daily, Farm) progress bars (`done / total`) and earned-points labels
+  - Uses `PHASE` constants and `PHASE_TIME_LABEL` for display labels
+  - Updates in real time as run progresses
+- **User preferences panel** (`prefs-panel.ts`):
+  - **Skip warm-up** checkbox — persisted to preferences; passed as `skipWarmUp` in `START` message
+  - **Speed multiplier** select (Normal 1.0×, Fast 0.6×, Slow 4.0×, Stealth 8.0×) — persisted to `timingMultiplier` in preferences
+  - **Debug mode** checkbox — enables verbose logging
+  - **Disable notifications** checkbox — suppresses desktop notifications on run completion
+- **Setup banner** — shown when `'setup'`-category failure occurs (e.g., Chrome popup blocker); includes button to open `chrome://settings/content/popups`; clears on next `clearSetupFailures()` call
+- **Keepalive port**:
+  - Opens long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` on load
+  - Sends heartbeat every 20s to prevent Chrome from killing the service worker while panel is open
+  - Listens for any messages to detect when popup closes
+- **Startup flow**:
+  - Calls `chrome.windows.getCurrent()` to get `windowId`
+  - Sends `START` message with `{ skipWarmUp, windowId }` to background
+  - Listens for `PROGRESS` broadcasts to update phase progress in real time
+- **Actions**: Start (with windowId), Stop, Purge all state
+- Delegates debug panel rendering to `ui/debug-panel.ts` and failure rendering to `ui/failure-banner.ts`
+
+### ui/prefs-panel.ts
+- Renders user preferences panel in the popup
+- Displays and handles updates for:
+  - `skipWarmUp` checkbox
+  - `timingMultiplier` select dropdown (Normal, Fast, Slow, Stealth presets)
+  - `debugMode` checkbox
+  - `disableNotifications` checkbox
+- Sends `SET_PREFERENCE` messages to background for each update
+- Loads current preferences on panel load via `GET_PREFERENCES` message
 
 ### ui/debug-panel.ts
-- `renderDebug()` — renders the full debug panel from stored state
-- `appendLogEntry()` — appends a single entry to the event log in real time
-- `renderActivitiesAndCounters()` — updates the Explore/Daily/PC Search sections with card breakdowns and counter data
-- `clearDebug()` — clears all debug sections
+- `renderDebug()` — renders the full debug panel from stored state:
+  - Event log section (timestamps, messages, associated orchestrator names)
+  - Activities breakdown section (explore vs daily card counts, actionable vs completed vs locked)
+  - Search counters section (PC search current/max)
+- `appendLogEntry(entry)` — appends a single new entry to the event log in real time (called on `DEBUG_ENTRY` message)
+- `renderActivitiesAndCounters()` — re-renders the activities and counters sections (called when extraction completes or counters update)
+- `clearDebug()` — clears all sections
 
 ### ui/failure-banner.ts
-- `renderFailures()` — renders all stored failures in the failure banner
-- `appendFailure()` — appends a single new failure in real time
+- `renderFailures(failures)` — renders all failures in the failure banner with timestamps and messages
+- `appendFailure(failure)` — appends a single new failure to the banner in real time (called on `FAILURE_ENTRY` message)
+- Each failure displays: time, category badge, message, and context (orchestrator/step/activity if available)
+- Scrollable list (height-constrained) to show recent failures
 
 ### content/rewards-content.ts
-- Bundled by esbuild — can freely import from `util/`
-- Polls the rewards SPA until activity cards render (max 15s), extracts "Search on Bing" activities and daily set activities, sends them to background
-- Retains two separate element arrays after extraction: `extractedCardEls` for Explore cards and `extractedDailySetEls` for daily set cards
-- Handles `CLICK_CARD` (routes to the correct array based on `msg.target`), `VALIDATE_ACTIVITY`, and `GET_COUNTERS` messages on demand
+- Bundled by esbuild as an IIFE (cannot use ES modules; Chrome MV3 limitation)
+- **Initialization**: Waits for rewards.bing.com SPA to render activity cards (polls DOM every 500ms up to 15s)
+- **Pre-extraction scrolling**: Scrolls the page twice with 700–1800 ms pauses between scrolls to ensure all cards load and are visible
+- **Card extraction** (`START_EXTRACT` handler):
+  - Extracts all actionable and locked cards from two sections:
+    - **Explore section** (main cards): `<a class="ds-card-sec">` and `.locked-card` elements outside the daily-sets container
+    - **Daily sets section** (`#daily-sets`): tiles for quizzes, polls, surveys, offers
+  - Each card yields a `RawCard` with fields: `id` (E1–EN for explore, D1–DN for daily), `title`, `description`, `points`, `cardState`, `source`, `dataBiId`
+  - Classifies card state via `determineCardState()`:
+    - `Locked` — `.locked-card` parent or `aria-disabled="true"`
+    - `Completed` — contains `[aria-label="Points you have earned"]`
+    - `Actionable` — contains `[aria-label="Points in progress"]` or `[aria-label="Points you will earn"]`
+    - `Unknown` — no state indicator found
+  - Caches element references in `extractedEls` Map for later clicking
+  - Returns `ACTIVITIES_FOUND` message with `{ cards: RawCard[], loggedIn: true }`
+- **Card click handler** (`CLICK_CARD` message):
+  - Retrieves element from `extractedEls` cache by card ID
+  - Simulates realistic mouse/pointer events for clicking:
+    - `pointerover`, `mouseover` — hover events
+    - 1–3 `pointermove` / `mousemove` events at ±3px offset (jitter)
+    - `pointerdown`, `mousedown` — press down
+    - `pointerup`, `mouseup` — release
+    - `click` — final click event
+  - Delays between events: 8–25ms per move, 60–180ms hold, 10–40ms after release (all from `TIMING`)
+  - Returns `{ clicked: true }` on success
+- **Activity validation handler** (`VALIDATE_ACTIVITY` message):
+  - Looks up card by ID in `extractedEls` cache
+  - Re-checks current card state via `determineCardState()`
+  - Returns `{ state: CardState }` (Completed, Actionable, Locked, Unknown, NotFound)
+- **Counter extraction handler** (`GET_COUNTERS` message):
+  - Extracts search point counters from counter cards (`.pointsBreakdownCard`)
+  - Parses title (e.g., "PC searches") and detail text (e.g., "5 / 150")
+  - Returns `{ searchCounters: [{ type, current, max }, ...] }`
+- **DOM Selectors**:
+  - `#daily-sets` — daily sets container
+  - `a.ds-card-sec` — actionable card
+  - `.locked-card` — locked card wrapper
+  - `[aria-label="Points you have earned"]` — completed indicator
+  - `[aria-label="Points in progress"]` — actionable indicator
+  - `[aria-label="Points you will earn"]` — actionable indicator
+  - `.pointsBreakdownCard` — counter card
+  - `.title-detail p` — counter title
+  - `p.pointsDetail` — counter detail (e.g., "5 / 150")
+  - `.pointsString` — points value in card
 
 ### content/search-content.ts
-- Bundled by esbuild — can freely import from `util/`
-- Handles a single `PERFORM_SEARCH` message: fills the Bing search box and submits the form
+- Bundled by esbuild as an IIFE (cannot use ES modules)
+- **Search handler** (`PERFORM_SEARCH` message):
+  - Finds search input: `#sb_form_q` (preferred) or `textarea[name="q"]` (fallback)
+  - Clears existing text by simulating Ctrl+A + Delete
+  - Types query character by character with human-like delays:
+    - Standard keystroke: 40–120 ms per character
+    - 5% chance of hesitation pause: 200–400 ms per character
+    - Dispatches `keydown`, `input`, `keyup` events for each character
+  - Pauses 150–300 ms before submitting form via `requestSubmit()`
+  - Returns `{ ok: true }` or `{ ok: false, error: string }`
+- **Scroll handler** (`SCROLL_PAGE` message):
+  - Scrolls page by `msg.y` pixels using `window.scrollBy({ top, behavior })`
+  - Behavior can be `'smooth'` or `'instant'`
+  - Returns `{ ok: true }`
+- **Result click handler** (`CLICK_RESULT` message, 35% CTR simulation):
+  - Selects organic results from `#b_results .b_algo h2 a` (top 3 only, to avoid spam-like behavior)
+  - Scrolls selected result into view (`smooth` centering)
+  - Pauses 500–1500 ms (hover time from `TIMING.RESULT_CLICK_HOVER`)
+  - Dispatches pointer/mouse events (same sequence as card click: over, move, down, up, click)
+  - Returns `{ ok: true }` or `{ ok: false, error: string }`
+- **DOM Selectors**:
+  - `#sb_form_q` — primary search input
+  - `textarea[name="q"]` — fallback search input
+  - `#sb_form` — search form
+  - `#b_results .b_algo h2 a` — organic result links
 
 ## Making Changes
 
 ### Adjusting Timing
 
-All timing uses `randMs(min, max)` with triangular distribution (defined in `util/timing.ts`). Named presets live in `TIMING` in `util/timing.ts`:
+All timing constants are defined in `src/util/timing.ts`:
 
-- **Page dwell**: `TIMING.LINGER_ON_PAGE` (`5–7s`) used by `lingerOnPage()` everywhere — before searches, after searches, between searches, on tile pages, after PC searches
+1. Edit `TIMING` object to adjust ranges (min, max in milliseconds at 1.0× multiplier):
+   - Most constants are scaled by `timingMultiplier` when called via `randMs()`
+   - `LINGER_ON_SEARCH` is **intentionally not scaled** — use `rawRandMs()` in `perform-search.ts` to maintain realistic search dwell
+   - Timeouts (fixed limits) live in `TIMEOUTS` object and are never scaled
+
+2. Example: To slow down page dwell for testing stealth mode:
+   - Edit `TIMING.LINGER_ON_PAGE: [6000, 10000]` → `[12000, 20000]`
+   - Or rely on speed multiplier: user selects "Stealth 8.0×" in UI to multiply existing delays by 8×
 
 ### Modifying DOM Extraction
 
 Edit `src/content/rewards-content.ts`:
 
-- `MAX_WAIT_MS` — how long to wait for page load (default: 15s)
-- `POLL_INTERVAL_MS` — how often to check for content (default: 500ms)
-- `determineCardState()` — logic for classifying cards as actionable / completed / locked / unknown
+- **Selectors** (top of file): Update `SELECTORS` object if Bing changes DOM structure
+- **Card state logic** (`determineCardState()`): Adjust conditions for `Locked`, `Completed`, `Actionable`, `Unknown`
+- **Timing** (`TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE`): Pause between pre-extraction scrolls (if cards still not rendering, increase this)
+- **Scroll count** (in activity-extraction.ts): Currently scrolls twice before extraction; increase if Bing's infinite scroll needs more time
 
-### Modifying Query Generation
+### Modifying Search Query Generation
 
-Edit `src/util/activity.ts` → `generateSearchQuery`:
+Edit `src/util/activity.ts` → `generateSearchQuery()`:
 
-- `BOILERPLATE` — regex patterns stripped from activity descriptions
-- Minimum useful length threshold (`base.length < 8` falls back to title)
-- Max query length (currently truncated to 80 chars)
+- `BOILERPLATE` array — regex patterns to strip from activity descriptions (e.g., "Search on Bing for…")
+- `MIN_QUERY_LENGTH` (8) — threshold below which to fall back to title instead of description
+- Max query length (currently 80 chars slice) — increase if longer queries are desired
+
+### Adding a New Orchestrator
+
+1. Create `src/orchestrators/my-orchestrator.ts` extending `OrchestratorBase`
+2. Implement `async run(ctx: Context): Promise<void>`
+3. Use `ctx.dbg()`, `ctx.fail()`, `ctx.updateHeader()` for logging and progress
+4. Add to orchestrator chain in `managers/start-run.ts` → `_executeRun()` via `_runOrchestrator()`
+5. The `_runOrchestrator()` helper sets `activeOrchestrator` so context logging auto-tags entries
+
+### Adding a New Step
+
+1. Create `src/steps/my-step.ts` extending `StepBase`
+2. Implement `async run(ctx: Context, ...args): Promise<ReturnType>`
+3. Use `ctx.dbg()` and `ctx.fail()` for logging
+4. Export an instance: `export const myStep = new MyStep()`
+5. Call from orchestrator: `await myStep.run(ctx, arg1, arg2)`
 
 ## Testing
 
@@ -370,61 +689,131 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 
 ### Service Worker Console
 1. Go to `chrome://extensions`
-2. Find RewardFarm
+2. Find Points Harvest (or RewardFarm if it's your fork)
 3. Click **service worker** link (appears when active)
-4. View console logs and errors
+4. View console logs and errors (errors from `ctx.fail()` calls are logged via `dbg(DBG.ERROR, ...)`)
 
 ### Content Script Console
-1. Open `rewards.bing.com` in a tab
+1. Open `rewards.bing.com` or `www.bing.com` in a tab
 2. Open DevTools (F12)
 3. Go to Console tab
-4. Filter by "content script" or check for errors
+4. Look for console.warn logs from `[rewards-content]` or `[search-content]` (they output selector warnings if extraction fails)
+5. Check for errors from message handlers (if message fails, check content script is loaded)
+
+### Debug Mode
+- Enable in popup **Preferences** panel: **Debug mode** checkbox
+- Shows detailed event log in Debug panel with timestamps and orchestrator names for each log entry
+- View via popup's Debug tab
+- Helpful for tracing which orchestrator/step failed and when
+
+### Failure Banner
+- Displays all soft failures (non-fatal errors) with timestamps, categories, and messages
+- Updated in real time as failures occur
+- Useful for understanding why activities didn't complete (e.g., "Card click failed for E5", "Validation failed: state='actionable'")
 
 ### Common Issues
 
 **Extension shows "Running" but nothing happens**
-- Service worker may have restarted. The in-memory `isActivelyRunning` flag is lost on restart.
-- Click **Stop** then **Run today's searches** again.
+- Service worker may have restarted or been terminated by Chrome
+- Popup will show `isLingering: true` if stuck waiting for user action
+- Check failure banner for recorded errors
+- Click **Stop** then **Run today's searches** again
 
 **No activities extracted**
-- Check if you're logged into Bing Rewards
-- Bing may have changed their page structure — inspect `src/content/rewards-content.ts` extraction logic
-- Enable debug mode to see DOM extraction stats
+- Check if logged into Bing Rewards (failure: "Not logged in — redirected to: ...")
+- Enable debug mode; check "Activities found" section
+- If DOM extraction times out: check rewards.bing.com page structure; Bing may have changed class names
+- Increase `TIMEOUTS.REWARDS_DOM_MAX_WAIT` (15s) if page renders slowly
 
-**Searches not credited**
-- Increase post-search dwell time in `util/timing.ts`: raise `TIMING.LINGER_ON_PAGE`
-- Check if you're logged into the correct Microsoft account
-- Bing may have rate limiting — increase delays between searches
+**Searches not credited (validation failures)**
+- Check activity timeout: Explore cards need 1–2 min, Daily (quiz) up to 10 min
+- Increase post-search dwell `TIMING.LINGER_ON_PAGE` if validation checks too quickly
+- Check "Search counters" in debug panel — if counter isn't increasing, Bing may not have credited search
+- Enable debug mode to see validation log: "Validation failed: state='actionable'" means Bing didn't mark complete
 
-**"Not logged in" error**
-- Sign into your Microsoft account at bing.com
-- Ensure cookies are enabled
-- Check if rewards.bing.com redirects you to a login page
+**"Not logged in" error on start**
+- Sign into your Microsoft account at bing.com first
+- Ensure cookies are enabled in Chrome
+- Check if rewards.bing.com automatically redirects you to login page
+- Failure banner will show: "Not logged in — redirected to: [url]"
+
+**Popup blocker blocked card**
+- Failure banner shows: "Tab blocked by popup blocker for: [activity]"
+- Popup displays setup banner with button to open Chrome popup settings
+- Fix: Open `chrome://settings/content/popups`, find `bing.com`, and allow popups
+- Click **Done** in popup after fixing permissions; run will resume
+
+**"No response" or message failures**
+- Check content script is loaded: refresh page (F5) on rewards.bing.com or bing.com
+- Rebuild extension: `npm run build` then reload in chrome://extensions
+- Check web console (DevTools) for errors from content script
+- Failure will be logged: "Card click message error: no response"
+
+**Activity stuck on user-action (quiz/poll)**
+- Popup shows "Waiting for user" with timeout countdown
+- User must click **Done** button in popup after completing quiz/poll
+- If timeout expires (2 min for polls, 10 min for quizzes), failure is recorded and run continues
+- If user never completes, tab must be closed manually to unstuck run (then click **Stop**)
 
 ## Architecture Notes
 
 ### State Management
-- Persistent state stored in `chrome.storage.local` (`util/persistent-state.ts`) — includes `skipWarmUp` preference (survives resets; preserved across `resetState` calls alongside `seenScreenIds` and `ignoredUpdateVersion`)
-- All storage writes are serialized through a `writeQueue` promise chain (`enqueueWrite()`) to prevent race conditions when multiple async operations try to write simultaneously
-- Runtime state (`activeOrchestrator`) lives in `util/runtime-state.ts` and resets on service worker restart
-- Phase progress (`PHASE.WARMUP`, `PHASE.EXPLORE`, `PHASE.DAILY`, `PHASE.FARM`) and per-phase point totals are stored in `header.phases` and `header.phasePoints` and read by the popup for real-time display
+Split into two independent persistent objects in `chrome.storage.local` (via `util/persistent-state.ts`):
+
+**UserPreferences** (survives run resets):
+- `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`
+- `ignoredUpdateVersion` (for update notifications)
+- `seenScreenIds` (for onboarding screens)
+- Loaded at run start via `loadPreferences()`
+- Updated via `setPreference(updates)`
+
+**RunState** (cleared at start of each run via `resetRunState()`):
+- `isRunning`, `isLingering` — phase flags
+- `warmUpQueries` — pre-generated queries for warm-up phase
+- `searchCounters` — PC search current/max (updated by counter fetch)
+- `rewardsTabId` — ID of rewards tab
+- `activityState` — extracted activities and rewards tab ID
+- `failures` — list of soft failures (max 50)
+- `header` — run progress state:
+  - `headerMessage` — current status message
+  - `activePhase` — currently executing phase (`'warmup'` | `'explore'` | `'daily'` | `'farm'` | null)
+  - `phases` — per-phase progress (`{ warmup: null, explore: { done, total }, ... }`)
+  - `phasePoints` — per-phase earned points (`{ warmup: 0, explore: 50, ... }`)
+- `debug` — debug log entries
+
+**Runtime state** (`util/runtime-state.ts`, in-memory only):
+- `activeOrchestrator` — which orchestrator is currently running (resets on service worker restart)
+- `activeContext` — context object passed to orchestrators (for accessing signal, fail methods)
+
+**Write serialization**:
+- All storage writes enqueued through `enqueueWrite()` promise chain to prevent race conditions
+- Prevents concurrent `chrome.storage.local.set()` calls from overwriting each other
 
 ### Tab Management
-- All opened tabs tracked in a `TabManager` instance owned by `StartRun`; passed into orchestrators via constructor
-- The rewards tab is opened by `start-run.ts` before the orchestrator chain begins; closed by `_endRun` when the run finishes
-- Search tabs close automatically after each search completes
-- Stop button closes all extension-opened tabs via `TabManager.closeAll()`
+- All opened tabs tracked in `TabManager` instance owned by `StartRun`; passed into orchestrators via constructor
+- **Rewards tab**: Opened by `start-run.ts` before orchestrator chain, untracked (not in `openedTabIds`) so it's not closed by `closeAll()`; manually closed by `_endRun` after run finishes
+- **Search/activity tabs**: Opened by orchestrators via `clickCardAndCaptureTab()`, tracked, closed individually after completion or by `closeAll()`
+- **Closing behavior**: `closeAll()` closes all tracked tabs with staggered random delays (300–1200 ms between each) to avoid bot-detection patterns
 
 ### Message Passing
-- `popup.ts` ↔ `background.ts`: bidirectional via `chrome.runtime.sendMessage`
-- `background.ts` ↔ `rewards-content.ts`: bidirectional (`START_EXTRACT`, `CLICK_CARD`, `VALIDATE_ACTIVITY` commands; `ACTIVITIES_FOUND` response)
-- `background.ts` ↔ breakdown tab: `GET_COUNTERS` request/response via `fetch-counters.ts`
-- `background.ts` → `search-content.ts`: one-way `PERFORM_SEARCH` command
-- Real-time progress updates (`PROGRESS`, `LINGER_WAITING`, `DEBUG_ENTRY`, `COMPLETE`) pushed to popup during run
 
-### Randomization Strategy
-- Triangular distribution (`randMs`) biases toward middle of range — more human-like
-- `TIMING.INITIAL_DELAY` range (0–8s) is defined in `util/timing.ts` but not currently wired up
+All cross-context communication via `chrome.runtime.sendMessage()`. See **All Message Constants** section for complete table.
+
+Key flows:
+- **Popup ↔ Background**: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
+- **Background → Popup (broadcasts)**: `PROGRESS` (per-phase state), `DEBUG_ENTRY`, `FAILURE_ENTRY`, `LINGER_WAITING`
+- **Background ↔ Rewards content**: `START_EXTRACT`, `ACTIVITIES_FOUND`, `CLICK_CARD`, `VALIDATE_ACTIVITY`, `GET_COUNTERS`
+- **Background → Search content**: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
+
+### Timing Strategy
+
+**Distribution algorithm**: 80% triangular (human-like, middle-biased), 15% quick burst, 5% distracted pause. All implemented in `randMs()` and applied at call time.
+
+**Speed multiplier**: Loaded from preferences at run start. Applied to `randMs()` calls (scaled delays) but NOT to `rawRandMs()` calls (fixed delays). Example:
+- `LINGER_ON_PAGE` at 1.0×: 6–10s
+- `LINGER_ON_PAGE` at 0.6× (Fast): 3.6–6s
+- `LINGER_ON_PAGE` at 8.0× (Stealth): 48–80s
+- `LINGER_ON_SEARCH` always 3–6s (never scaled, via `rawRandMs()`)
 
 ## Chrome Extension Manifest V3 Notes
 
