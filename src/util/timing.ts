@@ -56,14 +56,16 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /** Dwell on a page for a random duration and log it.
- *  Pass `scaled = false` to ignore the speed multiplier for this linger. */
+ *  `scaled: false` ignores the speed multiplier for this linger.
+ *  `onStart(ms)` is called with the computed duration after logging, before sleeping. */
 export async function lingerOnPage(
   label = 'page',
   timing = TIMING.LINGER_ON_PAGE,
   signal?: AbortSignal,
-  scaled = true,
+  { scaled = true, onStart }: { scaled?: boolean; onStart?: (ms: number) => void } = {},
 ): Promise<void> {
   const ms = scaled ? randMs(...timing) : rawRandMs(...timing);
   await dbg(DBG.INFO, `Lingering on ${label} for ${(ms / 1000).toFixed(1)}s`);
+  onStart?.(ms);
   await sleep(ms, signal);
 }

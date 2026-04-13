@@ -38,6 +38,7 @@ export const MSG_ACTION = {
   VALIDATE_ACTIVITY: 'validateActivity',
   // Background ↔ search content script
   PERFORM_SEARCH: 'performSearch',
+  SCROLL_PAGE: 'scrollPage',
   // Popup → background
   START: 'start',
   STOP: 'stop',
@@ -90,4 +91,5 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; id: string }
   | { action: typeof MSG_ACTION.GET_COUNTERS }
   // Background → Search content script
-  | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string };
+  | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string }
+  | { action: typeof MSG_ACTION.SCROLL_PAGE; y: number; behavior: 'smooth' | 'instant' };
