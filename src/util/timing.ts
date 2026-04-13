@@ -13,6 +13,8 @@ export const TIMING: Record<string, [number, number]> = {
   CLICK_SIMULATION_MOVE_DELAY: [8, 25], // delay between pointer move events during click simulation
   CLICK_SIMULATION_HOLD_DOWN_DELAY: [60, 180], // delay between pointerdown and pointerup during click simulation
   CLICK_SIMULATION_RELEASE_DELAY: [10, 40], // delay after pointerup before click event
+  RESULT_CLICK_HOVER: [500, 1500], // pause after scrollIntoView before dispatching click events
+  RESULT_CLICK_DWELL: [2000, 6000], // additional page dwell after clicking a result
 };
 
 export const TIMEOUTS = {

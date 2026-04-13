@@ -1,10 +1,12 @@
 // Responsible for completing a search activity in a Bing tab opened by a card click.
 // The tab is already loaded at https://www.bing.com/?form=... when this is called.
 
-import { lingerOnPage, TIMING } from '../util/timing.js';
+import { lingerOnPage, randMs, sleep, TIMING } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
+
+const CTR_CLICK_CHANCE = 0.35; // Simulate organic CTR to avoid bot-detection patterns (users click results ~35% of the time)
 
 class PerformSearchStep extends StepBase<[number, string]> {
   readonly name = 'perform-search';
@@ -28,6 +30,15 @@ class PerformSearchStep extends StepBase<[number, string]> {
     await lingerOnPage(`results: "${query}"`, undefined, ctx.signal, {
       onStart: (ms) => scheduleScrolls(tabId, ms, ctx.signal),
     });
+
+    // Occasionally click an organic result to simulate realistic CTR.
+    // This is fire-and-forget; if the content script is unavailable or the DOM has changed,
+    // the click silently fails and the dwell continues normally.
+    if (Math.random() < CTR_CLICK_CHANCE) {
+      ctx.signal.throwIfAborted();
+      await chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.CLICK_RESULT }).catch(() => {});
+      await sleep(randMs(...TIMING.RESULT_CLICK_DWELL), ctx.signal);
+    }
   }
 }
 
