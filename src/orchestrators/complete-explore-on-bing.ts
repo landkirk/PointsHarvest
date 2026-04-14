@@ -1,7 +1,7 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { lingerOnPage, LABEL_MAX } from '../util/timing.js';
+import { LABEL_MAX } from '../util/timing.js';
 import { pluralize } from '../util/format.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
@@ -9,11 +9,14 @@ import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { ActivityRunner } from '../util/activity-runner.js';
 import { PHASE, loadRunState } from '../util/persistent-state.js';
 
-import { markActivityCompleted, sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
+import { sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
 import type { Activity } from '../util/activity.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import { TabCaptureStatus } from '../util/tab-manager.js';
+import { runActivityLoop } from '../util/run-activity-loop.js';
+
+const truncate = (s: string) => (s.length > LABEL_MAX ? s.slice(0, LABEL_MAX) + '…' : s);
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
@@ -27,18 +30,15 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     }
 
     const { rewardsTabId } = extraction;
-    const exploreActivities = extraction.allActivities.filter(
+    const allExplore = extraction.allActivities.filter(
       (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
     );
     const { count: alreadyCompletedCount, points: alreadyCompletedPoints } =
-      sumCompleted(exploreActivities);
+      sumCompleted(allExplore);
 
     if (!(await this.tabs.assertTabExists(ctx, rewardsTabId, 'explore on bing'))) return;
 
-    const activities = extraction.allActivities.filter(
-      (a) =>
-        a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING && a.cardState === CardState.Actionable,
-    );
+    const activities = allExplore.filter((a) => a.cardState === CardState.Actionable);
 
     await ctx.dbg(
       DBG.INFO,
@@ -52,47 +52,26 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     );
 
     const phaseTotal = alreadyCompletedCount + activities.length;
-    let earnedPts = alreadyCompletedPoints;
-    let successCount = 0;
-    await ctx.updateHeader({
-      headerMessage: `Explore on Bing (${alreadyCompletedCount} / ${phaseTotal})`,
-      activePhase: PHASE.EXPLORE,
-      phaseProgress: { done: alreadyCompletedCount, total: phaseTotal },
-      phasePoints: { explore: earnedPts },
-    });
 
-    const truncate = (s: string) => (s.length > LABEL_MAX ? s.slice(0, LABEL_MAX) + '…' : s);
-    for (let i = 0; i < activities.length; i++) {
-      ctx.signal.throwIfAborted();
-      ctx.activeActivity = activities[i];
-      try {
-        const { id, searchQuery, title, fallbackQuery, points } = activities[i];
-
-        if (!searchQuery) {
-          await ctx.dbg(
-            DBG.WARN,
-            `Skipping card ${i + 1} — no query could be generated for "${title}"`,
-          );
-          continue;
-        }
-
-        const label = truncate(searchQuery);
-        await ctx.updateHeader({
-          headerMessage: `Searching: "${label}"`,
-          activePhase: PHASE.EXPLORE,
-          phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-          phasePoints: { explore: earnedPts },
-        });
-        await ctx.dbg(
-          DBG.INFO,
-          `[${id}] [${i + 1}/${activities.length}] Clicking card: "${title}"`,
-        );
-
-        const succeeded = await ActivityRunner.executeActivityWithValidation(
+    await runActivityLoop({
+      ctx,
+      phase: PHASE.EXPLORE,
+      phaseLabel: 'Explore on Bing',
+      activities,
+      alreadyCompletedCount,
+      alreadyCompletedPoints,
+      lingerLabel: 'between explore on bing searches',
+      statusLine: (a) => `Searching: "${truncate(a.searchQuery ?? a.title)}"`,
+      skip: (a) =>
+        a.searchQuery ? null : `Skipping card — no query could be generated for "${a.title}"`,
+      attempt: async (a, _i, progress) => {
+        const { searchQuery, fallbackQuery } = a;
+        if (!searchQuery) return false;
+        return await ActivityRunner.executeActivityWithValidation(
           ctx,
-          () => this.runSearchForActivity(ctx, activities[i], searchQuery, rewardsTabId),
+          () => this.runSearchForActivity(ctx, a, searchQuery, rewardsTabId),
           fallbackQuery
-            ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery, rewardsTabId)
+            ? () => this.runSearchForActivity(ctx, a, fallbackQuery, rewardsTabId)
             : null,
           {
             retryLogMessage: `Validation failed — retrying with lookup query: "${fallbackQuery}"`,
@@ -104,35 +83,14 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
               ? {
                   headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
                   activePhase: PHASE.EXPLORE,
-                  phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-                  phasePoints: { explore: earnedPts },
+                  phaseProgress: { done: progress.done, total: phaseTotal },
+                  phasePoints: { explore: progress.points },
                 }
               : undefined,
           },
         );
-        if (!succeeded) continue;
-
-        await markActivityCompleted(id);
-        earnedPts += points;
-        successCount++;
-        await ctx.dbg(DBG.SUCCESS, `[${id}] Search ${successCount}/${activities.length} complete`);
-        ctx.signal.throwIfAborted();
-
-        await ctx.updateHeader({
-          headerMessage: `Explore on Bing (${alreadyCompletedCount + successCount} / ${phaseTotal})`,
-          activePhase: PHASE.EXPLORE,
-          phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-          phasePoints: { explore: earnedPts },
-        });
-
-        if (i < activities.length - 1) {
-          await lingerOnPage('between explore on bing searches', undefined, ctx.signal);
-          ctx.signal.throwIfAborted();
-        }
-      } finally {
-        ctx.activeActivity = null;
-      }
-    }
+      },
+    });
   }
 
   private async runSearchForActivity(

@@ -1,18 +1,20 @@
 // Opens each daily set activity in a background tab by index, dwells briefly, then closes.
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
-import { lingerOnPage, LABEL_MAX } from '../util/timing.js';
+import { LABEL_MAX } from '../util/timing.js';
 import { pluralize } from '../util/format.js';
-import { ACTIVITY_TYPE, CardState, markActivityCompleted, sumCompleted } from '../util/activity.js';
+import { ACTIVITY_TYPE, CardState, sumCompleted } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { ActivityRunner } from '../util/activity-runner.js';
 import { PHASE, loadRunState } from '../util/persistent-state.js';
+import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
 import { TabCaptureStatus } from '../util/tab-manager.js';
+import { runActivityLoop } from '../util/run-activity-loop.js';
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
@@ -27,91 +29,49 @@ class CompleteDailySets extends OrchestratorBase {
     }
 
     const { rewardsTabId } = extraction;
-    const allDailyActivities = extraction.allActivities.filter(
+    const allDaily = extraction.allActivities.filter(
       (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET,
     );
-    const { count: dailyAlreadyCompletedCount, points: dailyAlreadyCompletedPoints } =
-      sumCompleted(allDailyActivities);
+    const { count: alreadyCompletedCount, points: alreadyCompletedPoints } = sumCompleted(allDaily);
 
     if (!(await this.tabs.assertTabExists(ctx, rewardsTabId, 'daily sets'))) return;
 
-    const dailySets = extraction.allActivities.filter(
-      (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET && a.cardState === CardState.Actionable,
-    );
+    const dailySets = allDaily.filter((a) => a.cardState === CardState.Actionable);
 
-    const dailyPhaseTotal = dailyAlreadyCompletedCount + dailySets.length;
-    let earnedPts = dailyAlreadyCompletedPoints;
-    let successCount = 0;
-    await ctx.updateHeader({
-      headerMessage: `Daily sets (${dailyAlreadyCompletedCount} / ${dailyPhaseTotal})`,
-      activePhase: PHASE.DAILY,
-      phaseProgress: { done: dailyAlreadyCompletedCount, total: dailyPhaseTotal },
-      phasePoints: { daily: earnedPts },
-    });
     if (dailySets.length === 0) {
       await ctx.dbg(DBG.INFO, 'No actionable daily set activities — skipping');
-      return;
+    } else {
+      await ctx.dbg(
+        DBG.INFO,
+        `Starting daily sets: ${dailySets.length} ${pluralize(dailySets.length, 'activity', 'activities')}`,
+      );
     }
 
-    await ctx.dbg(
-      DBG.INFO,
-      `Starting daily sets: ${dailySets.length} ${pluralize(dailySets.length, 'activity', 'activities')}`,
-    );
-
-    for (let i = 0; i < dailySets.length; i++) {
-      ctx.signal.throwIfAborted();
-      ctx.activeActivity = dailySets[i];
-      try {
-        const label = dailySets[i].title.slice(0, LABEL_MAX);
-        await ctx.dbg(
-          DBG.INFO,
-          `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
-        );
-
-        const attempt = () => this.attemptActivity(ctx, rewardsTabId, dailySets[i]);
-        const succeeded = await ActivityRunner.executeActivityWithValidation(
-          ctx,
-          attempt,
-          attempt,
-          {
-            retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
-            lingerLabel: 'daily set activity retry',
-            failCategory: 'validation',
-            failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
-            navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
-            retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
-          },
-        );
-        if (!succeeded) continue;
-
-        await markActivityCompleted(dailySets[i].id);
-        earnedPts += dailySets[i].points;
-        successCount++;
-        ctx.signal.throwIfAborted();
-        await ctx.dbg(
-          DBG.SUCCESS,
-          `[${dailySets[i].id}] Daily set activity ${successCount}/${dailySets.length} complete`,
-        );
-        await ctx.updateHeader({
-          headerMessage: `Daily sets (${dailyAlreadyCompletedCount + successCount} / ${dailyPhaseTotal})`,
-          activePhase: PHASE.DAILY,
-          phaseProgress: {
-            done: dailyAlreadyCompletedCount + successCount,
-            total: dailyPhaseTotal,
-          },
-          phasePoints: { daily: earnedPts },
+    await runActivityLoop({
+      ctx,
+      phase: PHASE.DAILY,
+      phaseLabel: 'Daily sets',
+      activities: dailySets,
+      alreadyCompletedCount,
+      alreadyCompletedPoints,
+      lingerLabel: 'between daily set activities',
+      statusLine: (a) => `Opening: "${a.title.slice(0, LABEL_MAX)}"`,
+      attempt: async (a, i) => {
+        const fn = () => this.attemptActivity(ctx, rewardsTabId, a);
+        return await ActivityRunner.executeActivityWithValidation(ctx, fn, fn, {
+          retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
+          lingerLabel: 'daily set activity retry',
+          failCategory: 'validation',
+          failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
+          navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
+          retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
         });
+      },
+    });
 
-        if (i < dailySets.length - 1) {
-          await lingerOnPage('between daily set activities', undefined, ctx.signal);
-          ctx.signal.throwIfAborted();
-        }
-      } finally {
-        ctx.activeActivity = null;
-      }
+    if (dailySets.length > 0) {
+      await ctx.dbg(DBG.SUCCESS, 'Completed daily set activities');
     }
-
-    await ctx.dbg(DBG.SUCCESS, 'Completed daily set activities');
   }
 
   private async attemptActivity(
