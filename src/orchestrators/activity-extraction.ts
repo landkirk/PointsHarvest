@@ -60,9 +60,9 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         chrome.runtime.onMessage.removeListener(onMessage);
       };
 
-      const timeout = setTimeout(() => {
+      const timeout = setTimeout(async () => {
         cleanup();
-        ctx.fail('navigation', 'Rewards page timed out — no activities extracted').catch(() => {});
+        await ctx.fail('navigation', 'Rewards page timed out — no activities extracted');
         resolve(this.emptyResult(rewardsTabId));
       }, TIMEOUTS.FETCH_ACTIVITIES);
 
@@ -75,7 +75,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         if (tab.url.startsWith(REWARDS_URL)) {
           chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
         } else {
-          ctx.fail('setup', `Not logged in — redirected to: ${tab.url}`).catch(() => {});
+          void ctx.fail('setup', `Not logged in — redirected to: ${tab.url}`);
           cleanup();
           resolve({ ...this.emptyResult(rewardsTabId), loggedIn: false });
         }
