@@ -17,7 +17,6 @@ import { TabCaptureStatus } from '../util/tab-manager.js';
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
-  private rewardsTabId: number | null = null;
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
@@ -41,7 +40,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
         a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING && a.cardState === CardState.Actionable,
     );
 
-    this.rewardsTabId = rewardsTabId;
     await ctx.dbg(
       DBG.INFO,
       `Found ${activities.length} actionable ${pluralize(activities.length, 'activity', 'activities')}`,
@@ -92,8 +90,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
         const succeeded = await ActivityRunner.executeActivityWithValidation(
           ctx,
-          () => this.runSearchForActivity(ctx, activities[i], searchQuery),
-          fallbackQuery ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery) : null,
+          () => this.runSearchForActivity(ctx, activities[i], searchQuery, rewardsTabId),
+          fallbackQuery
+            ? () => this.runSearchForActivity(ctx, activities[i], fallbackQuery, rewardsTabId)
+            : null,
           {
             retryLogMessage: `Validation failed — retrying with lookup query: "${fallbackQuery}"`,
             lingerLabel: 'explore on bing validation retry',
@@ -139,9 +139,8 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     ctx: Context,
     activity: Activity,
     searchQuery: string,
+    rewardsTabId: number,
   ): Promise<boolean> {
-    const rewardsTabId = this.rewardsTabId;
-    if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
     const result = await this.tabs.clickCardAndCaptureTab(
       ctx,
       rewardsTabId,
