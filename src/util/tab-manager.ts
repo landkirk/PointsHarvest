@@ -120,15 +120,20 @@ export class TabManager {
   ): Promise<TabCaptureResult> {
     const capturePromise = this._captureNextTab(TIMEOUTS.TAB_CAPTURE, ctx.signal);
 
-    const clickResult = await chrome.tabs
-      .sendMessage(rewardsTabId, { action: MSG_ACTION.CLICK_CARD, id })
-      .catch(async (err: unknown) => {
-        await ctx.fail(
-          'navigation',
-          `Card click message error for "${label}": ${err instanceof Error ? err.message : String(err)}`,
-        );
-        return null;
+    let clickResult: { clicked: boolean; error?: string } | null;
+    try {
+      clickResult = await chrome.tabs.sendMessage(rewardsTabId, {
+        action: MSG_ACTION.CLICK_CARD,
+        id,
       });
+    } catch (err: unknown) {
+      this._captureResolve?.(null);
+      await ctx.fail(
+        'navigation',
+        `Card click message error for "${label}": ${err instanceof Error ? err.message : String(err)}`,
+      );
+      return { status: TabCaptureStatus.Failed };
+    }
 
     if (!clickResult?.clicked) {
       this._captureResolve?.(null);
