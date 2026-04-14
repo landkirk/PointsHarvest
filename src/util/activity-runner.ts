@@ -38,8 +38,9 @@ export class ActivityRunner {
     await ctx.dbg(DBG.WARN, opts.retryLogMessage);
     if (opts.retryHeaderPayload) await ctx.updateHeader(opts.retryHeaderPayload);
 
+    let retrySucceeded: boolean;
     try {
-      await ActivityRunner.retryAfterLinger(
+      retrySucceeded = await ActivityRunner.retryAfterLinger(
         ctx,
         opts.lingerLabel,
         retryFn,
@@ -51,7 +52,7 @@ export class ActivityRunner {
       return false;
     }
 
-    return true;
+    return retrySucceeded;
   }
 
   private static async retryAfterLinger(
@@ -60,12 +61,14 @@ export class ActivityRunner {
     retry: () => Promise<boolean | null>,
     failCategory: FailureCategory,
     failMessage: string,
-  ): Promise<void> {
+  ): Promise<boolean> {
     await lingerOnPage(lingerLabel, undefined, ctx.signal);
     ctx.signal.throwIfAborted();
     const result = await retry();
     if (result !== true) {
       await ctx.fail(failCategory, failMessage);
+      return false;
     }
+    return true;
   }
 }
