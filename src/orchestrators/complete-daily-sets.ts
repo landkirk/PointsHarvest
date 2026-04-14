@@ -92,7 +92,7 @@ class CompleteDailySets extends OrchestratorBase {
 
     if (activity.requiresUserAction) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
-      const linger = lingerOnTab(ctx, t.id, activity.userActionTimeoutMs);
+      const linger = lingerOnTab(ctx, t.id, activity);
       this.currentLinger = linger;
       await linger.promise;
       this.currentLinger = null;

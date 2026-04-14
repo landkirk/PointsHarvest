@@ -31,8 +31,11 @@ export interface Activity {
   searchQuery?: string | null;
   fallbackQuery?: string | null;
   requiresUserAction: boolean;
+  userActionKind: UserActionKind | null;
   userActionTimeoutMs: number;
 }
+
+export type UserActionKind = 'quiz' | 'poll' | 'puzzle';
 
 /** Raw card data sent from content script before classification. */
 export interface RawCard {
@@ -126,18 +129,22 @@ export async function markActivityCompleted(activityId: string): Promise<void> {
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
 
+function detectUserActionKind(activity: Activity): UserActionKind | null {
+  const match = activity.title.match(USER_ACTION_RE) ?? activity.description.match(USER_ACTION_RE);
+  if (!match) return null;
+  const word = match[1].toLowerCase();
+  // "test your knowledge" cards are quizzes — fold test → quiz for display
+  if (word === 'test') return 'quiz';
+  return word as UserActionKind;
+}
+
 export function enrichUserActions(activities: Activity[]): Activity[] {
   for (const activity of activities) {
-    const needsAction =
-      USER_ACTION_RE.test(activity.title) || USER_ACTION_RE.test(activity.description);
-    const isPoll =
-      needsAction && (/\bpoll\b/i.test(activity.title) || /\bpoll\b/i.test(activity.description));
-    activity.requiresUserAction = needsAction;
-    activity.userActionTimeoutMs = needsAction
-      ? isPoll
-        ? TIMEOUTS.USER_ACTION_POLL
-        : TIMEOUTS.USER_ACTION_QUIZ
-      : 0;
+    const kind = detectUserActionKind(activity);
+    activity.requiresUserAction = kind !== null;
+    activity.userActionKind = kind;
+    activity.userActionTimeoutMs =
+      kind === null ? 0 : kind === 'poll' ? TIMEOUTS.USER_ACTION_POLL : TIMEOUTS.USER_ACTION_QUIZ;
   }
   return activities;
 }

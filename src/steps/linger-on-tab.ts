@@ -1,5 +1,7 @@
 import { setHeaderState } from '../util/persistent-state.js';
 import { sleep } from '../util/timing.js';
+import { LABEL_MAX, truncate } from '../util/format.js';
+import type { Activity } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 
 export interface LingerHandle {
@@ -12,11 +14,15 @@ export interface LingerHandle {
 // The promise resolves when the user either:
 //   - clicks "Done" in the popup  (sends USER_ACTION_COMPLETE to background)
 //   - closes the tab directly     (caught by chrome.tabs.onRemoved in background.js)
-export function lingerOnTab(ctx: Context, tabId: number, timeoutMs: number): LingerHandle {
+export function lingerOnTab(ctx: Context, tabId: number, activity: Activity): LingerHandle {
   let earlyResolve!: () => void;
   const earlyPromise = new Promise<void>((r) => {
     earlyResolve = r;
   });
+
+  const kind = activity.userActionKind ?? 'activity';
+  const title = truncate(activity.title, LABEL_MAX);
+  const headerMessage = `Complete the ${kind} "${title}" in the Bing tab, then click Done.`;
 
   const promise = (async () => {
     try {
@@ -25,9 +31,9 @@ export function lingerOnTab(ctx: Context, tabId: number, timeoutMs: number): Lin
       return; // tab already closed before we started waiting
     }
     await ctx.setState({ isLingering: true });
-    await setHeaderState({ headerMessage: 'Action required — complete the activity in the tab' });
+    await setHeaderState({ headerMessage });
     await ctx.broadcastProgress();
-    await Promise.race([earlyPromise, sleep(timeoutMs, ctx.signal)]);
+    await Promise.race([earlyPromise, sleep(activity.userActionTimeoutMs, ctx.signal)]);
     await ctx.setState({ isLingering: false });
     await ctx.broadcastProgress();
   })();

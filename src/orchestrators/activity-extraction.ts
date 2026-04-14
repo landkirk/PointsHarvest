@@ -104,6 +104,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
           cardState: card.cardState,
           activityType: classifyCard(card),
           requiresUserAction: false,
+          userActionKind: null,
           userActionTimeoutMs: 0,
         }));
 
