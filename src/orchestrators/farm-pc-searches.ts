@@ -23,7 +23,7 @@ class FarmPcSearches extends OrchestratorBase {
   readonly name = 'PC search farming';
 
   async run(ctx: Context): Promise<void> {
-    const tab = await this.tabs.openAndFocusTab(REWARDS_BREAKDOWN_URL);
+    const tab = await this.tabs.openAndFocusTab(REWARDS_BREAKDOWN_URL, ctx.signal);
     ctx.signal.throwIfAborted();
     await this._farm(ctx, tab.id);
   }
