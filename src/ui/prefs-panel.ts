@@ -3,7 +3,7 @@ import type { UserPreferences } from '../util/persistent-state.js';
 
 // ── Speed presets (single source of truth) ───────────────────────────────────
 
-export const SPEED_PRESETS = [
+const SPEED_PRESETS = [
   {
     multiplier: 0.6,
     label: 'Fast',
@@ -81,8 +81,7 @@ export function renderPrefs(prefs: UserPreferences): void {
 
 /** Attach change listeners. Call once at startup. */
 export function bindPrefs(): void {
-  // Generate speed buttons from SPEED_PRESETS so the DOM can never drift from
-  // the descriptions defined above.
+  // Build buttons from SPEED_PRESETS so DOM and descriptions can't drift.
   speedButtonsContainer.innerHTML = '';
   speedButtons = SPEED_PRESETS.map((preset) => {
     const btn = document.createElement('button');

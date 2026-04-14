@@ -1,6 +1,6 @@
 import type { DebugEntry } from './debug.js';
-import { FAIL } from './failures.js';
-import type { FailureEntry } from './failures.js';
+import { FAIL, isFailCategory } from './failures.js';
+import type { FailureCategory, FailureEntry } from './failures.js';
 import type { ActivityState } from './activity.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
@@ -115,15 +115,15 @@ function enqueueWrite(fn: () => Promise<void>): Promise<void> {
 
 // ── Failure category migration ─────────────────────────────────────────────
 // Maps legacy category strings (pre-FAIL constants) to current equivalents.
-const LEGACY_CATEGORY_MAP: Record<string, string> = {
-  navigation: 'tab',
-  counter: 'search',
-  setup: 'fatal',
+const LEGACY_CATEGORY_MAP: Record<string, FailureCategory> = {
+  navigation: FAIL.TAB,
+  counter: FAIL.SEARCH,
+  setup: FAIL.FATAL,
 };
 
-function migrateFailureCategory(category: string): string {
-  const known = new Set<string>(Object.values(FAIL));
-  return known.has(category) ? category : (LEGACY_CATEGORY_MAP[category] ?? 'fatal');
+function migrateFailureCategory(category: string): FailureCategory {
+  if (isFailCategory(category)) return category;
+  return LEGACY_CATEGORY_MAP[category] ?? FAIL.FATAL;
 }
 
 /** Load run state from storage. */
@@ -132,15 +132,16 @@ export async function loadRunState(): Promise<RunState> {
   const stored = await chrome.storage.local.get(keys);
   const state = { ...INITIAL_RUN_STATE, ...stored } as RunState;
 
-  const needsMigration = state.failures.some(
-    (f) => migrateFailureCategory(f.category) !== f.category,
-  );
-  if (needsMigration) {
-    state.failures = state.failures.map((f) => ({
-      ...f,
-      category: migrateFailureCategory(f.category) as FailureEntry['category'],
-    }));
-    await setRunState({ failures: state.failures });
+  let dirty = false;
+  const migrated = state.failures.map((f) => {
+    const cat = migrateFailureCategory(f.category);
+    if (cat === f.category) return f;
+    dirty = true;
+    return { ...f, category: cat };
+  });
+  if (dirty) {
+    state.failures = migrated;
+    await setRunState({ failures: migrated });
   }
 
   return state;
