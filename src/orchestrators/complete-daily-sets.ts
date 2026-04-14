@@ -140,7 +140,7 @@ class CompleteDailySets extends OrchestratorBase {
     }
     ctx.signal.throwIfAborted();
     const validated = await validateActivity._run(ctx, activity, rewardsTabId);
-    return validated.status !== ValidationStatus.Incomplete;
+    return validated.status === ValidationStatus.Completed;
   }
 
   private _resolveLinger(closeTab: boolean): void {
