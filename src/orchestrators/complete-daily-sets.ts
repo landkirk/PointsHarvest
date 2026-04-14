@@ -7,7 +7,7 @@ import { ACTIVITY_TYPE, CardState, sumCompleted } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { ActivityRunner } from '../util/activity-runner.js';
+import { executeWithRetry } from '../util/execute-with-retry.js';
 import { PHASE, loadRunState } from '../util/persistent-state.js';
 import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
@@ -57,15 +57,19 @@ class CompleteDailySets extends OrchestratorBase {
       lingerLabel: 'between daily set activities',
       statusLine: (a) => `Opening: "${a.title.slice(0, LABEL_MAX)}"`,
       attempt: async (a, i) => {
-        const fn = () => this.attemptActivity(ctx, rewardsTabId, a);
-        return await ActivityRunner.executeActivityWithValidation(ctx, fn, fn, {
-          retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
-          lingerLabel: 'daily set activity retry',
-          failCategory: 'validation',
-          failMessage: `Daily set activity ${i + 1} still not validated after retry — skipping`,
-          navFailMessage: `Failed to open tab for daily set activity ${i + 1}`,
-          retryNavFailMessage: `Retry: failed to open tab for daily set activity ${i + 1}`,
-        });
+        return await executeWithRetry(
+          ctx,
+          () => this.attemptActivity(ctx, rewardsTabId, a),
+          {
+            maxAttempts: 2,
+            retryLogMessage: `Daily set activity ${i + 1} not validated — retrying`,
+            lingerLabel: 'daily set activity retry',
+          },
+          {
+            category: 'validation',
+            message: `Daily set activity ${i + 1} still not validated after retry — skipping`,
+          },
+        );
       },
     });
 
