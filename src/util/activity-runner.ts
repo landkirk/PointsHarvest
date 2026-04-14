@@ -7,8 +7,8 @@ import type { ProgressPayload } from './messaging.js';
 export class ActivityRunner {
   static async executeActivityWithValidation(
     ctx: Context,
-    activityFn: () => Promise<boolean | null>,
-    retryFn: (() => Promise<boolean | null>) | null,
+    activityFn: () => Promise<boolean>,
+    retryFn: (() => Promise<boolean>) | null,
     opts: {
       retryLogMessage: string;
       lingerLabel: string;
@@ -20,7 +20,7 @@ export class ActivityRunner {
       retryHeaderPayload?: ProgressPayload;
     },
   ): Promise<boolean> {
-    let result: boolean | null;
+    let result: boolean;
     try {
       result = await activityFn();
     } catch {
@@ -58,7 +58,7 @@ export class ActivityRunner {
   private static async retryAfterLinger(
     ctx: Context,
     lingerLabel: string,
-    retry: () => Promise<boolean | null>,
+    retry: () => Promise<boolean>,
     failCategory: FailureCategory,
     failMessage: string,
   ): Promise<boolean> {

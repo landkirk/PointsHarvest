@@ -138,7 +138,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     ctx: Context,
     activity: Activity,
     searchQuery: string,
-  ): Promise<boolean | null> {
+  ): Promise<boolean> {
     const rewardsTabId = this.rewardsTabId;
     if (rewardsTabId === null) throw new Error('rewardsTabId not initialized');
     const result = await this.tabs.clickCardAndCaptureTab(
@@ -147,10 +147,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       activity.id,
       activity.title,
     );
-    if (result.status === TabCaptureStatus.Failed) return null;
+    if (result.status === TabCaptureStatus.Failed) return false;
     if (result.status === TabCaptureStatus.Blocked) {
       await this._waitForPopupUnblock(ctx, activity.title);
-      return null;
+      return false;
     }
     const searchTab = result.tab;
 
@@ -160,11 +160,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     ctx.signal.throwIfAborted();
 
     const r = await validateActivity._run(ctx, activity, rewardsTabId);
-    return r.status === ValidationStatus.Completed
-      ? true
-      : r.status === ValidationStatus.Incomplete
-        ? false
-        : null;
+    return r.status === ValidationStatus.Completed;
   }
 }
 
