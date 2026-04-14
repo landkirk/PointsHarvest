@@ -99,7 +99,7 @@ class CompleteDailySets extends OrchestratorBase {
     } else {
       await lingerOnPage('daily set activity', undefined, ctx.signal);
       ctx.signal.throwIfAborted();
-      this.tabs.closeTab(t.id);
+      await this.tabs.closeTabWithChildren(t.id);
     }
     ctx.signal.throwIfAborted();
     const validated = await validateActivity._run(ctx, activity, rewardsTabId);
@@ -110,7 +110,7 @@ class CompleteDailySets extends OrchestratorBase {
     if (!this.currentLinger) return;
     const linger = this.currentLinger;
     this.currentLinger = null;
-    if (closeTab) this.tabs.closeTab(linger.tabId);
+    if (closeTab) void this.tabs.closeTabWithChildren(linger.tabId);
     else this.tabs.untrackTab(linger.tabId);
     linger.resolve();
   }
