@@ -21,9 +21,6 @@ export interface RunActivityLoopOpts {
   lingerLabel: string;
   statusLine: (activity: Activity) => string;
   skip?: (activity: Activity) => string | null;
-  // `progress` is informational — this loop computes it anyway, so it's passed
-  // for free. Only explore uses it (to build a retryHeaderPayload on failure);
-  // daily ignores it. Not worth a callback abstraction just to hide the arg.
   attempt: (
     activity: Activity,
     index: number,
@@ -101,7 +98,6 @@ export async function runActivityLoop(opts: RunActivityLoopOpts): Promise<void> 
         await lingerOnPage(lingerLabel, undefined, ctx.signal);
         ctx.signal.throwIfAborted();
       } else {
-        // last activity — paint the final completed state
         await ctx.updateHeader({
           headerMessage: `${phaseLabel} (${alreadyCompletedCount + successCount} / ${phaseTotal})`,
           activePhase: phase,

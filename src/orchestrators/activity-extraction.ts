@@ -16,8 +16,6 @@ import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
 import { NotLoggedInError } from '../util/errors.js';
 
-export { NotLoggedInError };
-
 class ActivityExtractionOrchestrator extends OrchestratorBase {
   readonly name = 'Activity extraction';
 

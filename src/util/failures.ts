@@ -17,6 +17,11 @@ export const FAIL = {
 
 export type FailureCategory = (typeof FAIL)[keyof typeof FAIL];
 
+const FAIL_VALUES: ReadonlySet<string> = new Set(Object.values(FAIL));
+export function isFailCategory(s: string): s is FailureCategory {
+  return FAIL_VALUES.has(s);
+}
+
 export interface FailureEntry {
   time: string;
   category: FailureCategory;
