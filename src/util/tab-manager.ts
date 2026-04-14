@@ -95,6 +95,20 @@ export class TabManager {
     this.openedTabIds.delete(tabId);
   }
 
+  /** Close a tab and any child tabs it opened (e.g. CTR-click result tabs). */
+  async closeTabWithChildren(tabId: number): Promise<void> {
+    const allTabs = await chrome.tabs
+      .query({ windowId: this.windowId })
+      .catch(() => [] as chrome.tabs.Tab[]);
+    for (const child of allTabs) {
+      if (child.openerTabId === tabId && child.id !== undefined) {
+        chrome.tabs.remove(child.id).catch(() => {});
+        this.openedTabIds.delete(child.id);
+      }
+    }
+    this.closeTab(tabId);
+  }
+
   /** Stop tracking a tab without closing it (e.g. user closed it manually). */
   untrackTab(tabId: number): void {
     this.openedTabIds.delete(tabId);

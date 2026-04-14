@@ -81,7 +81,7 @@ class FarmPcSearches extends OrchestratorBase {
       const tab = await this.tabs.openAndFocusTab('https://www.bing.com', ctx.signal);
 
       await performSearch._run(ctx, tab.id, query);
-      this.tabs.closeTab(tab.id);
+      await this.tabs.closeTabWithChildren(tab.id);
       ctx.signal.throwIfAborted();
 
       await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES, ctx.signal);

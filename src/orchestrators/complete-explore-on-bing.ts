@@ -116,7 +116,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
 
     ctx.signal.throwIfAborted();
     await performSearch._run(ctx, searchTab.id, searchQuery);
-    this.tabs.closeTab(searchTab.id);
+    await this.tabs.closeTabWithChildren(searchTab.id);
     ctx.signal.throwIfAborted();
 
     const r = await validateActivity._run(ctx, activity, rewardsTabId);
