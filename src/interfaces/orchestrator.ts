@@ -2,7 +2,7 @@ import { StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
 import { TabManager } from '../util/tab-manager.js';
 import { waitForPopupUnblock, type PermissionWaitHandle } from '../steps/wait-for-popup-unblock.js';
-import { clearSetupFailures } from '../util/failures.js';
+import { clearPermissionFailures, FAIL } from '../util/failures.js';
 
 export { StoppedError };
 
@@ -32,14 +32,14 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   // permissions and clicks Done (or Stop is pressed).
   protected async _waitForPopupUnblock(ctx: Context, label: string): Promise<void> {
     await ctx.fail(
-      'setup',
+      FAIL.PERMISSION,
       `Chrome blocked the activity tab ("${label}"). To fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → rewards.bing.com`,
     );
     const wait = waitForPopupUnblock(ctx, label);
     this._currentPermissionWait = wait;
     await wait.promise;
     this._currentPermissionWait = null;
-    await clearSetupFailures();
+    await clearPermissionFailures();
     await ctx.broadcastProgress();
   }
 

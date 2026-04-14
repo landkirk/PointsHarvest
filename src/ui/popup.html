@@ -40,7 +40,7 @@
         --danger-border: #3f1515;
 
         /* Banners */
-        --bg-setup: #1a1200;
+        --bg-permission: #1a1200;
         --bg-failure: #1a0f0f;
         --failure-sep: #2a1515;
       }
@@ -180,26 +180,26 @@
         background: var(--danger-hover);
       }
 
-      /* ── Setup warning banner ── */
-      #setup-banner {
+      /* ── Permission warning banner ── */
+      #permission-banner {
         margin-bottom: 12px;
-        background: var(--bg-setup);
+        background: var(--bg-permission);
         border: 1px solid var(--orange);
         border-radius: 6px;
         padding: 8px 10px;
         font-size: 11px;
       }
-      #setup-msg {
+      #permission-msg {
         color: var(--amber);
         font-weight: 600;
         margin-bottom: 4px;
       }
-      #setup-instructions {
+      #permission-instructions {
         color: var(--text-secondary);
         line-height: 1.5;
         margin-bottom: 6px;
       }
-      #setup-instructions strong {
+      #permission-instructions strong {
         color: var(--text-primary);
       }
       #btn-open-settings {
@@ -828,9 +828,9 @@
           <span class="phase-earned"></span>
         </div>
       </div>
-      <div id="setup-banner" style="display: none">
-        <div id="setup-msg">Chrome is blocking activity tabs from opening.</div>
-        <div id="setup-instructions">
+      <div id="permission-banner" style="display: none">
+        <div id="permission-msg">Chrome is blocking activity tabs from opening.</div>
+        <div id="permission-instructions">
           Fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects →
           Allow → <strong>rewards.bing.com</strong>
         </div>

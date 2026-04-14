@@ -7,6 +7,7 @@ import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { executeWithRetry } from '../util/execute-with-retry.js';
+import { FAIL } from '../util/failures.js';
 import { PHASE, loadRunState } from '../util/persistent-state.js';
 
 import { sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
@@ -87,7 +88,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
               : undefined,
           },
           {
-            category: 'validation',
+            category: FAIL.VALIDATION,
             message: fallbackQuery
               ? `Validation failed after retry for: "${searchQuery}"`
               : `Validation failed — no lookup query for: "${searchQuery}"`,

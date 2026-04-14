@@ -189,7 +189,7 @@ The extension records user-facing failures in a persistent queue. Failures are s
 ```typescript
 interface FailureEntry {
   time: string;                 // ISO time of failure
-  category: FailureCategory;    // one of 5 categories
+  category: FailureCategory;    // one of 6 categories
   message: string;              // user-facing description
   orchestrator?: OrchestratorBase; // which phase (optional)
   step?: StepBase;              // which step (optional)
@@ -199,13 +199,16 @@ interface FailureEntry {
 
 ### Failure Categories
 
+Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.TAB`, `FAIL.AUTH`, etc.):
+
 | Category | Examples |
 |----------|----------|
-| `'navigation'` | Tab didn't load, card click failed, rewards tab missing |
-| `'search'` | Search input failed, query validation error |
-| `'validation'` | Activity not marked complete after dwell |
-| `'counter'` | Counter extraction timed out or returned NaN |
-| `'setup'` | Not logged in, Chrome popup blocker, missing DOM selectors |
+| `FAIL.AUTH` | Not signed in, session expired (e.g. redirected away from rewards page) |
+| `FAIL.PERMISSION` | Chrome popup blocker blocked an activity tab (has a dedicated fix-it banner) |
+| `FAIL.TAB` | Tab didn't load, card click failed, rewards tab missing |
+| `FAIL.SEARCH` | Search input failed, PC-farm counter fetch failed, farm stalled |
+| `FAIL.VALIDATION` | Activity not marked complete after retry |
+| `FAIL.FATAL` | Uncaught orchestrator/manager exception |
 
 ### Recording & Storage
 
@@ -292,7 +295,7 @@ interface FailureEntry {
 - Normalizes counter values by dividing by `PC_SEARCH_POINTS_PER_SEARCH` (5 points per search) to convert from point values to search counts
 - Returns `SearchCounter[]` with structure: `{ type, current, max, currentPoints, maxPoints }`
 - Logs counter state after successful extraction
-- On timeout (20 polls without valid response), records a `'counter'` failure
+- On timeout (20 polls without valid response), records a `FAIL.SEARCH` failure
 
 ### steps/validate-activity.ts
 - Validates that an activity is marked complete after its dwell period
@@ -328,7 +331,7 @@ interface FailureEntry {
   - All scroll sends are fire-and-forget; failures silently ignored
 
 ### steps/wait-for-popup-unblock.ts
-- Records a `setup` failure with fix instructions, sets `isLingering: true`, and waits for the user to click **Done** (via `USER_ACTION_COMPLETE`) or for a `PERMISSION_WAIT` timeout
+- Records a `FAIL.PERMISSION` failure with fix instructions, sets `isLingering: true`, and waits for the user to click **Done** (via `USER_ACTION_COMPLETE`) or for a `PERMISSION_WAIT` timeout
 - Returns a `PermissionWaitHandle` `{ promise, resolve }` so the caller (via `OrchestratorBase._waitForPopupUnblock`) can resolve it early on stop
 
 ### util/context.ts
@@ -383,7 +386,7 @@ interface FailureEntry {
   - If fails (`false` or `null`) and no retry available, records failure and returns `false`
   - If fails and retry available, logs warning, lingers (standard dwell), then calls `retryFn()`
   - If retry also fails, records failure and returns `false`
-  - Catches exceptions as navigation errors (records `'navigation'` category failure)
+  - Catches exceptions as tab errors (records `FAIL.TAB` category failure)
 - **Options**:
   - `retryLogMessage` — debug message before retry linger
   - `lingerLabel` — label for retry linger dwell
@@ -416,7 +419,7 @@ interface FailureEntry {
   - **Speed multiplier** select (Normal 1.0×, Fast 0.6×, Slow 4.0×, Stealth 8.0×) — persisted to `timingMultiplier` in preferences
   - **Debug mode** checkbox — enables verbose logging
   - **Disable notifications** checkbox — suppresses desktop notifications on run completion
-- **Setup banner** — shown when `'setup'`-category failure occurs (e.g., Chrome popup blocker); includes button to open `chrome://settings/content/popups`; clears on next `clearSetupFailures()` call
+- **Setup banner** — shown when a `FAIL.PERMISSION`-category failure occurs (e.g., Chrome popup blocker); includes button to open `chrome://settings/content/popups`; clears on next `clearPermissionFailures()` call
 - **Keepalive port**:
   - Opens long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` on load
   - Sends heartbeat every 20s to prevent Chrome from killing the service worker while panel is open

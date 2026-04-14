@@ -5,6 +5,7 @@ import { lingerOnPage, randMs, sleep, TIMING } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
+import { FAIL } from '../util/failures.js';
 
 const CTR_CLICK_CHANCE = 0.35; // Simulate organic CTR to avoid bot-detection patterns (users click results ~35% of the time)
 
@@ -22,7 +23,7 @@ class PerformSearchStep extends StepBase<[number, string]> {
 
     if (!result?.ok) {
       await ctx.fail(
-        'search',
+        FAIL.SEARCH,
         `Search input failed for "${query}": ${result?.error ?? 'no response'}`,
       );
     }

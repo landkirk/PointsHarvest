@@ -97,7 +97,7 @@ src/                  Source files (edit these)
     config.ts          URL constants (REWARDS_URL, REWARDS_BREAKDOWN_URL)
     context.ts         createContext() — bundles setState/dbg/updateHeader for orchestrators
     debug.ts           Logging helpers (dbg()) and DebugEntry type
-    failures.ts        FailureEntry type, fail() helper, FailureCategory enum
+    failures.ts        FailureEntry type, fail() helper, FAIL category const
     messaging.ts       MSG_ACTION constants and AppMessage union type
     persistent-state.ts chrome.storage.local for run state + user preferences, PHASE constants, write queue
     runtime-state.ts   In-memory runtime state (activeOrchestrator) — resets on SW restart
