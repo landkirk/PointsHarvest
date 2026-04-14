@@ -45,6 +45,18 @@ function phaseEarnedLabel(phase: PhaseKey, pts: number): string {
   return `+${pts} pts ${PHASE_TIME_LABEL[phase]}`;
 }
 
+let prevPhasePoints: Partial<PhasePointsMap> = {};
+let phasePointsInitialized = false;
+
+function showPointsToast(phase: PhaseKey, delta: number): void {
+  const row = phaseEls[phase];
+  const toast = document.createElement('div');
+  toast.className = 'points-toast';
+  toast.textContent = `+${delta} pts`;
+  toast.addEventListener('animationend', () => toast.remove(), { once: true });
+  row.appendChild(toast);
+}
+
 const mainEl = document.getElementById('main') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
 const btnStop = document.getElementById('btn-stop') as HTMLElement;
@@ -63,7 +75,13 @@ function renderPhasePoints(phasePoints: Partial<PhasePointsMap> | null | undefin
   for (const key of Object.values(PHASE) as PhaseKey[]) {
     const pts = phasePoints?.[key] ?? 0;
     phaseEarnedEls[key].textContent = pts > 0 ? phaseEarnedLabel(key, pts) : '';
+    const delta = pts - (prevPhasePoints[key] ?? 0);
+    if (phasePointsInitialized && delta > 0) {
+      showPointsToast(key, delta);
+    }
   }
+  prevPhasePoints = { ...(phasePoints ?? {}) };
+  phasePointsInitialized = true;
   const weekPts = phasePoints?.explore ?? 0;
   const todayPts = (phasePoints?.daily ?? 0) + (phasePoints?.farm ?? 0);
   if (weekPts > 0 && todayPts > 0) {

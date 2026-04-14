@@ -308,6 +308,7 @@
         align-items: center;
         gap: 8px;
         margin-bottom: 6px;
+        position: relative;
       }
       .phase-row:last-child {
         margin-bottom: 0;
@@ -361,6 +362,31 @@
         white-space: nowrap;
         width: 80px;
         text-align: right;
+      }
+      .points-toast {
+        position: absolute;
+        right: 88px;
+        top: -2px;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--green);
+        pointer-events: none;
+        white-space: nowrap;
+        animation: pointsFloat 800ms ease-out forwards;
+      }
+      @keyframes pointsFloat {
+        0% {
+          opacity: 0;
+          transform: translateY(4px);
+        }
+        20% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-14px);
+        }
       }
 
       .last-search {
