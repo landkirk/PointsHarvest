@@ -103,7 +103,11 @@ async function render(): Promise<void> {
       action: MSG_ACTION.GET_PREFERENCES,
     }) as Promise<UserPreferences | null>,
   ]);
-  if (!run || !prefs) return;
+  if (!run || !prefs) {
+    statusEl.textContent = 'Reconnecting…';
+    btnStart.disabled = true;
+    return;
+  }
   const { isRunning, isLingering, header } = run;
   const { headerMessage, activePhase, phases, phasePoints } = header;
 
