@@ -78,6 +78,17 @@
         display: inline-block;
         flex-shrink: 0;
       }
+
+      #btn-dashboard {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--blue);
+        text-decoration: none;
+        flex-shrink: 0;
+      }
+      #btn-dashboard:hover {
+        text-decoration: underline;
+      }
       h1 span.dot.running {
         background: var(--green);
         animation: pulse 1.2s infinite;
@@ -793,6 +804,7 @@
           id="total-pts"
           style="margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-secondary)"
         ></span>
+        <a id="btn-dashboard" href="#" title="Open Bing Rewards dashboard">Dashboard ↗</a>
       </h1>
       <div
         id="update-status"
