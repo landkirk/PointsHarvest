@@ -51,6 +51,7 @@ const btnStop = document.getElementById('btn-stop') as HTMLElement;
 const btnDone = document.getElementById('btn-done') as HTMLElement;
 const debugPanel = document.getElementById('debug-panel') as HTMLElement;
 const btnPurge = document.getElementById('btn-purge') as HTMLElement;
+const btnDashboard = document.getElementById('btn-dashboard') as HTMLAnchorElement;
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
@@ -263,6 +264,13 @@ btnPurge.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }).then(() => {
     statusEl.textContent = 'Purged';
     setTimeout(() => void render(), 1500);
+  });
+});
+
+btnDashboard.addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: 'https://rewards.bing.com/?t=1' }).catch(() => {
+    /* non-critical: user can open dashboard manually */
   });
 });
 
