@@ -50,39 +50,49 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
 
   private waitForExtraction(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
     return new Promise<ActivityState>((resolve) => {
+      let settled = false;
       const cleanup = () => {
         clearTimeout(timeout);
         chrome.tabs.onUpdated.removeListener(onTabUpdated);
         chrome.runtime.onMessage.removeListener(onMessage);
+        ctx.signal.removeEventListener('abort', onAbort);
+      };
+
+      const settle = (result: ActivityState) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(result);
       };
 
       const timeout = setTimeout(async () => {
-        cleanup();
         await ctx.fail(FAIL.TAB, 'Rewards page timed out — no activities extracted');
-        resolve(this.emptyResult(rewardsTabId));
+        settle(this.emptyResult(rewardsTabId));
       }, TIMEOUTS.FETCH_ACTIVITIES);
 
-      const onTabUpdated = (
+      const onAbort = () => {
+        settle(this.emptyResult(rewardsTabId));
+      };
+
+      const onTabUpdated = async (
         tabId: number,
         changeInfo: { status?: string },
         tab: chrome.tabs.Tab,
-      ): void => {
+      ): Promise<void> => {
         if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
         if (tab.url.startsWith(REWARDS_URL)) {
           chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
         } else {
-          void ctx.fail(FAIL.AUTH, `Not logged in — redirected to: ${tab.url}`);
-          cleanup();
-          resolve({ ...this.emptyResult(rewardsTabId), loggedIn: false });
+          await ctx.fail(FAIL.AUTH, `Not logged in — redirected to: ${tab.url}`);
+          settle({ ...this.emptyResult(rewardsTabId), loggedIn: false });
         }
       };
 
       const onMessage = (msg: AppMessage): undefined => {
         if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
-        cleanup();
 
         if (msg.loggedIn === false) {
-          resolve({ ...this.emptyResult(rewardsTabId), loggedIn: false });
+          settle({ ...this.emptyResult(rewardsTabId), loggedIn: false });
           return;
         }
 
@@ -107,13 +117,14 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         enrichSearchQueries(exploreActivities);
         enrichUserActions(dailyActivities);
 
-        resolve({
+        settle({
           allActivities,
           loggedIn: true,
           rewardsTabId,
         });
       };
 
+      ctx.signal.addEventListener('abort', onAbort, { once: true });
       chrome.tabs.onUpdated.addListener(onTabUpdated);
       chrome.runtime.onMessage.addListener(onMessage);
     });
