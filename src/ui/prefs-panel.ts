@@ -1,6 +1,31 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import type { UserPreferences } from '../util/persistent-state.js';
 
+// ── Speed presets (single source of truth) ───────────────────────────────────
+
+export const SPEED_PRESETS = [
+  {
+    multiplier: 0.6,
+    label: 'Fast',
+    desc: 'Shorter pauses between actions. Runs complete faster but are more likely to be flagged.',
+  },
+  {
+    multiplier: 1,
+    label: 'Normal',
+    desc: 'Balanced pacing. A good starting point for most accounts.',
+  },
+  {
+    multiplier: 4,
+    label: 'Slow',
+    desc: 'Longer pauses between actions. Takes more time but mimics human browsing more closely.',
+  },
+  {
+    multiplier: 8,
+    label: 'Stealth',
+    desc: 'Maximum delay between every action. Lowest detection risk — runs may take significantly longer.',
+  },
+] as const;
+
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
 const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
@@ -11,17 +36,9 @@ const debugCheck = document.getElementById('debug-check') as HTMLInputElement;
 const prefsPanel = document.getElementById('prefs-panel') as HTMLElement;
 const prefsHeader = prefsPanel.querySelector('.prefs-header') as HTMLElement;
 const speedButtonsContainer = document.getElementById('speed-buttons') as HTMLElement;
-const speedButtons = Array.from(
-  speedButtonsContainer.querySelectorAll<HTMLButtonElement>('.speed-btn'),
-);
 const speedDescEl = document.getElementById('speed-desc') as HTMLElement;
 
-const SPEED_DESCRIPTIONS: Record<number, string> = {
-  0.6: 'Shorter pauses between actions. Runs complete faster but are more likely to be flagged.',
-  1: 'Balanced pacing. A good starting point for most accounts.',
-  4: 'Longer pauses between actions. Takes more time but mimics human browsing more closely.',
-  8: 'Maximum delay between every action. Lowest detection risk — runs may take significantly longer.',
-};
+let speedButtons: HTMLButtonElement[] = [];
 
 // ── Saved flash ──────────────────────────────────────────────────────────────
 
@@ -47,10 +64,11 @@ export function getDebugMode(): boolean {
 }
 
 function setActiveSpeedButton(multiplier: number): void {
+  const preset = SPEED_PRESETS.find((p) => p.multiplier === multiplier);
   for (const btn of speedButtons) {
     btn.classList.toggle('active', Number(btn.dataset.multiplier) === multiplier);
   }
-  speedDescEl.textContent = SPEED_DESCRIPTIONS[multiplier] ?? '';
+  speedDescEl.textContent = preset?.desc ?? '';
 }
 
 /** Sync checkbox states from a freshly-loaded UserPreferences object. */
@@ -63,6 +81,18 @@ export function renderPrefs(prefs: UserPreferences): void {
 
 /** Attach change listeners. Call once at startup. */
 export function bindPrefs(): void {
+  // Generate speed buttons from SPEED_PRESETS so the DOM can never drift from
+  // the descriptions defined above.
+  speedButtonsContainer.innerHTML = '';
+  speedButtons = SPEED_PRESETS.map((preset) => {
+    const btn = document.createElement('button');
+    btn.className = 'speed-btn';
+    btn.dataset.multiplier = String(preset.multiplier);
+    btn.textContent = preset.label;
+    speedButtonsContainer.appendChild(btn);
+    return btn;
+  });
+
   prefsHeader.addEventListener('click', () => {
     prefsPanel.classList.toggle('collapsed');
   });

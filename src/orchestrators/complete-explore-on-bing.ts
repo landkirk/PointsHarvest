@@ -1,8 +1,7 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { LABEL_MAX } from '../util/timing.js';
-import { pluralize } from '../util/format.js';
+import { LABEL_MAX, pluralize, truncate } from '../util/format.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -16,8 +15,6 @@ import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import { TabCaptureStatus } from '../util/tab-manager.js';
 import { runActivityLoop } from '../util/run-activity-loop.js';
-
-const truncate = (s: string) => (s.length > LABEL_MAX ? s.slice(0, LABEL_MAX) + '…' : s);
 
 class CompleteExploreOnBing extends OrchestratorBase<[]> {
   readonly name = 'Explore on Bing';
@@ -62,7 +59,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       alreadyCompletedCount,
       alreadyCompletedPoints,
       lingerLabel: 'between explore on bing searches',
-      statusLine: (a) => `Searching: "${truncate(a.searchQuery ?? a.title)}"`,
+      statusLine: (a) => `Searching: "${truncate(a.searchQuery ?? a.title, LABEL_MAX)}"`,
       skip: (a) =>
         a.searchQuery ? null : `Skipping card — no query could be generated for "${a.title}"`,
       attempt: async (a, _i, progress) => {
@@ -80,7 +77,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
               : undefined,
             retryHeaderPayload: fallbackQuery
               ? {
-                  headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
+                  headerMessage: `Retrying: "${truncate(fallbackQuery, LABEL_MAX)}"`,
                   activePhase: PHASE.EXPLORE,
                   phaseProgress: { done: progress.done, total: phaseTotal },
                   phasePoints: { explore: progress.points },

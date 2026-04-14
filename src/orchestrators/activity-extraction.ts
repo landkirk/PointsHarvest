@@ -14,12 +14,9 @@ import {
 import type { RawCard, Activity, ActivityState } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
+import { NotLoggedInError } from '../util/errors.js';
 
-export class NotLoggedInError extends Error {
-  constructor() {
-    super('Not logged in');
-  }
-}
+export { NotLoggedInError };
 
 class ActivityExtractionOrchestrator extends OrchestratorBase {
   readonly name = 'Activity extraction';

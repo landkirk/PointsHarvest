@@ -1,4 +1,5 @@
 import type { DebugEntry } from './debug.js';
+import { FAIL } from './failures.js';
 import type { FailureEntry } from './failures.js';
 import type { ActivityState } from './activity.js';
 
@@ -112,11 +113,37 @@ function enqueueWrite(fn: () => Promise<void>): Promise<void> {
   return writeQueue;
 }
 
+// ── Failure category migration ─────────────────────────────────────────────
+// Maps legacy category strings (pre-FAIL constants) to current equivalents.
+const LEGACY_CATEGORY_MAP: Record<string, string> = {
+  navigation: 'tab',
+  counter: 'search',
+  setup: 'fatal',
+};
+
+function migrateFailureCategory(category: string): string {
+  const known = new Set<string>(Object.values(FAIL));
+  return known.has(category) ? category : (LEGACY_CATEGORY_MAP[category] ?? 'fatal');
+}
+
 /** Load run state from storage. */
 export async function loadRunState(): Promise<RunState> {
   const keys = Object.keys(INITIAL_RUN_STATE) as (keyof RunState)[];
   const stored = await chrome.storage.local.get(keys);
-  return { ...INITIAL_RUN_STATE, ...stored } as RunState;
+  const state = { ...INITIAL_RUN_STATE, ...stored } as RunState;
+
+  const needsMigration = state.failures.some(
+    (f) => migrateFailureCategory(f.category) !== f.category,
+  );
+  if (needsMigration) {
+    state.failures = state.failures.map((f) => ({
+      ...f,
+      category: migrateFailureCategory(f.category) as FailureEntry['category'],
+    }));
+    await setRunState({ failures: state.failures });
+  }
+
+  return state;
 }
 
 /** Load user preferences from storage. */

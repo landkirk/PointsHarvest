@@ -9,10 +9,8 @@ import { setTimingMultiplier } from '../util/timing.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
-import {
-  NotLoggedInError,
-  ActivityExtractionOrchestrator,
-} from '../orchestrators/activity-extraction.js';
+import { NotLoggedInError } from '../util/errors.js';
+import { ActivityExtractionOrchestrator } from '../orchestrators/activity-extraction.js';
 import { CompleteExploreOnBing } from '../orchestrators/complete-explore-on-bing.js';
 import { CompleteDailySets } from '../orchestrators/complete-daily-sets.js';
 import { FarmPcSearches } from '../orchestrators/farm-pc-searches.js';

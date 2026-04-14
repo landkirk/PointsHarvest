@@ -1,8 +1,7 @@
 // Opens each daily set activity in a background tab by index, dwells briefly, then closes.
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
-import { LABEL_MAX } from '../util/timing.js';
-import { pluralize } from '../util/format.js';
+import { LABEL_MAX, pluralize, truncate } from '../util/format.js';
 import { ACTIVITY_TYPE, CardState, sumCompleted } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
@@ -56,7 +55,7 @@ class CompleteDailySets extends OrchestratorBase {
       alreadyCompletedCount,
       alreadyCompletedPoints,
       lingerLabel: 'between daily set activities',
-      statusLine: (a) => `Opening: "${a.title.slice(0, LABEL_MAX)}"`,
+      statusLine: (a) => `Opening: "${truncate(a.title, LABEL_MAX)}"`,
       attempt: async (a, i) => {
         return await executeWithRetry(
           ctx,
@@ -73,10 +72,6 @@ class CompleteDailySets extends OrchestratorBase {
         );
       },
     });
-
-    if (dailySets.length > 0) {
-      await ctx.dbg(DBG.SUCCESS, 'Completed daily set activities');
-    }
   }
 
   private async attemptActivity(
