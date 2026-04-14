@@ -1,7 +1,8 @@
 // Opens each daily set activity in a background tab by index, dwells briefly, then closes.
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
-import { lingerOnPage } from '../util/timing.js';
+import { lingerOnPage, LABEL_MAX } from '../util/timing.js';
+import { pluralize } from '../util/format.js';
 import { ACTIVITY_TYPE, CardState, markActivityCompleted, sumCompleted } from '../util/activity.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
@@ -52,13 +53,16 @@ class CompleteDailySets extends OrchestratorBase {
       return;
     }
 
-    await ctx.dbg(DBG.INFO, `Starting daily sets: ${dailySets.length} activity/activities`);
+    await ctx.dbg(
+      DBG.INFO,
+      `Starting daily sets: ${dailySets.length} ${pluralize(dailySets.length, 'activity', 'activities')}`,
+    );
 
     for (let i = 0; i < dailySets.length; i++) {
       ctx.signal.throwIfAborted();
       ctx.activeActivity = dailySets[i];
       try {
-        const label = dailySets[i].title.slice(0, 60);
+        const label = dailySets[i].title.slice(0, LABEL_MAX);
         await ctx.dbg(
           DBG.INFO,
           `[${dailySets[i].id}] [Daily set ${i + 1}/${dailySets.length}] Opening: "${label}"`,
@@ -116,11 +120,10 @@ class CompleteDailySets extends OrchestratorBase {
     activity: Activity,
   ): Promise<boolean> {
     const { title } = activity;
-    const label = title.slice(0, 60);
-    const result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, label);
+    const result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, title);
     if (result.status === TabCaptureStatus.Failed) return false;
     if (result.status === TabCaptureStatus.Blocked) {
-      await this._waitForPopupUnblock(ctx, label);
+      await this._waitForPopupUnblock(ctx, title);
       return false;
     }
     const t = result.tab;

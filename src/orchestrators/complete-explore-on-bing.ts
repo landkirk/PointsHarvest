@@ -1,7 +1,8 @@
 // Iterates through the mapped activity list, clicking each card on the rewards
 // page and waiting for the resulting search tab to load and dwell.
 
-import { lingerOnPage } from '../util/timing.js';
+import { lingerOnPage, LABEL_MAX } from '../util/timing.js';
+import { pluralize } from '../util/format.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -43,13 +44,13 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     this.rewardsTabId = rewardsTabId;
     await ctx.dbg(
       DBG.INFO,
-      `Found ${activities.length} actionable activit${activities.length === 1 ? 'y' : 'ies'}`,
+      `Found ${activities.length} actionable ${pluralize(activities.length, 'activity', 'activities')}`,
     );
 
     const unmapped = activities.filter((a) => a.searchQuery === null).length;
     await ctx.dbg(
       DBG.INFO,
-      `Mapped ${activities.length - unmapped}/${activities.length} activit${activities.length === 1 ? 'y' : 'ies'} (${unmapped} unmatched)`,
+      `Mapped ${activities.length - unmapped}/${activities.length} ${pluralize(activities.length, 'activity', 'activities')} (${unmapped} unmatched)`,
     );
 
     const phaseTotal = alreadyCompletedCount + activities.length;
@@ -62,7 +63,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       phasePoints: { explore: earnedPts },
     });
 
-    const truncate = (s: string) => (s.length > 40 ? s.slice(0, 40) + '…' : s);
+    const truncate = (s: string) => (s.length > LABEL_MAX ? s.slice(0, LABEL_MAX) + '…' : s);
     for (let i = 0; i < activities.length; i++) {
       ctx.signal.throwIfAborted();
       ctx.activeActivity = activities[i];
