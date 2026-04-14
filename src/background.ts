@@ -11,6 +11,7 @@ import {
 } from './util/persistent-state.js';
 import { StartRun, getActiveController, getActiveContext } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
+import { setTimingMultiplier } from './util/timing.js';
 import { KEEPALIVE_PORT } from './util/config.js';
 
 const startRun = new StartRun();
@@ -93,6 +94,9 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     );
   }
   if (msg.action === MSG_ACTION.SET_PREFERENCE) {
+    if (msg.updates.timingMultiplier !== undefined) {
+      setTimingMultiplier(msg.updates.timingMultiplier);
+    }
     setPreference(msg.updates).then(() => {
       chrome.runtime.sendMessage({ action: MSG_ACTION.PROGRESS }).catch(() => {});
     });
