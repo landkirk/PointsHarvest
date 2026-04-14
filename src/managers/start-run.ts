@@ -1,10 +1,14 @@
 import { DBG } from '../util/debug.js';
 import {
   resetRunState,
-  loadRunState,
+  setRunState,
   setHeaderState,
+  loadRunState,
   loadPreferences,
+  RUN_END,
+  type RunEndReason,
 } from '../util/persistent-state.js';
+import { buildRunSummary } from '../util/run-summary.js';
 import { setTimingMultiplier } from '../util/timing.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
@@ -19,6 +23,20 @@ import type { Context } from '../util/context.js';
 import { StoppedError } from '../interfaces/stoppable.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { FAIL } from '../util/failures.js';
+
+const END_MESSAGES: Record<RunEndReason, { status: string; msg: string }> = {
+  [RUN_END.SUCCESS]: { status: 'Done for today!', msg: 'All tasks complete' },
+  [RUN_END.STOPPED]: { status: 'Stopped', msg: 'Run stopped by user' },
+  [RUN_END.NOT_LOGGED_IN]: {
+    status: 'Not logged in — sign into Bing first',
+    msg: 'Aborting: not logged into Bing Rewards',
+  },
+  [RUN_END.FATAL]: { status: 'Fatal error', msg: 'Run aborted due to fatal error' },
+  [RUN_END.SETUP_FAILED]: {
+    status: 'Failed to open Bing Rewards',
+    msg: 'Failed to open rewards tab',
+  },
+};
 
 let activeController: AbortController | null = null;
 let activeContext: Context | null = null;
@@ -35,11 +53,13 @@ type AnyOrchestrator = OrchestratorBase<[]> | OrchestratorBase<[number]>;
 
 class StartRun {
   readonly tabs = new TabManager();
+  private startedAt = 0;
 
   async run(skipWarmUp: boolean, windowId: number): Promise<void> {
     this.tabs.setWindowId(windowId);
+    this.startedAt = Date.now();
     await resetRunState({ isRunning: true });
-    await setHeaderState({ headerMessage: 'Starting…', activePhase: null });
+    await setHeaderState({ headerMessage: 'Starting…' });
 
     activeController = new AbortController();
     const prefs = await loadPreferences();
@@ -54,7 +74,7 @@ class StartRun {
           FAIL.FATAL,
           `Fatal run error: ${err instanceof Error ? err.message : String(err)}`,
         );
-        await this._endRun(ctx, 'Fatal error', 'Run aborted due to fatal error', false);
+        await this._endRun(ctx, RUN_END.FATAL);
       });
   }
 
@@ -71,7 +91,7 @@ class StartRun {
       rewardsTabId = tab.id;
     } catch {
       await ctx.fail(FAIL.TAB, 'Failed to open rewards tab');
-      await this._endRun(ctx, 'Failed to open Bing Rewards', 'Failed to open rewards tab', false);
+      await this._endRun(ctx, RUN_END.SETUP_FAILED);
       return;
     }
     await ctx.setState({ rewardsTabId });
@@ -96,22 +116,17 @@ class StartRun {
       await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));
     } catch (err) {
       if (err instanceof NotLoggedInError) {
-        await this._endRun(
-          ctx,
-          'Not logged in — sign into Bing first',
-          'Aborting: not logged into Bing Rewards',
-          false,
-        );
+        await this._endRun(ctx, RUN_END.NOT_LOGGED_IN);
         return;
       }
       throw err;
     }
 
     if (ctx.signal.aborted) {
-      await this._endRun(ctx, 'Stopped', 'Run stopped by user', false);
+      await this._endRun(ctx, RUN_END.STOPPED);
       return;
     }
-    await this._endRun(ctx, 'Done for today!', 'All tasks complete', true);
+    await this._endRun(ctx, RUN_END.SUCCESS);
   }
 
   private async _runOrchestrator(
@@ -136,22 +151,28 @@ class StartRun {
     }
   }
 
-  private async _endRun(
-    ctx: Context,
-    status: string,
-    msg: string,
-    success: boolean,
-  ): Promise<void> {
+  private async _endRun(ctx: Context, endReason: RunEndReason): Promise<void> {
     activeController = null;
     activeContext = null;
     await this.tabs.closeAll();
-    const { rewardsTabId } = await loadRunState();
-    if (rewardsTabId) this.tabs.closeTab(rewardsTabId);
-    await ctx.setState({ isRunning: false });
-    await setHeaderState({ headerMessage: status, activePhase: null });
+    const [run, prefs] = await Promise.all([loadRunState(), loadPreferences()]);
+    if (run.rewardsTabId) this.tabs.closeTab(run.rewardsTabId);
+
+    const { status, msg } = END_MESSAGES[endReason];
+    const success = endReason === RUN_END.SUCCESS;
+    const summary = buildRunSummary(run, {
+      startedAt: this.startedAt,
+      endedAt: Date.now(),
+      endReason,
+    });
+
+    await setRunState({
+      isRunning: false,
+      lastRunSummary: summary,
+      header: { ...run.header, headerMessage: status, activePhase: null },
+    });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
     await ctx.broadcastProgress();
-    const prefs = await loadPreferences();
     if (!prefs.disableNotifications && !ctx.signal.aborted) {
       const iconUrl = await this._iconDataUrl();
       chrome.notifications.create({
