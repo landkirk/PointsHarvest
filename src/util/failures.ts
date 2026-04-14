@@ -6,7 +6,16 @@ import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 import type { StepBase } from '../interfaces/step.js';
 import type { Activity } from './activity.js';
 
-export type FailureCategory = 'navigation' | 'search' | 'validation' | 'counter' | 'setup';
+export const FAIL = {
+  AUTH: 'auth',
+  PERMISSION: 'permission',
+  TAB: 'tab',
+  SEARCH: 'search',
+  VALIDATION: 'validation',
+  FATAL: 'fatal',
+} as const;
+
+export type FailureCategory = (typeof FAIL)[keyof typeof FAIL];
 
 export interface FailureEntry {
   time: string;
@@ -19,10 +28,10 @@ export interface FailureEntry {
 
 const MAX_FAILURES = 50;
 
-/** Removes all failures with category 'setup' from persistent state. */
-export async function clearSetupFailures(): Promise<void> {
+/** Removes all failures with category 'permission' from persistent state. */
+export async function clearPermissionFailures(): Promise<void> {
   const failures = await getFailures();
-  const filtered = failures.filter((f) => f.category !== 'setup');
+  const filtered = failures.filter((f) => f.category !== FAIL.PERMISSION);
   if (filtered.length !== failures.length) {
     await setRunState({ failures: filtered });
   }

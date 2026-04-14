@@ -8,6 +8,7 @@ import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { executeWithRetry } from '../util/execute-with-retry.js';
+import { FAIL } from '../util/failures.js';
 import { PHASE, loadRunState } from '../util/persistent-state.js';
 import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
@@ -66,7 +67,7 @@ class CompleteDailySets extends OrchestratorBase {
             lingerLabel: 'daily set activity retry',
           },
           {
-            category: 'validation',
+            category: FAIL.VALIDATION,
             message: `Daily set activity ${i + 1} still not validated after retry — skipping`,
           },
         );

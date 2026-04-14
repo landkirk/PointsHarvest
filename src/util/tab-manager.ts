@@ -1,6 +1,7 @@
 import { sleep, randMs, TIMEOUTS } from './timing.js';
 import { MSG_ACTION } from './messaging.js';
 import type { Context } from './context.js';
+import { FAIL } from './failures.js';
 
 export type CapturedTab = chrome.tabs.Tab & { id: number };
 
@@ -106,7 +107,7 @@ export class TabManager {
       () => false,
     );
     if (!exists) {
-      await ctx.fail('navigation', `Rewards tab no longer exists — cannot run ${phase}`);
+      await ctx.fail(FAIL.TAB, `Rewards tab no longer exists — cannot run ${phase}`);
       return false;
     }
     return true;
@@ -129,7 +130,7 @@ export class TabManager {
     } catch (err: unknown) {
       this._captureResolve?.(null);
       await ctx.fail(
-        'navigation',
+        FAIL.TAB,
         `Card click message error for "${label}": ${err instanceof Error ? err.message : String(err)}`,
       );
       return { status: TabCaptureStatus.Failed };
@@ -138,7 +139,7 @@ export class TabManager {
     if (!clickResult?.clicked) {
       this._captureResolve?.(null);
       await ctx.fail(
-        'navigation',
+        FAIL.TAB,
         `Card click failed for "${label}": ${clickResult?.error ?? 'no response'}`,
       );
       return { status: TabCaptureStatus.Failed };

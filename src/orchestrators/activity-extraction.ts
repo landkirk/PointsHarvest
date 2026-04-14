@@ -13,6 +13,7 @@ import {
 } from '../util/activity.js';
 import type { RawCard, Activity, ActivityState } from '../util/activity.js';
 import type { Context } from '../util/context.js';
+import { FAIL } from '../util/failures.js';
 
 export class NotLoggedInError extends Error {
   constructor() {
@@ -28,7 +29,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
 
     const rewardsTabId = (await loadRunState()).rewardsTabId;
     if (!rewardsTabId) {
-      await ctx.fail('navigation', 'Rewards tab not open — cannot extract activities');
+      await ctx.fail(FAIL.TAB, 'Rewards tab not open — cannot extract activities');
       await setRunState({ activityState: this.emptyResult(null) });
       return;
     }
@@ -62,7 +63,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
 
       const timeout = setTimeout(async () => {
         cleanup();
-        await ctx.fail('navigation', 'Rewards page timed out — no activities extracted');
+        await ctx.fail(FAIL.TAB, 'Rewards page timed out — no activities extracted');
         resolve(this.emptyResult(rewardsTabId));
       }, TIMEOUTS.FETCH_ACTIVITIES);
 
@@ -75,7 +76,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         if (tab.url.startsWith(REWARDS_URL)) {
           chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
         } else {
-          void ctx.fail('setup', `Not logged in — redirected to: ${tab.url}`);
+          void ctx.fail(FAIL.AUTH, `Not logged in — redirected to: ${tab.url}`);
           cleanup();
           resolve({ ...this.emptyResult(rewardsTabId), loggedIn: false });
         }

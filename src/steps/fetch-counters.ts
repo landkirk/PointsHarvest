@@ -9,6 +9,7 @@ import { StepBase } from '../interfaces/step.js';
 import type { Context } from '../util/context.js';
 import type { SearchCounter } from '../util/persistent-state.js';
 import { PC_SEARCH_POINTS_PER_SEARCH } from '../util/config.js';
+import { FAIL } from '../util/failures.js';
 
 const MAX_POLLS = TIMEOUTS.FETCH_COUNTERS_MAX_POLLS;
 
@@ -54,7 +55,7 @@ class FetchCountersStep extends StepBase<[number | null], SearchCounter[] | null
       if (i < MAX_POLLS - 1) await sleep(randMs(...TIMING.FETCH_COUNTERS_POLL), ctx.signal);
     }
 
-    await ctx.fail('counter', `Counter fetch timed out after ${MAX_POLLS}s`);
+    await ctx.fail(FAIL.SEARCH, `Counter fetch timed out after ${MAX_POLLS}s`);
     return null;
   }
 }

@@ -20,6 +20,7 @@ import { WarmUpSearches } from '../orchestrators/warm-up-searches.js';
 import type { Context } from '../util/context.js';
 import { StoppedError } from '../interfaces/stoppable.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
+import { FAIL } from '../util/failures.js';
 
 let activeController: AbortController | null = null;
 let activeContext: Context | null = null;
@@ -52,7 +53,7 @@ class StartRun {
     this._executeRun(ctx, skipWarmUp) // fire and forget
       .catch(async (err) => {
         await ctx.fail(
-          'setup',
+          FAIL.FATAL,
           `Fatal run error: ${err instanceof Error ? err.message : String(err)}`,
         );
         await this._endRun(ctx, 'Fatal error', 'Run aborted due to fatal error', false);
@@ -128,7 +129,7 @@ class StartRun {
       if (err instanceof NotLoggedInError) throw err;
       if (err instanceof StoppedError) return;
       await ctx.fail(
-        'setup',
+        FAIL.FATAL,
         `${orchestrator.name} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
     } finally {

@@ -1,15 +1,16 @@
 import type { FailureEntry } from '../util/failures.js';
+import { FAIL } from '../util/failures.js';
 import { esc } from './debug-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
-const setupBanner = document.getElementById('setup-banner') as HTMLElement;
+const permissionBanner = document.getElementById('permission-banner') as HTMLElement;
 const btnOpenSettings = document.getElementById('btn-open-settings') as HTMLButtonElement;
 const failureBanner = document.getElementById('failure-banner') as HTMLElement;
 const failureSummary = document.getElementById('failure-summary') as HTMLElement;
 const failureList = document.getElementById('failure-list') as HTMLElement;
 
-// ── Setup warning banner ────────────────────────────────────────────────────
+// ── Permission warning banner ──────────────────────────────────────────────
 
 btnOpenSettings.addEventListener('click', () => {
   chrome.tabs.create({ url: 'chrome://settings/content/popups' }).catch(() => {
@@ -28,32 +29,32 @@ function updateFailureSummary(count: number): void {
 export function renderFailures(failures: FailureEntry[]): void {
   if (!failures || failures.length === 0) {
     failureBanner.style.display = 'none';
-    setupBanner.style.display = 'none';
+    permissionBanner.style.display = 'none';
     failureList.innerHTML = '';
     return;
   }
-  let hasSetup = false;
-  const nonSetup = failures.filter((f) => {
-    if (f.category === 'setup') {
-      hasSetup = true;
+  let hasPermission = false;
+  const nonPermission = failures.filter((f) => {
+    if (f.category === FAIL.PERMISSION) {
+      hasPermission = true;
       return false;
     }
     return true;
   });
-  setupBanner.style.display = hasSetup ? 'block' : 'none';
-  if (nonSetup.length === 0) {
+  permissionBanner.style.display = hasPermission ? 'block' : 'none';
+  if (nonPermission.length === 0) {
     failureBanner.style.display = 'none';
     failureList.innerHTML = '';
     return;
   }
   failureBanner.style.display = 'block';
-  updateFailureSummary(nonSetup.length);
-  failureList.innerHTML = nonSetup.map((f) => failureItemHtml(f)).join('');
+  updateFailureSummary(nonPermission.length);
+  failureList.innerHTML = nonPermission.map((f) => failureItemHtml(f)).join('');
 }
 
 export function appendFailure(f: FailureEntry): void {
-  if (f.category === 'setup') {
-    setupBanner.style.display = 'block';
+  if (f.category === FAIL.PERMISSION) {
+    permissionBanner.style.display = 'block';
     return;
   }
   failureBanner.style.display = 'block';

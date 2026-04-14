@@ -11,6 +11,7 @@ import type { SearchCounter } from '../util/persistent-state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { performSearch } from '../steps/perform-search.js';
 import { fetchCounters } from '../steps/fetch-counters.js';
+import { FAIL } from '../util/failures.js';
 
 const MAX_NO_PROGRESS = 3;
 
@@ -34,7 +35,7 @@ class FarmPcSearches extends OrchestratorBase {
     const counter = findPcCounter(searchCounters);
 
     if (!counter) {
-      await ctx.fail('counter', 'PC search counter not found — skipping');
+      await ctx.fail(FAIL.SEARCH, 'PC search counter not found — skipping');
       return;
     }
 
@@ -72,7 +73,7 @@ class FarmPcSearches extends OrchestratorBase {
       ctx.signal.throwIfAborted();
 
       if (shuffleIndex >= shuffled.length) {
-        await ctx.fail('search', 'PC search queries exhausted');
+        await ctx.fail(FAIL.SEARCH, 'PC search queries exhausted');
         break;
       }
       const query = shuffled[shuffleIndex++];
@@ -89,7 +90,7 @@ class FarmPcSearches extends OrchestratorBase {
       this.tabs.focusTab(breakdownTabId);
       const updated = await fetchCounters._run(ctx, breakdownTabId);
       if (updated === null) {
-        await ctx.fail('counter', 'PC farm aborted: counter fetch failed');
+        await ctx.fail(FAIL.SEARCH, 'PC farm aborted: counter fetch failed');
         return;
       }
       const updatedCounter = findPcCounter(updated);
@@ -110,7 +111,7 @@ class FarmPcSearches extends OrchestratorBase {
         await ctx.dbg(DBG.WARN, `No progress ${noProgressCount}/${MAX_NO_PROGRESS}`);
         if (noProgressCount >= MAX_NO_PROGRESS) {
           await ctx.fail(
-            'search',
+            FAIL.SEARCH,
             `PC farm aborted: no progress after ${MAX_NO_PROGRESS} searches`,
           );
           return;
