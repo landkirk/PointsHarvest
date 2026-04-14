@@ -836,7 +836,7 @@
         id="update-status"
         style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; margin-top: -8px"
       ></div>
-      <div class="status" id="status">Idle</div>
+      <div class="status" id="status" aria-live="polite">Idle</div>
       <div class="progress-bar-wrap">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
@@ -874,14 +874,14 @@
         </div>
         <button id="btn-open-settings">Open Pop-up Settings</button>
       </div>
-      <div id="failure-banner" style="display: none">
+      <div id="failure-banner" style="display: none" aria-live="polite">
         <div id="failure-summary"></div>
         <div id="failure-list" style="display: none"></div>
       </div>
       <button id="btn-start">Run today's searches</button>
       <button id="btn-stop">Stop</button>
       <button id="btn-done">Done — I completed the action</button>
-      <div class="last-search" id="last-search"></div>
+      <div class="last-search" id="last-search" aria-live="polite"></div>
 
       <div id="prefs-panel">
         <div class="prefs-header">Preferences</div>
