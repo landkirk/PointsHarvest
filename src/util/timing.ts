@@ -17,6 +17,8 @@ export const TIMING: Record<string, [number, number]> = {
   RESULT_CLICK_DWELL: [2000, 6000], // additional page dwell after clicking a result
 };
 
+export const LABEL_MAX = 50;
+
 export const TIMEOUTS = {
   FETCH_ACTIVITIES: 20_000, // rewards page extraction timeout
   FETCH_COUNTERS_MAX_POLLS: 20, // max polls before giving up
