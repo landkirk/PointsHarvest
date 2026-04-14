@@ -1,5 +1,6 @@
 import { lingerOnPage } from './timing.js';
 import { DBG } from './debug.js';
+import { NotLoggedInError } from './errors.js';
 import type { Context } from './context.js';
 import type { FailureCategory } from './failures.js';
 import type { ProgressPayload } from './messaging.js';
@@ -28,6 +29,11 @@ export async function executeWithRetry(
       succeeded = await fn(attempt);
     } catch (err) {
       if (ctx.signal.aborted) throw err;
+      if (err instanceof NotLoggedInError) throw err;
+      await ctx.dbg(
+        DBG.WARN,
+        `Attempt ${attempt} threw: ${err instanceof Error ? err.message : String(err)}`,
+      );
       succeeded = false;
     }
 
