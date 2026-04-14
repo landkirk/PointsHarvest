@@ -257,7 +257,10 @@ btnDone.addEventListener('click', () => {
 });
 
 btnPurge.addEventListener('click', () => {
-  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }).then(() => window.close());
+  chrome.runtime.sendMessage({ action: MSG_ACTION.PURGE }).then(() => {
+    statusEl.textContent = 'Purged';
+    setTimeout(() => void render(), 1500);
+  });
 });
 
 // ── Service worker keepalive ───────────────────────────────────────────────
