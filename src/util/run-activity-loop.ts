@@ -1,8 +1,8 @@
 // Shared iteration skeleton for activity phases (explore-on-bing, daily sets).
 // Callers pre-filter and pre-sum, then provide a per-activity `attempt` closure
-// that owns the phase-specific ActivityRunner call. The helper owns the loop
-// mechanics: signal checks, activeActivity guard, header updates, success
-// bookkeeping, and linger between iterations.
+// that owns the phase-specific retry logic. The helper owns the loop mechanics:
+// signal checks, activeActivity guard, header updates, success bookkeeping,
+// and linger between iterations.
 
 import { lingerOnPage } from './timing.js';
 import { DBG } from './debug.js';

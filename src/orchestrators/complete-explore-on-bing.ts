@@ -6,7 +6,7 @@ import { pluralize } from '../util/format.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { ActivityRunner } from '../util/activity-runner.js';
+import { executeWithRetry } from '../util/execute-with-retry.js';
 import { PHASE, loadRunState } from '../util/persistent-state.js';
 
 import { sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
@@ -67,18 +67,16 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       attempt: async (a, _i, progress) => {
         const { searchQuery, fallbackQuery } = a;
         if (!searchQuery) return false;
-        return await ActivityRunner.executeActivityWithValidation(
+        const queries = fallbackQuery ? [searchQuery, fallbackQuery] : [searchQuery];
+        return await executeWithRetry(
           ctx,
-          () => this.runSearchForActivity(ctx, a, searchQuery, rewardsTabId),
-          fallbackQuery
-            ? () => this.runSearchForActivity(ctx, a, fallbackQuery, rewardsTabId)
-            : null,
+          (attempt) => this.runSearchForActivity(ctx, a, queries[attempt - 1]!, rewardsTabId),
           {
-            retryLogMessage: `Validation failed — retrying with lookup query: "${fallbackQuery}"`,
+            maxAttempts: queries.length,
             lingerLabel: 'explore on bing validation retry',
-            failCategory: 'validation',
-            failMessage: `Validation failed after retry for: "${searchQuery}"`,
-            noRetryFailMessage: `Validation failed — no lookup query for: "${searchQuery}"`,
+            retryLogMessage: fallbackQuery
+              ? `Validation failed — retrying with lookup query: "${fallbackQuery}"`
+              : undefined,
             retryHeaderPayload: fallbackQuery
               ? {
                   headerMessage: `Retrying: "${truncate(fallbackQuery)}"`,
@@ -87,6 +85,12 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
                   phasePoints: { explore: progress.points },
                 }
               : undefined,
+          },
+          {
+            category: 'validation',
+            message: fallbackQuery
+              ? `Validation failed after retry for: "${searchQuery}"`
+              : `Validation failed — no lookup query for: "${searchQuery}"`,
           },
         );
       },
