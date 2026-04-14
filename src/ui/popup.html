@@ -363,6 +363,99 @@
         width: 80px;
         text-align: right;
       }
+      /* ── Run summary card ── */
+      #run-summary {
+        background: var(--bg-raised);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 14px;
+      }
+      .rs-header {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        margin-bottom: 2px;
+      }
+      .rs-total {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1.1;
+        color: var(--green);
+      }
+      .rs-total.rs-total--warn {
+        color: var(--amber);
+      }
+      .rs-total.rs-total--err {
+        color: var(--red);
+      }
+      .rs-total-label {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
+      .rs-duration {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-bottom: 10px;
+      }
+      .rs-phases {
+        border-top: 1px solid var(--border-mid);
+        padding-top: 8px;
+        margin-bottom: 8px;
+      }
+      .phase-row--summary {
+        align-items: baseline;
+        margin-bottom: 4px;
+      }
+      .phase-row--summary.rs-phase--skipped {
+        opacity: 0.5;
+      }
+      .phase-row--summary .phase-label {
+        flex: 1;
+        width: auto;
+      }
+      .phase-row--summary .phase-count {
+        color: var(--text-secondary);
+        width: 50px;
+      }
+      .phase-row--summary .rs-phase-points {
+        font-size: 11px;
+        color: var(--green);
+        width: 60px;
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .phase-row--summary.rs-phase--skipped .rs-phase-points {
+        color: var(--text-secondary);
+      }
+      .rs-activity-line {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+      }
+      .rs-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .rs-chip {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        color: var(--text-secondary);
+        background: var(--bg-mid);
+        white-space: nowrap;
+      }
+      .rs-chip--warn {
+        border-color: var(--amber);
+        color: var(--amber);
+      }
+      .rs-chip--err {
+        border-color: var(--red);
+        color: var(--red);
+      }
+
       .points-toast {
         position: absolute;
         right: 88px;
@@ -826,10 +919,7 @@
   <body>
     <div id="main" style="display: none">
       <h1>
-        <span class="dot" id="dot"></span> PointsHarvest<span
-          id="total-pts"
-          style="margin-left: auto; font-size: 12px; font-weight: 500; color: var(--text-secondary)"
-        ></span>
+        <span class="dot" id="dot"></span> PointsHarvest
         <a id="btn-dashboard" href="#" title="Open Bing Rewards dashboard">Dashboard ↗</a>
       </h1>
       <div
@@ -840,6 +930,7 @@
       <div class="progress-bar-wrap">
         <div class="progress-bar" id="progress-bar"></div>
       </div>
+      <div id="run-summary" style="display: none" aria-live="polite"></div>
       <div id="phase-rows">
         <div class="phase-row" id="phase-warmup">
           <span class="phase-label">Warm-up</span>

@@ -25,11 +25,20 @@ export const PHASE = {
 
 export type PhaseKey = (typeof PHASE)[keyof typeof PHASE];
 
+export const PHASE_KEYS: readonly PhaseKey[] = Object.values(PHASE);
+
 export const PHASE_TIME_LABEL: Record<PhaseKey, string> = {
   warmup: '',
   explore: 'this week',
   daily: 'today',
   farm: 'today',
+};
+
+export const PHASE_LABELS: Record<PhaseKey, string> = {
+  warmup: 'Warm-up',
+  explore: 'Explore on Bing',
+  daily: 'Daily Sets',
+  farm: 'PC Searches',
 };
 
 export interface PhaseProgress {
@@ -57,6 +66,31 @@ export interface DebugState {
   debugLog: DebugEntry[];
 }
 
+export const RUN_END = {
+  SUCCESS: 'success',
+  STOPPED: 'stopped',
+  NOT_LOGGED_IN: 'not-logged-in',
+  FATAL: 'fatal',
+  SETUP_FAILED: 'setup-failed',
+} as const;
+
+export type RunEndReason = (typeof RUN_END)[keyof typeof RUN_END];
+
+export interface RunSummary {
+  startedAt: number;
+  endedAt: number;
+  endReason: RunEndReason;
+  phases: PhaseProgressMap;
+  phasePoints: PhasePointsMap;
+  activityCounts: {
+    dailySetsCompleted: number;
+    exploreCompleted: number;
+    locked: number;
+    actionableLeftover: number;
+  };
+  failureCount: number;
+}
+
 export interface UserPreferences {
   skipWarmUp: boolean;
   disableNotifications: boolean;
@@ -76,6 +110,7 @@ export interface RunState {
   failures: FailureEntry[];
   header: HeaderState;
   debug: DebugState;
+  lastRunSummary: RunSummary | null;
 }
 
 export const INITIAL_PREFERENCES: UserPreferences = {
@@ -104,6 +139,7 @@ export const INITIAL_RUN_STATE: RunState = {
   debug: {
     debugLog: [],
   },
+  lastRunSummary: null,
 };
 
 let writeQueue: Promise<void> = Promise.resolve();
