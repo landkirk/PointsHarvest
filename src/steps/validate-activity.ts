@@ -3,6 +3,7 @@ import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { sleep, randMs, TIMING } from '../util/timing.js';
 import { StepBase } from '../interfaces/step.js';
+import { truncate, LABEL_MAX } from '../util/format.js';
 
 import type { Activity } from '../util/activity.js';
 import type { Context } from '../util/context.js';
@@ -34,7 +35,7 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
       })
       .catch(() => null);
 
-    const label = `[${activity.id}] ${activity.title.slice(0, 60)}`;
+    const label = `[${activity.id}] ${truncate(activity.title, LABEL_MAX)}`;
 
     if (!response) {
       await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);

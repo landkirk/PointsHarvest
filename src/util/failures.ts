@@ -1,10 +1,7 @@
 import { MSG_ACTION } from './messaging.js';
-import { setRunState, getFailures } from './persistent-state.js';
+import { appendFailureEntry, getFailures, setRunState } from './persistent-state.js';
 import { dbg, DBG } from './debug.js';
 import type { Context } from './context.js';
-import type { OrchestratorBase } from '../interfaces/orchestrator.js';
-import type { StepBase } from '../interfaces/step.js';
-import type { Activity } from './activity.js';
 
 export const FAIL = {
   AUTH: 'auth',
@@ -26,9 +23,9 @@ export interface FailureEntry {
   time: string;
   category: FailureCategory;
   message: string;
-  orchestrator?: OrchestratorBase;
-  step?: StepBase;
-  activity?: Activity;
+  orchestratorName?: string;
+  stepName?: string;
+  activityTitle?: string;
 }
 
 const MAX_FAILURES = 50;
@@ -53,13 +50,11 @@ export async function fail(
     time: new Date().toLocaleTimeString('en-US', { hour12: false }),
     category,
     message,
-    orchestrator: ctx.activeOrchestrator ?? undefined,
-    step: ctx.activeStep ?? undefined,
-    activity: ctx.activeActivity ?? undefined,
+    orchestratorName: ctx.activeOrchestrator?.name,
+    stepName: ctx.activeStep?.name,
+    activityTitle: ctx.activeActivity?.title,
   };
-  const failures = [...(await getFailures()), entry];
-  if (failures.length > MAX_FAILURES) failures.shift();
-  await setRunState({ failures });
+  await appendFailureEntry(entry, MAX_FAILURES);
   chrome.runtime.sendMessage({ action: MSG_ACTION.FAILURE_ENTRY, failure: entry }).catch(() => {
     /* popup may be closed */
   });

@@ -1,5 +1,5 @@
 import { MSG_ACTION } from './messaging.js';
-import { setDebugState, getDebugLog } from './persistent-state.js';
+import { appendDebugEntry } from './persistent-state.js';
 
 export type DebugType = 'info' | 'warn' | 'error' | 'success';
 
@@ -27,9 +27,7 @@ export async function dbg(type: DebugType, message: string, orchestrator?: strin
     message,
     orchestrator,
   };
-  const log = [...(await getDebugLog()), entry];
-  if (log.length > MAX_LOG_ENTRIES) log.shift();
-  await setDebugState({ debugLog: log });
+  await appendDebugEntry(entry, MAX_LOG_ENTRIES);
   chrome.runtime.sendMessage({ action: MSG_ACTION.DEBUG_ENTRY, entry }).catch(() => {
     /* popup may be closed */
   });

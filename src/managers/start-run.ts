@@ -68,9 +68,9 @@ class StartRun {
       const tab = await this.tabs.openTab(REWARDS_URL);
       this.tabs.untrackTab(tab.id); // managed by _endRun; must not be closed by orchestrator closeAll()
       this.tabs.focusTab(tab.id);
-      if (tab.id === undefined) throw new Error('Rewards tab has no ID');
       rewardsTabId = tab.id;
     } catch {
+      await ctx.fail(FAIL.TAB, 'Failed to open rewards tab');
       await this._endRun(ctx, 'Failed to open Bing Rewards', 'Failed to open rewards tab', false);
       return;
     }

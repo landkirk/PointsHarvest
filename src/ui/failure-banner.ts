@@ -50,6 +50,7 @@ export function renderFailures(failures: FailureEntry[]): void {
   failureBanner.style.display = 'block';
   updateFailureSummary(nonPermission.length);
   failureList.innerHTML = nonPermission.map((f) => failureItemHtml(f)).join('');
+  failureList.style.display = failureListExpanded ? 'block' : 'none';
 }
 
 export function appendFailure(f: FailureEntry): void {
@@ -61,14 +62,15 @@ export function appendFailure(f: FailureEntry): void {
   const div = document.createElement('div');
   div.innerHTML = failureItemHtml(f);
   failureList.appendChild(div.firstElementChild as Element);
+  failureList.style.display = failureListExpanded ? 'block' : 'none';
   updateFailureSummary(failureList.children.length);
 }
 
 function failureItemHtml(f: FailureEntry): string {
   const ctxParts: [string, string][] = [];
-  if (f.orchestrator?.name) ctxParts.push(['orch', f.orchestrator.name]);
-  if (f.step?.name) ctxParts.push(['step', f.step.name]);
-  if (f.activity?.title) ctxParts.push(['activity', f.activity.title]);
+  if (f.orchestratorName) ctxParts.push(['orch', f.orchestratorName]);
+  if (f.stepName) ctxParts.push(['step', f.stepName]);
+  if (f.activityTitle) ctxParts.push(['activity', f.activityTitle]);
   const ctxInner = ctxParts
     .map(([label, val]) => `<span class="f-ctx-label">${label}</span>${esc(val)}`)
     .join('<span class="f-ctx-sep"> › </span>');

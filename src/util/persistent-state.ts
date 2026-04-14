@@ -109,8 +109,32 @@ export const INITIAL_RUN_STATE: RunState = {
 let writeQueue: Promise<void> = Promise.resolve();
 
 function enqueueWrite(fn: () => Promise<void>): Promise<void> {
-  writeQueue = writeQueue.then(fn);
+  writeQueue = writeQueue.then(fn).catch((err) => {
+    console.warn('[persistent-state] write failed:', err);
+  });
   return writeQueue;
+}
+
+/** Atomically appends one entry to the `failures` list, capping at max. */
+export function appendFailureEntry(entry: FailureEntry, max: number): Promise<void> {
+  return enqueueWrite(async () => {
+    const stored = await chrome.storage.local.get('failures');
+    const arr: FailureEntry[] = (stored.failures as FailureEntry[]) ?? [];
+    const next = [...arr, entry];
+    if (next.length > max) next.shift();
+    await chrome.storage.local.set({ failures: next });
+  });
+}
+
+/** Atomically appends one entry to the debug log, capping at max. */
+export function appendDebugEntry(entry: DebugEntry, max: number): Promise<void> {
+  return enqueueWrite(async () => {
+    const stored = await chrome.storage.local.get('debug');
+    const current: DebugState = (stored.debug as DebugState) ?? INITIAL_RUN_STATE.debug;
+    const log = [...current.debugLog, entry];
+    if (log.length > max) log.shift();
+    await chrome.storage.local.set({ debug: { ...current, debugLog: log } });
+  });
 }
 
 // ── Failure category migration ─────────────────────────────────────────────

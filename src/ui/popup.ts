@@ -6,7 +6,7 @@ import type { RunState, UserPreferences, PhasePointsMap } from '../util/persiste
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
-import { renderDebug, appendLogEntry, renderActivitiesAndCounters } from './debug-panel.js';
+import { renderDebug, appendLogEntry } from './debug-panel.js';
 import { renderFailures, appendFailure } from './failure-banner.js';
 import { renderPrefs, bindPrefs, getSkipWarmUp, getDebugMode } from './prefs-panel.js';
 
@@ -136,7 +136,6 @@ async function render(): Promise<void> {
   renderFailures(run.failures ?? []);
   if (getDebugMode()) {
     renderDebug(run);
-    renderActivitiesAndCounters(run);
   }
 }
 
