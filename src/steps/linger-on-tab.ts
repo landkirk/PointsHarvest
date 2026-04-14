@@ -29,8 +29,6 @@ export function lingerOnTab(ctx: Context, tabId: number, timeoutMs: number): Lin
     await ctx.broadcastProgress();
     await Promise.race([earlyPromise, sleep(timeoutMs, ctx.signal)]);
     await ctx.setState({ isLingering: false });
-    await setHeaderState({ headerMessage: 'Resuming…' });
-    await ctx.broadcastProgress();
   })();
 
   return { promise, resolve: earlyResolve, tabId };
