@@ -26,6 +26,7 @@ This extension:
 7. Clicks each daily set activity card on the rewards page (the same way Explore cards are clicked, so Bing can track completion); for quizzes, polls, tests, and puzzles it activates the opened tab and waits for you to complete them manually (click **Done** when finished); for other activity types it dwells briefly and closes automatically
 8. Farms remaining PC search points automatically using additional queries from a rotation pool
 9. Closes all tabs with staggered timing to appear more human-like
+10. Shows a run summary card with the run duration, points earned per phase, and activity counts
 
 ## Installation
 
@@ -55,7 +56,8 @@ The extension tracks the last run date and progress:
 - If you run it today and complete all searches, it shows "Done for today!" and won't run again until tomorrow
 - If interrupted mid-run, it resumes from where it left off (same day only)
 - Each new day, the date check resets and you can run it again
-- The popup shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, PC Search) and earned points for each phase
+- The popup shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, PC Search); earned points count up as each phase credits them
+- When the run ends, the popup shows a summary card with duration, points earned per phase, and activity counts
 
 ## How it works
 
@@ -201,7 +203,8 @@ If the DOM extraction finds 0 activities (e.g. the rewards page structure change
 - **Speed preference**: Set via the popup settings. Normal (1.0×) is default. Fast (0.6×), Slow (4.0×), and Stealth (8.0×) scale all timing except the pre-search dwell.
 - The extension clicks activity cards on the rewards page to open search tabs — this is how Bing tracks the activity as completed.
 - All search tabs close automatically after each search with staggered delays (300–1200 ms between closes) to appear more natural.
-- Daily set activities that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run.
+- Daily set activities that require user interaction (quizzes, polls, tests, puzzles) are surfaced to you automatically — the tab activates so you can complete it, then click **Done** in the popup to continue. Closing the tab also resumes the run. The popup header names the specific activity (e.g. `Complete the quiz "..." in the Bing tab, then click Done.`) so you know exactly what to do.
+- The popup header includes a link to the Bing Rewards Dashboard for quick manual access.
 - The extension detects if you're not logged into Bing Rewards and will abort with an error message.
 - Bing may occasionally not credit a search if the tab closes too fast; the default post-search dwell (6–10s) should be sufficient. If you notice missed points, increase your Speed setting to Slow (4.0×) or Stealth (8.0×).
 - After all cards and daily sets are processed, the extension farms any remaining PC search points automatically using a rotation of queries from the pool.
