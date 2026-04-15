@@ -1,0 +1,21 @@
+---
+layout: base.njk
+ogType: article
+extraStyles:
+  - /prose.css
+---
+  <div class="post-wrapper">
+    <a class="back-link" href="/blog/">&larr; Back to Blog</a>
+
+    <header class="post-header">
+      <div class="post-date">{{ date | formatDate }}</div>
+      <h1 class="post-title">{{ title }}</h1>
+      <p class="post-summary-text">{{ description }}</p>
+    </header>
+
+    <hr class="section-divider section-divider--tight" />
+
+    <div class="prose">
+      {{ content | safe }}
+    </div>
+  </div>

@@ -1,8 +1,7 @@
 ---
 title: How Many Microsoft Rewards Points Can You Actually Earn?
 date: 2026-04-02
-summary: A full breakdown of the ~23,000 points available each month through Microsoft Rewards — and how much of that grind Points Harvest handles for you.
-slug: maximum-rewards-points
+description: A full breakdown of the ~23,000 points available each month through Microsoft Rewards — and how much of that grind Points Harvest handles for you.
 ---
 
 ## The Short Answer
@@ -166,4 +165,4 @@ The first tier is the sweet spot for most people: maximum points for minimum eff
 
 ## Get Started
 
-If thousands of free points a month for a few minutes of daily effort sounds good, check out the [getting started guide](../getting-started/index.html) to install Points Harvest and run your first session.
+If thousands of free points a month for a few minutes of daily effort sounds good, check out the [getting started guide](/blog/getting-started/) to install Points Harvest and run your first session.
