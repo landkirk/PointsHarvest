@@ -63,7 +63,7 @@ Popup (Start button)
 
 ### Marketing site (`site/` → `docs/`)
 
-- Eleventy (`eleventy.config.js`) reads from `site/` and writes to `docs/`. `docs/` is pure generated output but is committed so GitHub Pages can serve it.
+- Eleventy (`eleventy.config.js`) reads from `site/` and writes to `docs/`. `docs/` is pure generated output, gitignored, and built/deployed by the `Deploy Site` GitHub Actions workflow (`.github/workflows/pages.yml`).
 - Layouts and partials live in `site/_includes/` (`base.njk`, `post.njk`, `partials/nav.njk`, `partials/footer.njk`) — nav, footer, and meta tags exist in exactly one place each.
 - Global template data (base URL, version, download URL) is in `site/_data/site.js`, which reads `package.json` so the download button stays in sync with the extension version automatically.
 - Hand-written pages: `site/index.njk`, `site/contact.njk`. Blog listing: `site/blog.njk`. Blog posts: markdown in `site/blog/*.md` + directory data `site/blog/blog.json`. Sitemap: `site/sitemap.njk`. Static assets: `site/static/*` (passthrough-copied).
