@@ -362,6 +362,14 @@
         white-space: nowrap;
         width: 80px;
         text-align: right;
+        transform-origin: right center;
+        transition:
+          color 650ms ease-out,
+          transform 650ms ease-out;
+      }
+      .phase-earned.earning {
+        color: var(--green);
+        transform: scale(1.12);
       }
       /* ── Run summary card ── */
       #run-summary {
@@ -454,32 +462,6 @@
       .rs-chip--err {
         border-color: var(--red);
         color: var(--red);
-      }
-
-      .points-toast {
-        position: absolute;
-        right: 88px;
-        top: -2px;
-        font-size: 10px;
-        font-weight: 600;
-        color: var(--green);
-        pointer-events: none;
-        white-space: nowrap;
-        animation: pointsFloat 800ms ease-out forwards;
-      }
-      @keyframes pointsFloat {
-        0% {
-          opacity: 0;
-          transform: translateY(4px);
-        }
-        20% {
-          opacity: 1;
-          transform: translateY(0);
-        }
-        100% {
-          opacity: 0;
-          transform: translateY(-14px);
-        }
       }
 
       .last-search {
