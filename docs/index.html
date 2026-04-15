@@ -20,49 +20,8 @@
   <meta name="twitter:image" content="https://pointsharvest.com/icon1024.png" />
 
   <link rel="icon" type="image/png" href="icon1024.png" />
+  <link rel="stylesheet" href="site.css" />
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --border: #2a2d3a;
-      --accent: #f59e0b;
-      --accent-dim: #b45309;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --radius: 10px;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.6;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    /* NAV */
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 2rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      font-weight: 700;
-      font-size: 1.1rem;
-      color: var(--text);
-      text-decoration: none;
-    }
-    .nav-logo:hover { text-decoration: none; }
-    .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.9rem; color: var(--muted); }
-    .nav-links a { color: var(--muted); }
-    .nav-links a:hover { color: var(--text); text-decoration: none; }
     .nav-btn { padding: 0.35rem 0.9rem; font-size: 0.82rem; }
     .nav-links .nav-btn, .nav-links .nav-btn:hover { color: #000; text-decoration: none; }
 
@@ -253,34 +212,6 @@
     }
     .step-body h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.2rem; }
     .step-body p { font-size: 0.88rem; color: var(--muted); }
-    code {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0.1rem 0.4rem;
-      font-size: 0.85em;
-      font-family: "SF Mono", "Fira Code", monospace;
-    }
-
-    /* DIVIDER */
-    .section-divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-
-    /* FOOTER */
-    footer {
-      border-top: 1px solid var(--border);
-      text-align: center;
-      padding: 2rem;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    footer a { color: var(--muted); }
-    footer a:hover { color: var(--text); }
   </style>
   <link rel="stylesheet" href="preview.css" />
 </head>
@@ -293,6 +224,7 @@
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
       <a href="blog/index.html">Blog</a>
+      <a href="contact.html">Contact</a>
     </div>
   </nav>
 
@@ -478,6 +410,7 @@
   </section>
 
   <footer>
+    <p>Questions or feedback? <a href="contact.html">Contact us</a>.</p>
     <p>Points Harvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
     <p>Microsoft, Bing, and Bing Rewards are trademarks of Microsoft Corporation.</p>
   </footer>
