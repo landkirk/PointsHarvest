@@ -163,7 +163,7 @@ site/                   Eleventy source for the marketing site (pointsharvest.co
   sitemap.njk             Generates sitemap.xml from the posts collection
   static/                 Passthrough-copied assets (site.css, CNAME, icons, JS)
 eleventy.config.js      Eleventy config (input=site, output=docs, passthrough, filters)
-docs/                   Generated marketing site output (committed for GitHub Pages)
+docs/                   Generated marketing site output (gitignored; built and deployed by the Deploy Site workflow)
 .github/workflows/      GitHub Actions for automated releases
 ```
 
@@ -687,7 +687,7 @@ Fix any remaining references. Ignore `package-lock.json` — it will show the ol
 
 ```bash
 npm run build
-git add manifest.json package.json docs/ src/util/screens.ts src/ui/screens/ DEVELOP.md README.md CLAUDE.md
+git add manifest.json package.json src/util/screens.ts src/ui/screens/ DEVELOP.md README.md CLAUDE.md
 git commit -m "Release vX.Y.Z"
 git tag vX.Y.Z
 git push origin main
