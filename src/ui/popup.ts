@@ -49,13 +49,38 @@ let prevPhasePoints: Partial<PhasePointsMap> = {};
 let phasePointsInitialized = false;
 let wasRunning = false;
 
-function showPointsToast(phase: PhaseKey, delta: number): void {
-  const row = phaseEls[phase];
-  const toast = document.createElement('div');
-  toast.className = 'points-toast';
-  toast.textContent = `+${delta} pts`;
-  toast.addEventListener('animationend', () => toast.remove(), { once: true });
-  row.appendChild(toast);
+const animHandles: Partial<Record<PhaseKey, number>> = {};
+const animDisplayed: Partial<Record<PhaseKey, number>> = {};
+
+function stopPhaseAnim(phase: PhaseKey): void {
+  const handle = animHandles[phase];
+  if (handle !== undefined) cancelAnimationFrame(handle);
+  animHandles[phase] = undefined;
+  phaseEarnedEls[phase].classList.remove('earning');
+}
+
+function animatePhaseEarned(phase: PhaseKey, from: number, to: number): void {
+  const el = phaseEarnedEls[phase];
+  const handle = animHandles[phase];
+  if (handle !== undefined) cancelAnimationFrame(handle);
+
+  const duration = 650;
+  const start = performance.now();
+  el.classList.add('earning');
+
+  const tick = (now: number): void => {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    const current = Math.round(from + (to - from) * eased);
+    animDisplayed[phase] = current;
+    el.textContent = phaseEarnedLabel(phase, current);
+    if (t < 1) {
+      animHandles[phase] = requestAnimationFrame(tick);
+    } else {
+      stopPhaseAnim(phase);
+    }
+  };
+  animHandles[phase] = requestAnimationFrame(tick);
 }
 
 const phaseRowsEl = document.getElementById('phase-rows') as HTMLElement;
@@ -76,10 +101,13 @@ function hasAnyPhases(phases: PhaseProgressMap | null | undefined): boolean {
 function renderPhasePoints(phasePoints: Partial<PhasePointsMap> | null | undefined): void {
   for (const key of PHASE_KEYS) {
     const pts = phasePoints?.[key] ?? 0;
-    phaseEarnedEls[key].textContent = pts > 0 ? phaseEarnedLabel(key, pts) : '';
-    const delta = pts - (prevPhasePoints[key] ?? 0);
+    const prev = prevPhasePoints[key] ?? 0;
+    const delta = pts - prev;
     if (phasePointsInitialized && delta > 0) {
-      showPointsToast(key, delta);
+      const from = animHandles[key] !== undefined ? (animDisplayed[key] ?? prev) : prev;
+      animatePhaseEarned(key, from, pts);
+    } else if (animHandles[key] === undefined) {
+      phaseEarnedEls[key].textContent = pts > 0 ? phaseEarnedLabel(key, pts) : '';
     }
   }
   prevPhasePoints = { ...(phasePoints ?? {}) };
@@ -144,6 +172,10 @@ async function render(): Promise<void> {
   if (isRunning && !wasRunning) {
     prevPhasePoints = {};
     phasePointsInitialized = false;
+    for (const key of PHASE_KEYS) {
+      stopPhaseAnim(key);
+      animDisplayed[key] = undefined;
+    }
   }
   wasRunning = !!isRunning;
 
