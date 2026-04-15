@@ -1,8 +1,7 @@
 ---
 title: Getting Started with Points Harvest
 date: 2026-04-02
-summary: A step-by-step guide to installing Points Harvest and earning your first Bing Rewards points on autopilot — no technical experience required.
-slug: getting-started
+description: A step-by-step guide to installing Points Harvest and earning your first Bing Rewards points on autopilot — no technical experience required.
 ---
 
 ## What is Points Harvest?

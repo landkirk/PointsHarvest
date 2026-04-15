@@ -1,42 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Points Harvest — Automate Your Bing Rewards</title>
-  <meta name="description" content="Points Harvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required." />
-
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://pointsharvest.com/" />
-  <meta property="og:title" content="Points Harvest — Automate Your Bing Rewards" />
-  <meta property="og:description" content="Points Harvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required." />
-  <meta property="og:image" content="https://pointsharvest.com/icon1024.png" />
-
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Points Harvest — Automate Your Bing Rewards" />
-  <meta name="twitter:description" content="Points Harvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required." />
-  <meta name="twitter:image" content="https://pointsharvest.com/icon1024.png" />
-
-  <link rel="icon" type="image/png" href="/icon1024.png" />
-  <link rel="stylesheet" href="/site.css" />
-  <link rel="stylesheet" href="/landing.css" />
-  <link rel="stylesheet" href="/preview.css" />
-</head>
-<body>
-  <nav>
-    <a class="nav-logo" href="/">Points<span>Harvest</span></a>
-    <div class="nav-links">
-      <a href="/#features">Features</a>
-      <a href="/#install">Install</a>
-      <a href="/#faq">FAQ</a>
-      <a href="/blog/">Blog</a>
-      <a href="/contact.html">Contact</a>
-    </div>
-  </nav>
-
-
+---
+layout: base.njk
+permalink: /index.html
+title: Points Harvest — Automate Your Bing Rewards
+description: Points Harvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required.
+showContactLink: true
+extraStyles:
+  - /landing.css
+  - /preview.css
+extraScripts:
+  - /preview.js
+---
 
   <section class="hero">
     <h1>Earn Bing Rewards<br /><span>on autopilot</span></h1>
@@ -44,7 +17,7 @@
     <p>Users in the United States can potentially earn around <strong>7,900 points per month</strong> (~$100/year) through the extension alone. <a href="/blog/maximum-rewards-points/">See the full breakdown.</a></p>
     <p class="hero-disclaimer">Not affiliated with or endorsed by Microsoft.</p>
     <div class="cta-group">
-      <a class="btn btn-primary" href="https://r2.pointsharvest.com/PointsHarvest-v2.1.0.zip" download>Download Latest (v2.1.0)</a>
+      <a class="btn btn-primary" href="{{ site.downloadUrl }}" download>Download Latest ({{ site.extensionVersion }})</a>
     </div>
   </section>
 
@@ -145,7 +118,7 @@
         <div class="step-num">1</div>
         <div class="step-body">
           <h4>Download the latest release</h4>
-          <p>Download the latest <a href="https://r2.pointsharvest.com/PointsHarvest-v2.1.0.zip">PointsHarvest-v2.1.0.zip</a> and extract it.</p>
+          <p>Download the latest <a href="{{ site.downloadUrl }}">PointsHarvest-{{ site.extensionVersion }}.zip</a> and extract it.</p>
         </div>
       </div>
       <div class="step">
@@ -218,14 +191,3 @@
 
     </div>
   </section>
-
-
-  <footer>
-    <p>Questions or feedback? <a href="/contact.html">Contact us</a>.</p>
-    <p>Points Harvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
-    <p>Microsoft, Bing, and Bing Rewards are trademarks of Microsoft Corporation.</p>
-  </footer>
-
-<script src="/preview.js"></script>
-</body>
-</html>

@@ -3,219 +3,41 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>How Many Microsoft Rewards Points Can You Actually Earn? — Points Harvest</title>
+  <title>How Many Microsoft Rewards Points Can You Actually Earn?</title>
   <meta name="description" content="A full breakdown of the ~23,000 points available each month through Microsoft Rewards — and how much of that grind Points Harvest handles for you." />
 
   <!-- Open Graph -->
   <meta property="og:type" content="article" />
   <meta property="og:url" content="https://pointsharvest.com/blog/maximum-rewards-points/" />
-  <meta property="og:title" content="How Many Microsoft Rewards Points Can You Actually Earn? — Points Harvest" />
+  <meta property="og:title" content="How Many Microsoft Rewards Points Can You Actually Earn?" />
   <meta property="og:description" content="A full breakdown of the ~23,000 points available each month through Microsoft Rewards — and how much of that grind Points Harvest handles for you." />
   <meta property="og:image" content="https://pointsharvest.com/icon1024.png" />
 
-  <link rel="icon" type="image/png" href="../../icon1024.png" />
-  <style>
-    
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="How Many Microsoft Rewards Points Can You Actually Earn?" />
+  <meta name="twitter:description" content="A full breakdown of the ~23,000 points available each month through Microsoft Rewards — and how much of that grind Points Harvest handles for you." />
+  <meta name="twitter:image" content="https://pointsharvest.com/icon1024.png" />
 
-    :root {
-      --bg: #0f1117;
-      --surface: #1a1d27;
-      --border: #2a2d3a;
-      --accent: #f59e0b;
-      --accent-dim: #b45309;
-      --text: #e2e8f0;
-      --muted: #94a3b8;
-      --radius: 10px;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.6;
-    }
-
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 2rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      font-weight: 700;
-      font-size: 1.1rem;
-      color: var(--text);
-      text-decoration: none;
-    }
-    .nav-logo:hover { text-decoration: none; }
-    .nav-logo span { color: var(--accent); }
-    .nav-links { display: flex; align-items: center; gap: 1.5rem; font-size: 0.9rem; color: var(--muted); }
-    .nav-links a { color: var(--muted); }
-    .nav-links a:hover { color: var(--text); text-decoration: none; }
-    .nav-links a.active { color: var(--text); }
-
-    footer {
-      border-top: 1px solid var(--border);
-      text-align: center;
-      padding: 2rem;
-      font-size: 0.85rem;
-      color: var(--muted);
-    }
-    footer a { color: var(--muted); }
-    footer a:hover { color: var(--text); }
-
-    .section-divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    code {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 0.1rem 0.4rem;
-      font-size: 0.85em;
-      font-family: "SF Mono", "Fira Code", monospace;
-    }
-
-
-    .post-wrapper {
-      max-width: 1100px;
-      margin: 3rem auto 4rem;
-      padding: 0 2rem;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 2rem;
-    }
-    .back-link:hover { color: var(--text); text-decoration: none; }
-
-    .post-header { margin-bottom: 2.5rem; }
-    .post-date {
-      font-size: 0.78rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.6rem;
-    }
-    .post-title {
-      font-size: clamp(1.8rem, 4vw, 2.6rem);
-      font-weight: 800;
-      line-height: 1.2;
-      margin-bottom: 0.75rem;
-    }
-    .post-summary-text {
-      font-size: 1.05rem;
-      color: var(--muted);
-      line-height: 1.65;
-    }
-
-    /* Prose styles for rendered markdown */
-    .prose { line-height: 1.75; }
-    .prose h2 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin: 2.25rem 0 0.75rem;
-      padding-bottom: 0.4rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .prose h3 {
-      font-size: 1.15rem;
-      font-weight: 600;
-      margin: 1.75rem 0 0.5rem;
-    }
-    .prose h4 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin: 1.25rem 0 0.4rem;
-      color: var(--muted);
-    }
-    .prose p { margin-bottom: 1.1rem; }
-    .prose ul, .prose ol {
-      margin: 0 0 1.1rem 1.5rem;
-    }
-    .prose li { margin-bottom: 0.35rem; }
-    .prose blockquote {
-      border-left: 3px solid var(--accent);
-      margin: 1.5rem 0;
-      padding: 0.75rem 1.25rem;
-      background: var(--surface);
-      border-radius: 0 var(--radius) var(--radius) 0;
-      color: var(--muted);
-      font-style: italic;
-    }
-    .prose pre {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.1rem 1.25rem;
-      overflow-x: auto;
-      margin-bottom: 1.1rem;
-    }
-    .prose pre code {
-      background: none;
-      border: none;
-      padding: 0;
-      font-size: 0.88rem;
-    }
-    .prose strong { color: var(--text); font-weight: 600; }
-    .prose em { color: var(--muted); }
-    .prose hr {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 2rem 0;
-    }
-    .prose img {
-      max-width: 100%;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
-      margin: 1rem 0;
-    }
-    .prose table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 1.1rem;
-      font-size: 0.9rem;
-    }
-    .prose th, .prose td {
-      border: 1px solid var(--border);
-      padding: 0.5rem 0.75rem;
-      text-align: left;
-    }
-    .prose th {
-      background: var(--surface);
-      font-weight: 600;
-    }
-  </style>
+  <link rel="icon" type="image/png" href="/icon1024.png" />
+  <link rel="stylesheet" href="/site.css" />
+  <link rel="stylesheet" href="/prose.css" />
 </head>
 <body>
-
   <nav>
-    <a class="nav-logo" href="../../index.html">Points<span>Harvest</span></a>
+    <a class="nav-logo" href="/">Points<span>Harvest</span></a>
     <div class="nav-links">
-      <a href="../../index.html#features">Features</a>
-      <a href="../../index.html#install">Install</a>
-      <a href="../../index.html#faq">FAQ</a>
-      <a href="../../blog/index.html" class="active">Blog</a>
-      <a href="../../contact.html">Contact</a>
+      <a href="/#features">Features</a>
+      <a href="/#install">Install</a>
+      <a href="/#faq">FAQ</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="/contact.html">Contact</a>
     </div>
   </nav>
 
 
   <div class="post-wrapper">
-    <a class="back-link" href="../index.html">&larr; Back to Blog</a>
+    <a class="back-link" href="/blog/">&larr; Back to Blog</a>
 
     <header class="post-header">
       <div class="post-date">April 2, 2026</div>
@@ -223,11 +45,11 @@
       <p class="post-summary-text">A full breakdown of the ~23,000 points available each month through Microsoft Rewards — and how much of that grind Points Harvest handles for you.</p>
     </header>
 
-    <hr class="section-divider" style="margin: 0 0 2rem;" />
+    <hr class="section-divider section-divider--tight" />
 
     <div class="prose">
       <h2>The Short Answer</h2>
-<p>If you&#39;re in the United States and complete every single Microsoft Rewards activity every day — Bing searches, daily sets, Xbox quests, Game Pass challenges, and everything in between — you can earn roughly <strong>23,401 points per month</strong>. That&#39;s about <strong>$25 in Microsoft credit</strong>, or around <strong>$296 per year</strong>.</p>
+<p>If you're in the United States and complete every single Microsoft Rewards activity every day — Bing searches, daily sets, Xbox quests, Game Pass challenges, and everything in between — you can earn roughly <strong>23,401 points per month</strong>. That's about <strong>$25 in Microsoft credit</strong>, or around <strong>$296 per year</strong>.</p>
 <p>That number breaks down into two buckets:</p>
 <ul>
 <li><strong>Bing activities:</strong> 14,856 points/month (~$188/year)</li>
@@ -238,40 +60,46 @@
 <p><strong>Note:</strong> These numbers are based on a <a href="https://www.reddit.com/r/MicrosoftRewards/comments/1o053fo/updated_list_of_maximum_microsoft_rewards/">community-compiled breakdown on r/MicrosoftRewards</a> as of October 2025 and apply to the <strong>United States only</strong>. Point values vary significantly by region — many countries have lower caps or fewer activity types. Microsoft also adjusts the Rewards program periodically, so exact values may shift. The structure and categories tend to stay the same.</p>
 </blockquote>
 <blockquote>
-<p><strong>Account restrictions:</strong> Microsoft applies various restrictions to Rewards accounts that can reduce your actual earnings or add friction to the process. Newer accounts may have lower search caps, limited redemption options, or delayed point crediting. Some accounts face CAPTCHAs or verification prompts more frequently than others. These restrictions vary by account age, activity history, and other factors Microsoft doesn&#39;t publicly disclose — so your mileage may vary, especially when starting out.</p>
+<p><strong>Account restrictions:</strong> Microsoft applies various restrictions to Rewards accounts that can reduce your actual earnings or add friction to the process. Newer accounts may have lower search caps, limited redemption options, or delayed point crediting. Some accounts face CAPTCHAs or verification prompts more frequently than others. These restrictions vary by account age, activity history, and other factors Microsoft doesn't publicly disclose — so your mileage may vary, especially when starting out.</p>
 </blockquote>
 <h2>The Full Breakdown</h2>
 <h3>Automated by Points Harvest: ~7,932 Points</h3>
 <p>These activities are handled automatically by the Points Harvest extension. Run it once a day and it works through them for you — no subscriptions required, just a Microsoft account and a desktop browser. The extension runs three phases in order:</p>
 <h4>Phase 1: Explore with Bing (~1,782/month)</h4>
 <ul>
-<li><p><strong>Bonus items (Explore on Bing)</strong> — ~30 points/day = <strong>900/month</strong>
-Additional activity cards that appear below the daily set on the Rewards dashboard. These are typically &quot;Search on Bing&quot; cards — click the card, perform the suggested search, and earn 10–30 points each. Points Harvest reads these cards, extracts the search queries, and completes them. If a search doesn&#39;t register, it retries with an alternative query.</p>
+<li>
+<p><strong>Bonus items (Explore on Bing)</strong> — ~30 points/day = <strong>900/month</strong>
+Additional activity cards that appear below the daily set on the Rewards dashboard. These are typically &quot;Search on Bing&quot; cards — click the card, perform the suggested search, and earn 10–30 points each. Points Harvest reads these cards, extracts the search queries, and completes them. If a search doesn't register, it retries with an alternative query.</p>
 <p><em>Effort: zero — fully automated.</em></p>
 </li>
-<li><p><strong>Timed-locked tiles</strong> — 120 points/week = <strong>516/month</strong>
-Special tiles on the Rewards dashboard that unlock on a set schedule throughout the week. Click them when they become available to earn points — they&#39;re usually simple click-through activities. Points Harvest clicks through these automatically when it runs.</p>
+<li>
+<p><strong>Timed-locked tiles</strong> — 120 points/week = <strong>516/month</strong>
+Special tiles on the Rewards dashboard that unlock on a set schedule throughout the week. Click them when they become available to earn points — they're usually simple click-through activities. Points Harvest clicks through these automatically when it runs.</p>
 <p><em>Effort: zero — fully automated.</em></p>
 </li>
-<li><p><strong>Search with Bing card</strong> — 85 points/week = <strong>366/month</strong>
-A weekly challenge card on the Rewards dashboard. Complete a set number of Bing searches during the week to earn the bonus. Points Harvest&#39;s daily PC searches satisfy this requirement automatically.</p>
+<li>
+<p><strong>Search with Bing card</strong> — 85 points/week = <strong>366/month</strong>
+A weekly challenge card on the Rewards dashboard. Complete a set number of Bing searches during the week to earn the bonus. Points Harvest's daily PC searches satisfy this requirement automatically.</p>
 <p><em>Effort: zero — earned as a side effect of automated searches.</em></p>
 </li>
 </ul>
 <h4>Phase 2: Daily Set (~1,650/month)</h4>
 <ul>
-<li><p><strong>Daily Set tiles</strong> — ~40 points/day = <strong>1,200/month</strong>
+<li>
+<p><strong>Daily Set tiles</strong> — ~40 points/day = <strong>1,200/month</strong>
 A rotating set of 3 tiles on the Rewards dashboard that refresh every day. These can be quizzes (multiple choice trivia), polls (pick an option), or article links (click through to read). Each tile is worth 10–30 points. Points Harvest completes simple tiles automatically. For quizzes, polls, and puzzles, it opens the tab and pauses so you can answer — then picks up where it left off.</p>
 <p><em>Effort: ~1 minute/day for interactive tiles, the rest is automated.</em></p>
 </li>
-<li><p><strong>Daily Set 10-day streak bonus</strong> — 150 points per streak = <strong>450/month</strong>
+<li>
+<p><strong>Daily Set 10-day streak bonus</strong> — 150 points per streak = <strong>450/month</strong>
 Complete all daily set tiles for 10 consecutive days to earn a 150-point bonus. Miss a day and the streak resets. With 30 days in a month you can earn up to 3 streak bonuses. Points Harvest earns this automatically as a side effect of completing the daily set each day.</p>
 <p><em>Effort: zero — earned automatically by running the extension daily.</em></p>
 </li>
 </ul>
 <h4>Phase 3: Search Farm (4,500/month)</h4>
 <ul>
-<li><p><strong>PC Search</strong> — 150 points/day = <strong>4,500/month</strong>
+<li>
+<p><strong>PC Search</strong> — 150 points/day = <strong>4,500/month</strong>
 Search for anything on Bing using a desktop browser. Each search earns 5 points, up to 30 searches per day. Points Harvest runs searches automatically until your daily cap is reached. This is the single largest automatable category, and the most mind-numbing to do by hand.</p>
 <p><em>Effort: zero — fully automated.</em></p>
 </li>
@@ -280,90 +108,109 @@ Search for anything on Bing using a desktop browser. Each search earns 5 points,
 <p><strong>Subtotal: ~7,932 points/month automated.</strong> A full run takes about 2–5 minutes, most of which you can ignore.</p>
 </blockquote>
 <h3>Manual Bing Activities: ~6,924 Points</h3>
-<p>These Bing activities aren&#39;t handled by the extension — but none of them require a subscription and most are low-effort.</p>
+<p>These Bing activities aren't handled by the extension — but none of them require a subscription and most are low-effort.</p>
 <ul>
-<li><p><strong>Mobile Search</strong> — 100 points/day = <strong>3,000/month</strong>
-Same as PC search, but performed on a mobile device. Each search earns 5 points, up to 20 searches per day. Use the Bing app or visit bing.com in your phone&#39;s browser.</p>
+<li>
+<p><strong>Mobile Search</strong> — 100 points/day = <strong>3,000/month</strong>
+Same as PC search, but performed on a mobile device. Each search earns 5 points, up to 20 searches per day. Use the Bing app or visit bing.com in your phone's browser.</p>
 <p><em>Effort: ~10 minutes/day.</em></p>
 </li>
-<li><p><strong>Read news to earn</strong> — 30 points/day = <strong>900/month</strong>
-Click on news articles through Bing&#39;s news feed or the Microsoft Start page. You earn points for opening and briefly viewing the articles.</p>
+<li>
+<p><strong>Read news to earn</strong> — 30 points/day = <strong>900/month</strong>
+Click on news articles through Bing's news feed or the Microsoft Start page. You earn points for opening and briefly viewing the articles.</p>
 <p><em>Effort: ~10 minutes/day.</em></p>
 </li>
-<li><p><strong>Browse with Edge</strong> — 130 points/week = <strong>559/month</strong>
+<li>
+<p><strong>Browse with Edge</strong> — 130 points/week = <strong>559/month</strong>
 Use Microsoft Edge as your web browser. Points are awarded based on active browsing time during the week. Simply using Edge as your default browser earns this passively.</p>
 <p><em>Effort: none if Edge is your default browser.</em></p>
 </li>
-<li><p><strong>Read Outlook Emails</strong> — 130 points/week = <strong>559/month</strong>
+<li>
+<p><strong>Read Outlook Emails</strong> — 130 points/week = <strong>559/month</strong>
 Open and read emails in Outlook (web or app). Microsoft tracks engagement with your inbox and awards points weekly. Just using Outlook normally for email is usually enough.</p>
 <p><em>Effort: none if Outlook is already your email client, otherwise ~2 minutes/day.</em></p>
 </li>
-<li><p><strong>Check in to Bing App</strong> — 110 points/week = <strong>473/month</strong>
+<li>
+<p><strong>Check in to Bing App</strong> — 110 points/week = <strong>473/month</strong>
 Open the Bing mobile app and tap the Rewards icon to check in. You need to do this daily to earn the full weekly bonus — each day you check in adds to the weekly total.</p>
 <p><em>Effort: ~10 seconds/day.</em></p>
 </li>
-<li><p><strong>Puzzle piece mosaic</strong> — 1,000 points per 3 weeks = <strong>~1,433/month</strong>
+<li>
+<p><strong>Puzzle piece mosaic</strong> — 1,000 points per 3 weeks = <strong>~1,433/month</strong>
 A recurring challenge on the Rewards dashboard where you collect puzzle pieces by completing various activities over a 3-week period. Fill the entire mosaic to earn the bonus.</p>
 <p><em>Effort: ~2–3 minutes/day checking your mosaic progress and completing the required activities.</em></p>
 </li>
 </ul>
 <h3>Xbox and Game Pass: 8,545 Points</h3>
-<p>These require an <strong>Xbox Game Pass Ultimate</strong> subscription and regular gaming on PC or console. If you&#39;re already a gamer, these points add up quickly as a byproduct of playing.</p>
+<p>These require an <strong>Xbox Game Pass Ultimate</strong> subscription and regular gaming on PC or console. If you're already a gamer, these points add up quickly as a byproduct of playing.</p>
 <ul>
-<li><p><strong>Game Pass weekly streak (4x multiplier)</strong> — 700 points/week = <strong>3,010/month</strong>
+<li>
+<p><strong>Game Pass weekly streak (4x multiplier)</strong> — 700 points/week = <strong>3,010/month</strong>
 Complete Game Pass quests every week without breaking your streak. The multiplier builds over time — at 4x, each weekly quest completion is worth significantly more. Breaking the streak resets the multiplier to 1x.</p>
 <p><em>Effort: ~10–15 minutes/week maintaining the streak, but you must not miss a week.</em></p>
 </li>
-<li><p><strong>Game Pass weekly PC bonus</strong> — 260 points/week = <strong>1,118/month</strong>
+<li>
+<p><strong>Game Pass weekly PC bonus</strong> — 260 points/week = <strong>1,118/month</strong>
 Complete a set of PC-specific Game Pass quests each week. These typically involve playing specific games, earning achievements, or hitting playtime thresholds in Game Pass titles on PC.</p>
 <p><em>Effort: ~15–30 minutes/week.</em></p>
 </li>
-<li><p><strong>Game Pass weekly console bonus</strong> — 260 points/week = <strong>1,118/month</strong>
+<li>
+<p><strong>Game Pass weekly console bonus</strong> — 260 points/week = <strong>1,118/month</strong>
 Same as the PC bonus but for Xbox console. Complete console-specific Game Pass quests each week.</p>
 <p><em>Effort: ~15–30 minutes/week.</em></p>
 </li>
-<li><p><strong>Play a PC game</strong> — 20 points/day = <strong>600/month</strong>
+<li>
+<p><strong>Play a PC game</strong> — 20 points/day = <strong>600/month</strong>
 Launch and play any game on your PC through the Xbox app or Microsoft Store. You just need to play for a few minutes to register the activity.</p>
-<p><em>Effort: ~5 minutes/day, or zero if you&#39;re already gaming.</em></p>
+<p><em>Effort: ~5 minutes/day, or zero if you're already gaming.</em></p>
 </li>
-<li><p><strong>Play a console game</strong> — 20 points/day = <strong>600/month</strong>
+<li>
+<p><strong>Play a console game</strong> — 20 points/day = <strong>600/month</strong>
 Launch and play any game on your Xbox console. Same as the PC version — a few minutes of playtime registers the activity.</p>
-<p><em>Effort: ~5 minutes/day, or zero if you&#39;re already gaming.</em></p>
+<p><em>Effort: ~5 minutes/day, or zero if you're already gaming.</em></p>
 </li>
-<li><p><strong>Play a Game Pass game</strong> — 20 points/day = <strong>600/month</strong>
+<li>
+<p><strong>Play a Game Pass game</strong> — 20 points/day = <strong>600/month</strong>
 Launch and play any game from the Game Pass library specifically. This stacks with the generic &quot;play a game&quot; activities above.</p>
-<p><em>Effort: ~5 minutes/day, or zero if you&#39;re already playing Game Pass titles.</em></p>
+<p><em>Effort: ~5 minutes/day, or zero if you're already playing Game Pass titles.</em></p>
 </li>
-<li><p><strong>Use the Xbox App</strong> — 130 points/week = <strong>559/month</strong>
+<li>
+<p><strong>Use the Xbox App</strong> — 130 points/week = <strong>559/month</strong>
 Open the Xbox app on PC or mobile and browse around. Check your friends list, look at the store, or view your achievements. Basic engagement with the app is enough.</p>
 <p><em>Effort: ~1 minute/day.</em></p>
 </li>
-<li><p><strong>Play Jewel</strong> — 10 points/day = <strong>300/month</strong>
-Play the Jewel puzzle game available through the Xbox/Rewards app. It&#39;s a simple match-3 style game. Complete one round to earn your daily points.</p>
+<li>
+<p><strong>Play Jewel</strong> — 10 points/day = <strong>300/month</strong>
+Play the Jewel puzzle game available through the Xbox/Rewards app. It's a simple match-3 style game. Complete one round to earn your daily points.</p>
 <p><em>Effort: ~2–3 minutes/day.</em></p>
 </li>
-<li><p><strong>Game Pass monthly 8-pack</strong> — <strong>560/month</strong>
+<li>
+<p><strong>Game Pass monthly 8-pack</strong> — <strong>560/month</strong>
 Complete 8 Game Pass quests within the month. These are specific tasks like &quot;play this game for 30 minutes&quot; or &quot;earn an achievement in this title.&quot; The quests refresh monthly.</p>
 <p><em>Effort: ~2–4 hours total across the month, depending on the specific quests.</em></p>
 </li>
-<li><p><strong>Game Pass monthly 4-pack</strong> — <strong>80/month</strong>
+<li>
+<p><strong>Game Pass monthly 4-pack</strong> — <strong>80/month</strong>
 A smaller version of the 8-pack — complete 4 Game Pass quests within the month. Easier to hit since you only need half the quests.</p>
 <p><em>Effort: ~1–2 hours total across the month.</em></p>
 </li>
 </ul>
 <h2>A Realistic Monthly Estimate</h2>
-<p>Not everyone is going to max out every category. Here&#39;s what to expect at different effort levels:</p>
+<p>Not everyone is going to max out every category. Here's what to expect at different effort levels:</p>
 <ul>
-<li><p><strong>Points Harvest only (~7,932 pts, ~$8/month, ~$100/year)</strong> — Run the extension once a day, spend a minute on quizzes and polls. That&#39;s it. Best effort-to-reward ratio.</p>
+<li>
+<p><strong>Points Harvest only (~7,932 pts, ~$8/month, ~$100/year)</strong> — Run the extension once a day, spend a minute on quizzes and polls. That's it. Best effort-to-reward ratio.</p>
 </li>
-<li><p><strong>Points Harvest + mobile + easy manual tasks (~11,000–13,000 pts, ~$12–14/month, ~$138–166/year)</strong> — Add phone searches, news reading, and weekly app check-ins on top of the extension. Maybe 5–10 extra minutes per day.</p>
+<li>
+<p><strong>Points Harvest + mobile + easy manual tasks (~11,000–13,000 pts, ~$12–14/month, ~$138–166/year)</strong> — Add phone searches, news reading, and weekly app check-ins on top of the extension. Maybe 5–10 extra minutes per day.</p>
 </li>
-<li><p><strong>Full grind including Xbox (~23,000+ pts, ~$24/month, ~$296/year)</strong> — Everything above, plus Game Pass Ultimate and daily gaming across PC and console. Realistic only if you&#39;re already an active gamer.</p>
+<li>
+<p><strong>Full grind including Xbox (~23,000+ pts, ~$24/month, ~$296/year)</strong> — Everything above, plus Game Pass Ultimate and daily gaming across PC and console. Realistic only if you're already an active gamer.</p>
 </li>
 </ul>
 <p>The first tier is the sweet spot for most people: maximum points for minimum effort.</p>
 <h2>Get Started</h2>
-<p>If thousands of free points a month for a few minutes of daily effort sounds good, check out the <a href="../getting-started/index.html">getting started guide</a> to install Points Harvest and run your first session.</p>
+<p>If thousands of free points a month for a few minutes of daily effort sounds good, check out the <a href="/blog/getting-started/">getting started guide</a> to install Points Harvest and run your first session.</p>
 
     </div>
   </div>

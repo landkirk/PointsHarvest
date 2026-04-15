@@ -1,0 +1,30 @@
+.contact-wrap {
+  max-width: 640px;
+  margin: 4rem auto;
+  padding: 0 2rem;
+  text-align: center;
+}
+.contact-wrap h1 {
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+.contact-wrap p {
+  color: var(--muted);
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.contact-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem 1.5rem;
+  margin-top: 1.5rem;
+}
+.contact-card .btn {
+  padding: 0.85rem 1.8rem;
+  font-size: 1rem;
+  word-break: break-all;
+}

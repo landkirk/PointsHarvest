@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ title }}</title>
+  <meta name="description" content="{{ description }}" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="{{ ogType or 'website' }}" />
+  <meta property="og:url" content="{{ site.baseUrl }}{{ page.url }}" />
+  <meta property="og:title" content="{{ title }}" />
+  <meta property="og:description" content="{{ description }}" />
+  <meta property="og:image" content="{{ site.baseUrl }}/icon1024.png" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="{{ title }}" />
+  <meta name="twitter:description" content="{{ description }}" />
+  <meta name="twitter:image" content="{{ site.baseUrl }}/icon1024.png" />
+
+  <link rel="icon" type="image/png" href="/icon1024.png" />
+  <link rel="stylesheet" href="/site.css" />
+  {%- for href in extraStyles %}
+  <link rel="stylesheet" href="{{ href }}" />
+  {%- endfor %}
+</head>
+<body>
+{% include "partials/nav.njk" %}
+
+{{ content | safe }}
+
+{% include "partials/footer.njk" %}
+{%- for src in extraScripts %}
+<script src="{{ src }}"></script>
+{%- endfor %}
+</body>
+</html>

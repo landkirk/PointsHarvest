@@ -5,11 +5,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run build          # Full build: type-check all src, emit non-content files via tsc, bundle content scripts via esbuild
-npm run watch          # Dev mode: watch tsc + watch esbuild in parallel
-npm run build:content  # Bundle content scripts only (esbuild → dist/content/)
-npm run lint           # Run ESLint + Prettier check on src/
-npm run lint:fix       # Auto-fix ESLint issues + reformat with Prettier
+npm run build              # Full build: extension + marketing site
+npm run extension:build    # Extension only (lint, type-check, esbuild, assets)
+npm run extension:watch    # Dev mode: watch tsc + watch esbuild in parallel
+npm run extension:content  # Re-bundle content scripts only (esbuild → dist/content/)
+npm run website:build      # Build the marketing site (site/ → docs/) via Eleventy
+npm run website:watch      # Eleventy dev server at localhost:8080 with live reload
+npm run website:preview    # website:watch + auto-open browser
+npm run extension:lint     # Run ESLint + Prettier check on src/
+npm run extension:lint:fix # Auto-fix ESLint issues + reformat with Prettier
 ```
 
 After building, load the `dist/` folder as an unpacked Chrome extension.
@@ -55,7 +59,15 @@ Popup (Start button)
 
 - `tsconfig.json` — IDE/type-check config; includes all `src/**/*` including content scripts.
 - `tsconfig.build.json` — Emit config; excludes content scripts (they're handled by esbuild separately to avoid conflicts).
-- Full `npm run build` first runs `tsc --noEmit` (type-checks everything), then emits non-content files, then runs esbuild for content scripts.
+- Full `npm run build` first runs `tsc --noEmit` (type-checks everything), then emits non-content files, bundles content scripts with esbuild, and finally builds the marketing site with Eleventy (`site/` → `docs/`).
+
+### Marketing site (`site/` → `docs/`)
+
+- Eleventy (`eleventy.config.js`) reads from `site/` and writes to `docs/`. `docs/` is pure generated output but is committed so GitHub Pages can serve it.
+- Layouts and partials live in `site/_includes/` (`base.njk`, `post.njk`, `partials/nav.njk`, `partials/footer.njk`) — nav, footer, and meta tags exist in exactly one place each.
+- Global template data (base URL, version, download URL) is in `site/_data/site.js`, which reads `package.json` so the download button stays in sync with the extension version automatically.
+- Hand-written pages: `site/index.njk`, `site/contact.njk`. Blog listing: `site/blog.njk`. Blog posts: markdown in `site/blog/*.md` + directory data `site/blog/blog.json`. Sitemap: `site/sitemap.njk`. Static assets: `site/static/*` (passthrough-copied).
+- Do not hand-edit files under `docs/` — they are overwritten on every `npm run website:build` and `npm run build`.
 
 ## Documentation
 
