@@ -101,17 +101,23 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     searchQuery: string,
     rewardsTabId: number,
   ): Promise<boolean> {
-    const result = await this.tabs.clickCardAndCaptureTab(
+    let result = await this.tabs.clickCardAndCaptureTab(
       ctx,
       rewardsTabId,
       activity.id,
       activity.title,
     );
-    if (result.status === TabCaptureStatus.Failed) return false;
     if (result.status === TabCaptureStatus.Blocked) {
       await this._waitForPopupUnblock(ctx, activity.title);
-      return false;
+      ctx.signal.throwIfAborted();
+      result = await this.tabs.clickCardAndCaptureTab(
+        ctx,
+        rewardsTabId,
+        activity.id,
+        activity.title,
+      );
     }
+    if (result.status !== TabCaptureStatus.Ok) return false;
     const searchTab = result.tab;
 
     ctx.signal.throwIfAborted();
