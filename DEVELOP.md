@@ -235,14 +235,18 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
 - `_executeRun` chains five sub-orchestrators (ActivityExtraction → WarmUp → ExploreOnBing → DailySets → FarmPcSearches) via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `runtime-state.ts` around each run
-- On completion, closes all opened tabs with staggered random delays (300–1200 ms between closes) to avoid bot-detection patterns
+- Records `startedAt` at the top of `run()` so `_endRun` can compute the run duration
+- `_endRun(ctx, endReason)` takes a `RunEndReason` from the `RUN_END` enum (`success`, `stopped`, `not-logged-in`, `fatal`, `setup-failed`); the centralized `END_MESSAGES` table in the same file maps each reason to its status string and debug message
+- On run end, builds a `RunSummary` via `buildRunSummary()` (from `util/run-summary.ts`) and persists it to `runState.lastRunSummary` alongside the final header state in a single `setRunState()` call
+- Closes all opened tabs with staggered random delays (300–1200 ms between closes) to avoid bot-detection patterns
 - Sends a desktop notification on success (controlled by `disableNotifications` preference)
-- On fatal error (not logged in, stopped, or exception), calls `_endRun` with error context
 
 ### managers/stop-run.ts
-- Calls `setIsActivelyRunning(false)` and persists stopped status
-- Invokes any pending resolver functions (unblocking awaiting code), then calls `resetSession()`
-- Removes all tabs tracked in `openedTabIds`
+- Guards against double-stop: if there is no active controller, or the existing one is already aborted, returns immediately (so clicking Stop twice is a no-op)
+- Aborts the active controller with `StoppedError`, clears `isLingering`, and sets header message to `"Stopping…"` (the final `"Stopped"` message is written later by `_endRun`)
+- Invokes the active orchestrator's `stop()` hook with an aborted context
+- Calls `tabs.closeAll()` and closes the rewards tab if one is tracked
+- Broadcasts progress so the popup reflects the stopping state immediately
 
 ### orchestrators/activity-extraction.ts
 - Runs once at the start of every run to extract and classify activities from rewards.bing.com
@@ -251,7 +255,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Throws `NotLoggedInError` if rewards page redirects away from `rewards.bing.com` (e.g., user not logged in)
 - Classifies each raw card via `classifyCard()` into `EXPLORE_ON_BING`, `DAILY_SET`, or `IGNORED` based on title/description patterns and source
 - Enriches explore cards with `searchQuery` and `fallbackQuery` via `enrichSearchQueries()`
-- Enriches daily cards with `requiresUserAction` and `userActionTimeoutMs` via `enrichUserActions()` (2 min for polls, 10 min for quizzes)
+- Enriches daily cards with `requiresUserAction`, `userActionKind`, and `userActionTimeoutMs` via `enrichUserActions()`; `userActionKind` is one of `'quiz' | 'poll' | 'puzzle' | null` (cards matching `test` are folded into `quiz`). Timeout is 2 min for polls, 10 min for quizzes/puzzles.
 - Stores the full `ActivityState` (all cards, rewardsTabId, loggedIn flag) to persistent storage for downstream orchestrators
 - Logs extraction stats (total, explore, daily, ignored counts) and unmapped card count
 
@@ -260,7 +264,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Filters for actionable explore cards (`activityType === EXPLORE_ON_BING`, `cardState === Actionable`)
 - Iterates each activity:
   - Uses `TabManager.clickCardAndCaptureTab()` to send `CLICK_CARD` message and capture the resulting search tab
-  - If tab creation blocked by Chrome popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt user to enable popups
+  - If tab creation blocked by Chrome popup blocker (`TabCaptureStatus.Blocked`), calls `_waitForPopupUnblock` to pause and prompt user to enable popups, then **retries** `clickCardAndCaptureTab` once. Only a non-`Ok` status after the retry counts as failure, so cards are no longer silently skipped when the user fixes popup permissions.
   - Calls `steps/perform-search` with the search query (or fallback query if primary fails)
   - Validates completion via `ActivityRunner.executeActivityWithValidation()` with retry logic (retry function runs another search with fallback query if available)
   - Updates per-phase progress header after each activity
@@ -307,12 +311,14 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Logs validation result with activity ID and title for debugging
 
 ### steps/linger-on-tab.ts
-- Pauses automation and waits for user to complete an interactive activity (quiz, poll, test, puzzle)
+- Pauses automation and waits for user to complete an interactive activity (quiz, poll, puzzle)
+- Signature: `lingerOnTab(ctx, tabId, activity)` — the timeout is read from `activity.userActionTimeoutMs` (set by `enrichUserActions()`: 2 min for polls, 10 min for quizzes/puzzles)
+- Header message is built from the activity: `Complete the {userActionKind} "{truncated title}" in the Bing tab, then click Done.` (e.g. `Complete the quiz "Which movie won Best Picture?" in the Bing tab, then click Done.`). Falls back to `'activity'` if `userActionKind` is null.
 - Activates the tab so it's visible to the user
 - Resolves when:
   - User clicks **Done** button in popup (sends `USER_ACTION_COMPLETE` message), OR
   - User manually closes the tab (detected via `onTabRemoved` listener), OR
-  - Timeout expires (2 min for polls, 10 min for quizzes from `enrichUserActions()`)
+  - Timeout expires
 - Returns a resolver handle `{ promise, resolve }` so caller can early-exit on stop
 
 ### steps/perform-search.ts
@@ -348,13 +354,17 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 ### util/persistent-state.ts
 - **Preferences & Run State**: Separated into two independent storage objects
   - `UserPreferences`: `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds` — survives `resetRunState()`
-  - `RunState`: `isRunning`, `isLingering`, warmUpQueries, searchCounters, rewardsTabId, activityState, failures, header, debug — cleared on run start
+  - `RunState`: `isRunning`, `isLingering`, warmUpQueries, searchCounters, rewardsTabId, activityState, failures, header, debug, `lastRunSummary` — cleared on run start
 - `loadPreferences()` / `setPreference(updates)` — load/save user preferences
 - `loadRunState()` / `setRunState(updates)` — load/save run state; all writes serialized through `enqueueWrite()` to prevent race conditions
 - `resetRunState(overrides)` — reset all run fields to `INITIAL_RUN_STATE` (preserves preference keys; storage.local.set is additive)
 - `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phases, phasePoints)
 - `setDebugState()` / `getDebugLog()` / `getFailures()` — accessors for debug and failure sub-state
 - `PHASE` constants: `'warmup'`, `'explore'`, `'daily'`, `'farm'` — used as keys in `PhaseProgressMap` and `PhasePointsMap`
+- `PHASE_KEYS: readonly PhaseKey[]` — exported tuple of all phase keys in order, used by the popup to iterate rows
+- `PHASE_LABELS: Record<PhaseKey, string>` — display names (`'Warm-up'`, `'Explore on Bing'`, `'Daily Sets'`, `'PC Searches'`) used by the run summary card
+- `RUN_END` constants and `RunEndReason` type: `'success' | 'stopped' | 'not-logged-in' | 'fatal' | 'setup-failed'` — passed into `_endRun` and stored on `RunSummary.endReason`
+- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phases, phasePoints, activityCounts: { dailySetsCompleted, exploreCompleted, locked, actionableLeftover }, failureCount }`
 
 ### util/runtime-state.ts
 - `activeOrchestrator` / `activeContext` — in-memory only (not persisted); reset on service worker restart
@@ -410,10 +420,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 ### ui/popup.ts
 - Main side panel UI that displays run state, phase progress, and provides Start/Stop buttons
 - Real-time updates via `chrome.runtime.onMessage` listening for `PROGRESS`, `DEBUG_ENTRY`, `FAILURE_ENTRY` broadcasts
+- **Header**: includes a link to the Bing Rewards Dashboard (`rewards.bing.com`) for quick manual access
 - **Phase-based progress display**:
   - Renders per-phase (Warmup, Explore, Daily, Farm) progress bars (`done / total`) and earned-points labels
   - Uses `PHASE` constants and `PHASE_TIME_LABEL` for display labels
-  - Updates in real time as run progresses
+  - **Animated earnings counter**: when a phase's earned points increase, `animatePhaseEarned(phase, from, to)` smoothly counts the number up over 650 ms with cubic ease-out and adds an `earning` CSS class to the phase row for the duration. `animHandles` / `animDisplayed` track the in-flight `requestAnimationFrame` handle and the currently-displayed value per phase so mid-animation updates continue from the current display value instead of jumping. `stopPhaseAnim(phase)` cancels any pending frame and removes the class (called on stop and on run start).
+- **Run summary card**: after a run ends, the popup reads `lastRunSummary` from run state and delegates to `renderRunSummaryCard()` in `ui/run-summary-card.ts` to display the recap
 - **User preferences panel** (`prefs-panel.ts`):
   - **Skip warm-up** checkbox — persisted to preferences; passed as `skipWarmUp` in `START` message
   - **Speed multiplier** select (Normal 1.0×, Fast 0.6×, Slow 4.0×, Stealth 8.0×) — persisted to `timingMultiplier` in preferences
@@ -455,6 +467,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `appendFailure(failure)` — appends a single new failure to the banner in real time (called on `FAILURE_ENTRY` message)
 - Each failure displays: time, category badge, message, and context (orchestrator/step/activity if available)
 - Scrollable list (height-constrained) to show recent failures
+
+### ui/run-summary-card.ts
+- `renderRunSummaryCard(summary: RunSummary)` — builds and injects the end-of-run recap card into the popup after a run ends
+- Reads `lastRunSummary` from run state; formats the duration via `formatDuration()` from `util/format.ts` (`Xh Ym Zs` / `Ym Zs` / `Zs`)
+- Displays end reason (success / stopped / not-logged-in / fatal / setup-failed), per-phase points via `PHASE_LABELS`, and activity counts: daily sets completed, explore cards completed, locked, and any actionable leftovers
+- Shows the total failure count so the user can see at a glance whether the run had any soft failures
 
 ### content/rewards-content.ts
 - Bundled by esbuild as an IIFE (cannot use ES modules; Chrome MV3 limitation)
@@ -752,10 +770,10 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - Check web console (DevTools) for errors from content script
 - Failure will be logged: "Card click message error: no response"
 
-**Activity stuck on user-action (quiz/poll)**
-- Popup shows "Waiting for user" with timeout countdown
-- User must click **Done** button in popup after completing quiz/poll
-- If timeout expires (2 min for polls, 10 min for quizzes), failure is recorded and run continues
+**Activity stuck on user-action (quiz/poll/puzzle)**
+- Popup header shows a specific message like `Complete the quiz "..." in the Bing tab, then click Done.`
+- User must click **Done** button in popup after completing the activity (or close the tab directly)
+- If timeout expires (2 min for polls, 10 min for quizzes/puzzles), failure is recorded and run continues
 - If user never completes, tab must be closed manually to unstuck run (then click **Stop**)
 
 ## Architecture Notes
@@ -783,6 +801,7 @@ Split into two independent persistent objects in `chrome.storage.local` (via `ut
   - `phases` — per-phase progress (`{ warmup: null, explore: { done, total }, ... }`)
   - `phasePoints` — per-phase earned points (`{ warmup: 0, explore: 50, ... }`)
 - `debug` — debug log entries
+- `lastRunSummary` — `RunSummary` from the most recent run (or `null` if none). Written by `_endRun` and consumed by the popup to render the end-of-run summary card.
 
 **Runtime state** (`util/runtime-state.ts`, in-memory only):
 - `activeOrchestrator` — which orchestrator is currently running (resets on service worker restart)

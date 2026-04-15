@@ -47,6 +47,7 @@ Popup (Start button)
 - `src/util/persistent-state.ts` — `chrome.storage.local` backed; survives service worker restarts (run date, progress, search queue, debug logs, `skipWarmUp`). All writes serialized through `enqueueWrite()`.
 - `src/util/runtime-state.ts` — In-memory only (`activeOrchestrator`) — resets on SW restart.
 - Phase progress and points tracked in `header.phases` / `header.phasePoints` using `PHASE` constants (`warmup`, `explore`, `daily`, `farm`) and read by the popup for per-phase progress bars.
+- `lastRunSummary` stores the most recent `RunSummary` (start/end times, per-phase points, activity counts, end reason) so the popup can render the end-of-run summary card after a run finishes.
 
 **Timing** (`src/util/timing.ts`) — All delays use `randMs(min, max)` with triangular distribution. `TIMING.LINGER_ON_PAGE` (5–7s) is the standard dwell preset used between actions.
 
