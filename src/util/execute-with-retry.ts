@@ -3,13 +3,13 @@ import { DBG } from './debug.js';
 import { NotLoggedInError } from './errors.js';
 import type { Context } from './context.js';
 import type { FailureCategory } from './failures.js';
-import type { ProgressPayload } from './messaging.js';
+import type { PhaseUpdate } from './messaging.js';
 
 export interface RetryPolicy {
   maxAttempts: number;
   lingerLabel: string;
   retryLogMessage?: string;
-  retryHeaderPayload?: ProgressPayload;
+  retryHeaderPayload?: PhaseUpdate;
 }
 
 export interface FailureRecord {
@@ -41,7 +41,7 @@ export async function executeWithRetry(
 
     if (attempt < policy.maxAttempts) {
       if (policy.retryLogMessage) await ctx.dbg(DBG.WARN, policy.retryLogMessage);
-      if (policy.retryHeaderPayload) await ctx.updateHeader(policy.retryHeaderPayload);
+      if (policy.retryHeaderPayload) await ctx.setPhase(policy.retryHeaderPayload);
       await lingerOnPage(policy.lingerLabel, undefined, ctx.signal);
       ctx.signal.throwIfAborted();
     }

@@ -1,11 +1,7 @@
-import type { PhaseKey, RunSummary, RunEndReason } from '../util/persistent-state.js';
-import {
-  PHASE,
-  PHASE_CADENCE,
-  PHASE_KEYS,
-  PHASE_LABELS,
-  RUN_END,
-} from '../util/persistent-state.js';
+import type { RunSummary, RunEndReason } from '../util/persistent-state.js';
+import { RUN_END } from '../util/persistent-state.js';
+import { PHASE, PHASES, PHASES_BY_KEY, phasesByCadence } from '../util/phase.js';
+import type { Cadence, PhaseKey } from '../util/phase.js';
 import { formatDuration, pluralize } from '../util/format.js';
 
 interface ActivityLineItem {
@@ -37,10 +33,10 @@ export function renderRunSummary(summary: RunSummary | null): void {
   el.replaceChildren(...buildCard(summary));
 }
 
-function sumPhasePointsByCadence(s: RunSummary, cadence: 'weekly' | 'daily'): number {
+function sumPhasePointsByCadence(s: RunSummary, cadence: Exclude<Cadence, ''>): number {
   let sum = 0;
-  for (const key of PHASE_KEYS) {
-    if (PHASE_CADENCE[key] === cadence) sum += s.phasePoints[key];
+  for (const def of phasesByCadence(cadence)) {
+    sum += s.phaseStates[def.key].points;
   }
   return sum;
 }
@@ -101,17 +97,18 @@ function buildCard(s: RunSummary): Node[] {
 function buildPhases(s: RunSummary): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'rs-phases';
-  for (const key of PHASE_KEYS) {
-    wrap.appendChild(buildPhaseRow(key, s));
+  for (const def of PHASES) {
+    wrap.appendChild(buildPhaseRow(def.key, s));
   }
   return wrap;
 }
 
 function buildPhaseRow(key: PhaseKey, s: RunSummary): HTMLElement {
-  const progress = s.phases[key];
+  const state = s.phaseStates[key];
+  const progress = state.progress;
   const done = progress?.done ?? 0;
   const total = progress?.total ?? 0;
-  const points = s.phasePoints[key];
+  const points = state.points;
   const isInactive = total === 0 && done === 0;
 
   const row = document.createElement('div');
@@ -120,8 +117,8 @@ function buildPhaseRow(key: PhaseKey, s: RunSummary): HTMLElement {
 
   const label = document.createElement('span');
   label.className = 'phase-label';
-  const name = PHASE_LABELS[key];
-  label.textContent = key === PHASE.WARMUP && isInactive ? `${name} (skipped)` : name;
+  const name = PHASES_BY_KEY[key].label;
+  label.textContent = key === PHASE.WARMUP.key && isInactive ? `${name} (skipped)` : name;
   row.appendChild(label);
 
   const count = document.createElement('span');
@@ -131,7 +128,7 @@ function buildPhaseRow(key: PhaseKey, s: RunSummary): HTMLElement {
 
   const pts = document.createElement('span');
   pts.className = 'rs-phase-points';
-  const cadence = PHASE_CADENCE[key];
+  const cadence = PHASES_BY_KEY[key].cadence;
   pts.textContent = points > 0 ? `+${points} ${cadence ? `${cadence} ` : ''}pts` : '—';
   row.appendChild(pts);
 

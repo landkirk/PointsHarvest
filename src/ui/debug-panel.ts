@@ -1,4 +1,6 @@
 import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
+import { PHASE, phaseForActivityType } from '../util/phase.js';
+import type { PhaseKey } from '../util/phase.js';
 import type { RunState, SearchCounter } from '../util/persistent-state.js';
 import type { Activity } from '../util/activity.js';
 import type { DebugEntry } from '../util/debug.js';
@@ -65,23 +67,24 @@ export function appendLogEntry(entry: DebugEntry): void {
 }
 
 export function renderActivitiesAndCounters(state: RunState): void {
-  const exploreActivities: Activity[] = [];
-  const dailyActivities: Activity[] = [];
-  const moreActivities: Activity[] = [];
+  const byPhase: Partial<Record<PhaseKey, Activity[]>> = {};
   for (const a of state.activityState?.allActivities ?? []) {
-    if (a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) exploreActivities.push(a);
-    else if (a.activityType === ACTIVITY_TYPE.DAILY_SET) dailyActivities.push(a);
-    else if (a.activityType === ACTIVITY_TYPE.MORE_ACTIVITIES) moreActivities.push(a);
+    const def = phaseForActivityType(a.activityType);
+    if (def) (byPhase[def.key] ??= []).push(a);
   }
-  renderActivitySection(dbgExplore, exploreToActivityData(exploreActivities), LIST_SIZE.LARGE);
+  renderActivitySection(
+    dbgExplore,
+    exploreToActivityData(byPhase[PHASE.EXPLORE.key] ?? []),
+    LIST_SIZE.LARGE,
+  );
   renderActivitySection(
     dbgDaily,
-    simpleActivityData(dailyActivities, 'No daily set activities found.'),
+    simpleActivityData(byPhase[PHASE.DAILY.key] ?? [], 'No daily set activities found.'),
     LIST_SIZE.MEDIUM,
   );
   renderActivitySection(
     dbgMoreActivities,
-    simpleActivityData(moreActivities, 'No more activities tiles found.'),
+    simpleActivityData(byPhase[PHASE.MORE_ACTIVITIES.key] ?? [], 'No more activities tiles found.'),
     LIST_SIZE.MEDIUM,
   );
   renderPcCounters(state.searchCounters);

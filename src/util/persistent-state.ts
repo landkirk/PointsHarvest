@@ -2,6 +2,8 @@ import type { DebugEntry } from './debug.js';
 import { FAIL, isFailCategory } from './failures.js';
 import type { FailureCategory, FailureEntry } from './failures.js';
 import type { ActivityState } from './activity.js';
+import { INITIAL_PHASE_STATES } from './phase.js';
+import type { PhaseKey, PhaseStates } from './phase.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
@@ -16,60 +18,10 @@ export interface SearchCounter {
   maxPoints: number;
 }
 
-export const PHASE = {
-  WARMUP: 'warmup',
-  EXPLORE: 'explore',
-  DAILY: 'daily',
-  MORE_ACTIVITIES: 'more-activities',
-  FARM: 'farm',
-} as const;
-
-export type PhaseKey = (typeof PHASE)[keyof typeof PHASE];
-
-export const PHASE_KEYS: readonly PhaseKey[] = Object.values(PHASE);
-
-export const PHASE_CADENCE: Record<PhaseKey, '' | 'weekly' | 'daily'> = {
-  warmup: '',
-  explore: 'weekly',
-  daily: 'daily',
-  'more-activities': 'weekly',
-  farm: 'daily',
-};
-
-const CADENCE_TIME_LABEL = { '': '', weekly: 'this week', daily: 'today' } as const;
-
-export const PHASE_TIME_LABEL: Record<PhaseKey, string> = Object.fromEntries(
-  PHASE_KEYS.map((k) => [k, CADENCE_TIME_LABEL[PHASE_CADENCE[k]]]),
-) as Record<PhaseKey, string>;
-
-export const PHASE_LABELS: Record<PhaseKey, string> = {
-  warmup: 'Warm-up',
-  explore: 'Explore on Bing',
-  daily: 'Daily Sets',
-  'more-activities': 'More Activities',
-  farm: 'PC Searches',
-};
-
-export interface PhaseProgress {
-  done: number;
-  total: number;
-}
-
-export interface PhaseProgressMap {
-  warmup: PhaseProgress | null;
-  explore: PhaseProgress | null;
-  daily: PhaseProgress | null;
-  'more-activities': PhaseProgress | null;
-  farm: PhaseProgress | null;
-}
-
-export type PhasePointsMap = Record<PhaseKey, number>;
-
 export interface HeaderState {
   headerMessage: string;
   activePhase: PhaseKey | null;
-  phases: PhaseProgressMap;
-  phasePoints: PhasePointsMap;
+  phaseStates: PhaseStates;
 }
 
 export interface DebugState {
@@ -90,8 +42,7 @@ export interface RunSummary {
   startedAt: number;
   endedAt: number;
   endReason: RunEndReason;
-  phases: PhaseProgressMap;
-  phasePoints: PhasePointsMap;
+  phaseStates: PhaseStates;
   activityCounts: {
     dailySetsCompleted: number;
     exploreCompleted: number;
@@ -144,8 +95,7 @@ export const INITIAL_RUN_STATE: RunState = {
   header: {
     headerMessage: 'idle',
     activePhase: null,
-    phases: { warmup: null, explore: null, daily: null, 'more-activities': null, farm: null },
-    phasePoints: { warmup: 0, explore: 0, daily: 0, 'more-activities': 0, farm: 0 },
+    phaseStates: INITIAL_PHASE_STATES,
   },
   debug: {
     debugLog: [],
@@ -203,6 +153,22 @@ export async function loadRunState(): Promise<RunState> {
   const stored = await chrome.storage.local.get(keys);
   const state = { ...INITIAL_RUN_STATE, ...stored } as RunState;
 
+  const patch: Partial<RunState> = {};
+
+  // Pre-phaseStates shape: the old header carried `phases` + `phasePoints` maps
+  // and RunSummary mirrored them. Any in-flight run state from before the upgrade
+  // wouldn't survive an SW restart cleanly anyway, so just reset instead of migrating.
+  const header = state.header as unknown as Record<string, unknown> | null | undefined;
+  if (header == null || 'phases' in header || !('phaseStates' in header)) {
+    state.header = INITIAL_RUN_STATE.header;
+    patch.header = state.header;
+  }
+  const lastSummary = state.lastRunSummary as unknown as Record<string, unknown> | null;
+  if (lastSummary && (!('phaseStates' in lastSummary) || 'phases' in lastSummary)) {
+    state.lastRunSummary = null;
+    patch.lastRunSummary = null;
+  }
+
   let dirty = false;
   const migrated = state.failures.map((f) => {
     const cat = migrateFailureCategory(f.category);
@@ -212,8 +178,10 @@ export async function loadRunState(): Promise<RunState> {
   });
   if (dirty) {
     state.failures = migrated;
-    await setRunState({ failures: migrated });
+    patch.failures = migrated;
   }
+
+  if (Object.keys(patch).length > 0) await setRunState(patch);
 
   return state;
 }
@@ -235,7 +203,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Deep-merge one level: plain object values are spread into the existing
- *  value so callers can pass e.g. `{ phasePoints: { daily: 5 } }` without
+ *  value so callers can pass e.g. `{ phaseStates: { daily: {...} } }` without
  *  clobbering sibling keys. Arrays and primitives replace outright. */
 function setSubState<K extends 'header' | 'debug'>(
   key: K,
@@ -258,9 +226,8 @@ function setSubState<K extends 'header' | 'debug'>(
 }
 
 export type HeaderStateUpdate = Partial<
-  Omit<HeaderState, 'phases' | 'phasePoints'> & {
-    phases: Partial<PhaseProgressMap>;
-    phasePoints: Partial<PhasePointsMap>;
+  Omit<HeaderState, 'phaseStates'> & {
+    phaseStates: Partial<Record<PhaseKey, Partial<HeaderState['phaseStates'][PhaseKey]>>>;
   }
 >;
 
@@ -272,6 +239,33 @@ export const setHeaderState = (u: HeaderStateUpdate) =>
 export async function getHeaderState(): Promise<HeaderState> {
   const stored = await chrome.storage.local.get('header');
   return (stored.header as HeaderState) ?? INITIAL_RUN_STATE.header;
+}
+
+/** Single read-modify-write pass on `header`. The callback sees the current
+ *  state and returns a patch; sibling values inside `phaseStates[key]` are
+ *  preserved (two-level merge). Returns the merged result so callers can avoid
+ *  a follow-up read. */
+export async function updateHeaderState(
+  fn: (current: HeaderState) => HeaderStateUpdate,
+): Promise<HeaderState> {
+  let result!: HeaderState;
+  await enqueueWrite(async () => {
+    const stored = await chrome.storage.local.get('header');
+    const current: HeaderState = (stored.header as HeaderState) ?? INITIAL_RUN_STATE.header;
+    const patch = fn(current);
+    const merged: HeaderState = { ...current, ...(patch as Partial<HeaderState>) };
+    if (patch.phaseStates) {
+      merged.phaseStates = { ...current.phaseStates };
+      for (const [k, v] of Object.entries(patch.phaseStates)) {
+        if (!v) continue;
+        const key = k as PhaseKey;
+        merged.phaseStates[key] = { ...current.phaseStates[key], ...v };
+      }
+    }
+    result = merged;
+    await chrome.storage.local.set({ header: merged });
+  });
+  return result;
 }
 
 /** Write debug-specific updates, merging into the debug subobject. */

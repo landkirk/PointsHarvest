@@ -6,8 +6,9 @@ import { shuffleArray } from '../util/array.js';
 import { lingerOnPage, TIMING } from '../util/timing.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
-import { PC_SEARCH_TYPE, PHASE } from '../util/persistent-state.js';
+import { PC_SEARCH_TYPE } from '../util/persistent-state.js';
 import type { SearchCounter } from '../util/persistent-state.js';
+import { PHASE } from '../util/phase.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { performSearch } from '../steps/perform-search.js';
 import { fetchCounters } from '../steps/fetch-counters.js';
@@ -39,17 +40,20 @@ class FarmPcSearches extends OrchestratorBase {
       return;
     }
 
+    const setFarmStatus = (current: number, max: number, points: number) =>
+      ctx.setPhase({
+        phase: PHASE.FARM,
+        headerMessage: `Farming PC searches (${current} / ${max})`,
+        progress: { done: current, total: max },
+        points,
+      });
+
     if (counter.current >= counter.max) {
       await ctx.dbg(
         DBG.INFO,
         `PC Search already at cap (${counter.current}/${counter.max}), skipping`,
       );
-      await ctx.updateHeader({
-        headerMessage: `Farming PC searches (${counter.max} / ${counter.max})`,
-        activePhase: PHASE.FARM,
-        phaseProgress: { done: counter.max, total: counter.max },
-        phasePoints: { farm: counter.currentPoints },
-      });
+      await setFarmStatus(counter.max, counter.max, counter.currentPoints);
       return;
     }
 
@@ -58,12 +62,7 @@ class FarmPcSearches extends OrchestratorBase {
     let current = counter.current;
     let max = counter.max;
 
-    await ctx.updateHeader({
-      headerMessage: `Farming PC searches (${current} / ${max})`,
-      activePhase: PHASE.FARM,
-      phaseProgress: { done: current, total: max },
-      phasePoints: { farm: counter.currentPoints },
-    });
+    await setFarmStatus(current, max, counter.currentPoints);
     let currentPoints = counter.currentPoints;
     let noProgressCount = 0;
     const shuffled = shuffleArray(PC_SEARCH_QUERIES);
@@ -99,12 +98,7 @@ class FarmPcSearches extends OrchestratorBase {
       if (newCurrent > current) {
         currentPoints = updatedCounter?.currentPoints ?? currentPoints;
         await ctx.dbg(DBG.SUCCESS, `PC search: ${newCurrent}/${max}`);
-        await ctx.updateHeader({
-          headerMessage: `Farming PC searches (${newCurrent} / ${max})`,
-          activePhase: PHASE.FARM,
-          phaseProgress: { done: newCurrent, total: max },
-          phasePoints: { farm: currentPoints },
-        });
+        await setFarmStatus(newCurrent, max, currentPoints);
         noProgressCount = 0;
       } else {
         noProgressCount++;

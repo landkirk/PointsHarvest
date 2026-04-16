@@ -1,28 +1,21 @@
-import type {
-  PhaseKey,
-  PhaseProgress,
-  PhaseProgressMap,
-  PhasePointsMap,
-} from './persistent-state.js';
+import type { PhaseDefinition, PhaseKey, PhaseProgress, PhaseStates } from './phase.js';
 import type { DebugEntry } from './debug.js';
 import type { FailureEntry } from './failures.js';
 
-export type { PhaseKey, PhaseProgressMap };
-
-/** Orchestrator → updateHeader input. */
-export interface ProgressPayload {
+/** Typed payload for Context.setPhase — also used for stored retry updates. */
+export interface PhaseUpdate {
+  phase: PhaseDefinition;
   headerMessage: string;
-  activePhase: PhaseKey | null;
-  phaseProgress: PhaseProgress;
-  phasePoints: Partial<PhasePointsMap>;
+  progress?: PhaseProgress;
+  /** If omitted, existing points for the phase are preserved. */
+  points?: number;
 }
 
 /** Background → Popup broadcast (merged state). */
 export interface ProgressBroadcast {
   headerMessage: string;
   activePhase: PhaseKey | null;
-  phases: PhaseProgressMap;
-  phasePoints: PhasePointsMap;
+  phaseStates: PhaseStates;
 }
 
 import type { RawCard } from './activity.js';

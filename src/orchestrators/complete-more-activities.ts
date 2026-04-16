@@ -5,7 +5,8 @@ import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { executeWithRetry } from '../util/execute-with-retry.js';
 import { FAIL } from '../util/failures.js';
-import { PHASE, loadRunState } from '../util/persistent-state.js';
+import { loadRunState } from '../util/persistent-state.js';
+import { PHASE } from '../util/phase.js';
 import { lingerOnPage } from '../util/timing.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import type { Activity } from '../util/activity.js';
@@ -45,7 +46,6 @@ class CompleteMoreActivities extends OrchestratorBase {
     await runActivityLoop({
       ctx,
       phase: PHASE.MORE_ACTIVITIES,
-      phaseLabel: 'More activities',
       activities: actionable,
       alreadyCompletedCount,
       alreadyCompletedPoints,

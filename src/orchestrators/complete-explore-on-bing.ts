@@ -7,7 +7,8 @@ import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { executeWithRetry } from '../util/execute-with-retry.js';
 import { FAIL } from '../util/failures.js';
-import { PHASE, loadRunState } from '../util/persistent-state.js';
+import { loadRunState } from '../util/persistent-state.js';
+import { PHASE } from '../util/phase.js';
 
 import { sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
 import type { Activity } from '../util/activity.js';
@@ -54,7 +55,6 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     await runActivityLoop({
       ctx,
       phase: PHASE.EXPLORE,
-      phaseLabel: 'Explore on Bing',
       activities,
       alreadyCompletedCount,
       alreadyCompletedPoints,
@@ -77,10 +77,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
               : undefined,
             retryHeaderPayload: fallbackQuery
               ? {
+                  phase: PHASE.EXPLORE,
                   headerMessage: `Retrying: "${truncate(fallbackQuery, LABEL_MAX)}"`,
-                  activePhase: PHASE.EXPLORE,
-                  phaseProgress: { done: progress.done, total: phaseTotal },
-                  phasePoints: { explore: progress.points },
+                  progress: { done: progress.done, total: phaseTotal },
+                  points: progress.points,
                 }
               : undefined,
           },

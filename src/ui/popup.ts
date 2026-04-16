@@ -1,8 +1,9 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { KEEPALIVE_PORT } from '../util/config.js';
-import type { AppMessage, PhaseKey, PhaseProgressMap } from '../util/messaging.js';
-import { PHASE_KEYS, PHASE_TIME_LABEL } from '../util/persistent-state.js';
-import type { RunState, UserPreferences, PhasePointsMap } from '../util/persistent-state.js';
+import type { AppMessage } from '../util/messaging.js';
+import { PHASE_KEYS, PHASES_BY_KEY } from '../util/phase.js';
+import type { PhaseKey, PhaseStates } from '../util/phase.js';
+import type { RunState, UserPreferences } from '../util/persistent-state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
@@ -29,10 +30,10 @@ for (const key of PHASE_KEYS) {
 }
 
 function phaseEarnedLabel(phase: PhaseKey, pts: number): string {
-  return `+${pts} pts ${PHASE_TIME_LABEL[phase]}`;
+  return `+${pts} pts ${PHASES_BY_KEY[phase].timeLabel}`;
 }
 
-let prevPhasePoints: Partial<PhasePointsMap> = {};
+let prevPhasePoints: Partial<Record<PhaseKey, number>> = {};
 let phasePointsInitialized = false;
 let wasRunning = false;
 
@@ -81,44 +82,45 @@ const btnDashboard = document.getElementById('btn-dashboard') as HTMLAnchorEleme
 
 // ── Main UI ────────────────────────────────────────────────────────────────
 
-function hasAnyPhases(phases: PhaseProgressMap | null | undefined): boolean {
-  return !!phases && Object.values(phases).some((p) => p !== null);
+function hasAnyProgress(phaseStates: PhaseStates | null | undefined): boolean {
+  return !!phaseStates && Object.values(phaseStates).some((s) => s.progress !== null);
 }
 
-function renderPhasePoints(phasePoints: Partial<PhasePointsMap> | null | undefined): void {
+function renderPhaseStates(
+  phaseStates: PhaseStates | null | undefined,
+  activePhase: PhaseKey | undefined,
+): void {
   for (const key of PHASE_KEYS) {
-    const pts = phasePoints?.[key] ?? 0;
-    const prev = prevPhasePoints[key] ?? 0;
-    const delta = pts - prev;
-    if (phasePointsInitialized && delta > 0) {
-      const from = animHandles[key] !== undefined ? (animDisplayed[key] ?? prev) : prev;
-      animatePhaseEarned(key, from, pts);
-    } else if (animHandles[key] === undefined) {
-      phaseEarnedEls[key].textContent = pts > 0 ? phaseEarnedLabel(key, pts) : '';
-    }
-  }
-  prevPhasePoints = { ...(phasePoints ?? {}) };
-  phasePointsInitialized = true;
-}
+    const state = phaseStates?.[key] ?? null;
+    const progress = state?.progress ?? null;
+    const points = state?.points ?? 0;
 
-function renderPhases(phases: PhaseProgressMap | null | undefined, activePhase?: PhaseKey): void {
-  for (const key of PHASE_KEYS) {
     const el = phaseEls[key];
-    const p = phases?.[key] ?? null;
-    const isDone = p !== null && p.done >= p.total && p.total > 0;
+    const isDone = progress !== null && progress.done >= progress.total && progress.total > 0;
     const isActive = activePhase === key;
     el.classList.toggle('done', isDone);
     el.classList.toggle('active', isActive && !isDone);
 
-    if (p) {
-      const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
-      phaseCountEls[key].textContent = `${p.done}/${p.total}`;
+    if (progress) {
+      const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
+      phaseCountEls[key].textContent = `${progress.done}/${progress.total}`;
       phaseBarEls[key].style.width = pct + '%';
     } else {
       phaseCountEls[key].textContent = '';
       phaseBarEls[key].style.width = '0%';
     }
+
+    const prev = prevPhasePoints[key] ?? 0;
+    const delta = points - prev;
+    if (phasePointsInitialized && delta > 0) {
+      const from = animHandles[key] !== undefined ? (animDisplayed[key] ?? prev) : prev;
+      animatePhaseEarned(key, from, points);
+    } else if (animHandles[key] === undefined) {
+      phaseEarnedEls[key].textContent = points > 0 ? phaseEarnedLabel(key, points) : '';
+    }
+    prevPhasePoints[key] = points;
   }
+  phasePointsInitialized = true;
 }
 
 async function render(): Promise<void> {
@@ -134,13 +136,13 @@ async function render(): Promise<void> {
     return;
   }
   const { isRunning, isLingering, header } = run;
-  const { headerMessage, activePhase, phases, phasePoints } = header;
+  const { headerMessage, activePhase, phaseStates } = header;
 
-  const activeProgress = activePhase ? (phases?.[activePhase] ?? null) : null;
+  const activeProgress = activePhase ? (phaseStates?.[activePhase]?.progress ?? null) : null;
   const completed = activeProgress?.done ?? 0;
   const total = activeProgress?.total ?? 0;
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-  const isDone = !isRunning && hasAnyPhases(phases);
+  const isDone = !isRunning && hasAnyProgress(phaseStates);
 
   renderPrefs(prefs);
   debugPanel.classList.toggle('open', prefs.debugMode);
@@ -169,8 +171,7 @@ async function render(): Promise<void> {
   const summary = isRunning ? null : run.lastRunSummary;
   phaseRowsEl.style.display = summary ? 'none' : '';
   if (!summary) {
-    renderPhases(phases, activePhase ?? undefined);
-    renderPhasePoints(phasePoints);
+    renderPhaseStates(phaseStates, activePhase ?? undefined);
   }
   renderRunSummary(summary);
   renderFailures(run.failures ?? []);

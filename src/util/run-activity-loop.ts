@@ -1,20 +1,13 @@
-// Shared iteration skeleton for activity phases (explore-on-bing, daily sets).
-// Callers pre-filter and pre-sum, then provide a per-activity `attempt` closure
-// that owns the phase-specific retry logic. The helper owns the loop mechanics:
-// signal checks, activeActivity guard, header updates, success bookkeeping,
-// and linger between iterations.
-
 import { lingerOnPage } from './timing.js';
 import { DBG } from './debug.js';
 import { markActivityCompleted } from './activity.js';
 import type { Activity } from './activity.js';
 import type { Context } from './context.js';
-import type { PhaseKey, PhasePointsMap } from './persistent-state.js';
+import type { PhaseDefinition } from './phase.js';
 
 export interface RunActivityLoopOpts {
   ctx: Context;
-  phase: PhaseKey;
-  phaseLabel: string;
+  phase: PhaseDefinition;
   activities: Activity[];
   alreadyCompletedCount: number;
   alreadyCompletedPoints: number;
@@ -32,7 +25,6 @@ export async function runActivityLoop(opts: RunActivityLoopOpts): Promise<void> 
   const {
     ctx,
     phase,
-    phaseLabel,
     activities,
     alreadyCompletedCount,
     alreadyCompletedPoints,
@@ -42,20 +34,26 @@ export async function runActivityLoop(opts: RunActivityLoopOpts): Promise<void> 
     attempt,
   } = opts;
 
+  const phaseLabel = phase.label;
+
   ctx.signal.throwIfAborted();
 
   const phaseTotal = alreadyCompletedCount + activities.length;
   let earnedPts = alreadyCompletedPoints;
   let successCount = 0;
 
-  const points = (pts: number): Partial<PhasePointsMap> => ({ [phase]: pts });
+  const setStatus = (done: number, headerMessage: string) =>
+    ctx.setPhase({
+      phase,
+      headerMessage,
+      progress: { done, total: phaseTotal },
+      points: earnedPts,
+    });
 
-  await ctx.updateHeader({
-    headerMessage: `${phaseLabel} (${alreadyCompletedCount} / ${phaseTotal})`,
-    activePhase: phase,
-    phaseProgress: { done: alreadyCompletedCount, total: phaseTotal },
-    phasePoints: points(earnedPts),
-  });
+  await setStatus(
+    alreadyCompletedCount,
+    `${phaseLabel} (${alreadyCompletedCount} / ${phaseTotal})`,
+  );
 
   for (let i = 0; i < activities.length; i++) {
     ctx.signal.throwIfAborted();
@@ -70,12 +68,7 @@ export async function runActivityLoop(opts: RunActivityLoopOpts): Promise<void> 
 
       const done = alreadyCompletedCount + successCount;
       const status = statusLine(activity);
-      await ctx.updateHeader({
-        headerMessage: status,
-        activePhase: phase,
-        phaseProgress: { done, total: phaseTotal },
-        phasePoints: points(earnedPts),
-      });
+      await setStatus(done, status);
       await ctx.dbg(
         DBG.INFO,
         `[${activity.id}] [${phaseLabel} ${i + 1}/${activities.length}] ${status}`,
@@ -98,12 +91,8 @@ export async function runActivityLoop(opts: RunActivityLoopOpts): Promise<void> 
         await lingerOnPage(lingerLabel, undefined, ctx.signal);
         ctx.signal.throwIfAborted();
       } else {
-        await ctx.updateHeader({
-          headerMessage: `${phaseLabel} (${alreadyCompletedCount + successCount} / ${phaseTotal})`,
-          activePhase: phase,
-          phaseProgress: { done: alreadyCompletedCount + successCount, total: phaseTotal },
-          phasePoints: points(earnedPts),
-        });
+        const finalDone = alreadyCompletedCount + successCount;
+        await setStatus(finalDone, `${phaseLabel} (${finalDone} / ${phaseTotal})`);
       }
     } finally {
       ctx.activeActivity = null;

@@ -30,8 +30,7 @@ export function buildRunSummary(
 
   return {
     ...opts,
-    phases: state.header.phases,
-    phasePoints: state.header.phasePoints,
+    phaseStates: state.header.phaseStates,
     activityCounts: {
       dailySetsCompleted,
       exploreCompleted,

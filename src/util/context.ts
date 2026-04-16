@@ -1,19 +1,32 @@
-import { setRunState, setHeaderState, getHeaderState } from './persistent-state.js';
+import { setRunState, getHeaderState, updateHeaderState } from './persistent-state.js';
 import { dbg } from './debug.js';
 import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 import type { StepBase } from '../interfaces/step.js';
 import type { Activity } from './activity.js';
-import type { RunState } from './persistent-state.js';
+import type { HeaderState, RunState } from './persistent-state.js';
 import type { DebugType } from './debug.js';
 import type { FailureCategory } from './failures.js';
-import type { ProgressPayload } from './messaging.js';
+import type { PhaseUpdate } from './messaging.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyOrchestrator = OrchestratorBase<any[]>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyStep = StepBase<any[], any>;
+
+function broadcast(header: HeaderState): void {
+  chrome.runtime
+    .sendMessage({
+      action: MSG_ACTION.PROGRESS,
+      headerMessage: header.headerMessage,
+      activePhase: header.activePhase,
+      phaseStates: header.phaseStates,
+    })
+    .catch(() => {
+      /* popup may be closed */
+    });
+}
 
 export interface Context {
   signal: AbortSignal;
@@ -23,7 +36,7 @@ export interface Context {
   setState: (updates: Partial<RunState>) => Promise<void>;
   dbg: (type: DebugType, message: string) => Promise<void>;
   fail: (category: FailureCategory, message: string) => Promise<void>;
-  updateHeader: (payload: ProgressPayload) => Promise<void>;
+  setPhase: (update: PhaseUpdate) => Promise<void>;
   broadcastProgress: () => Promise<void>;
 }
 
@@ -40,29 +53,24 @@ export function createContext(signal: AbortSignal): Context {
     fail(category: FailureCategory, message: string): Promise<void> {
       return fail(category, message, ctx);
     },
-    async updateHeader(payload: ProgressPayload): Promise<void> {
-      const { headerMessage, activePhase, phaseProgress, phasePoints } = payload;
-      await setHeaderState({
-        headerMessage,
-        activePhase,
-        ...(activePhase != null && { phases: { [activePhase]: phaseProgress } }),
-        phasePoints,
+    async setPhase(update: PhaseUpdate): Promise<void> {
+      const { phase, headerMessage, progress, points } = update;
+      const merged = await updateHeaderState(() => {
+        const phaseStates =
+          progress !== undefined || points !== undefined
+            ? {
+                [phase.key]: {
+                  ...(progress !== undefined && { progress }),
+                  ...(points !== undefined && { points }),
+                },
+              }
+            : undefined;
+        return { headerMessage, activePhase: phase.key, ...(phaseStates && { phaseStates }) };
       });
-      await ctx.broadcastProgress();
+      broadcast(merged);
     },
     async broadcastProgress(): Promise<void> {
-      const merged = await getHeaderState();
-      chrome.runtime
-        .sendMessage({
-          action: MSG_ACTION.PROGRESS,
-          headerMessage: merged.headerMessage,
-          activePhase: merged.activePhase,
-          phases: merged.phases,
-          phasePoints: merged.phasePoints,
-        })
-        .catch(() => {
-          /* popup may be closed */
-        });
+      broadcast(await getHeaderState());
     },
   };
   return ctx;

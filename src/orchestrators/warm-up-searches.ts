@@ -5,7 +5,7 @@ import { shuffleArray } from '../util/array.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { PHASE } from '../util/persistent-state.js';
+import { PHASE } from '../util/phase.js';
 import { performSearch } from '../steps/perform-search.js';
 
 const WARMUP_COUNT = 3;
@@ -15,11 +15,10 @@ class WarmUpSearches extends OrchestratorBase {
 
   async run(ctx: Context): Promise<void> {
     await ctx.dbg(DBG.INFO, 'Warm-up: starting');
-    await ctx.updateHeader({
+    await ctx.setPhase({
+      phase: PHASE.WARMUP,
       headerMessage: `Warming up (0 / ${WARMUP_COUNT})`,
-      activePhase: PHASE.WARMUP,
-      phaseProgress: { done: 0, total: WARMUP_COUNT },
-      phasePoints: {},
+      progress: { done: 0, total: WARMUP_COUNT },
     });
 
     const shuffled = shuffleArray(WARMUP_SEARCH_QUERIES);
@@ -37,11 +36,10 @@ class WarmUpSearches extends OrchestratorBase {
       ctx.signal.throwIfAborted();
 
       await ctx.dbg(DBG.INFO, `Warm-up: ${i + 1}/${WARMUP_COUNT}`);
-      await ctx.updateHeader({
+      await ctx.setPhase({
+        phase: PHASE.WARMUP,
         headerMessage: `Warming up (${i + 1} / ${WARMUP_COUNT})`,
-        activePhase: PHASE.WARMUP,
-        phaseProgress: { done: i + 1, total: WARMUP_COUNT },
-        phasePoints: {},
+        progress: { done: i + 1, total: WARMUP_COUNT },
       });
     }
 

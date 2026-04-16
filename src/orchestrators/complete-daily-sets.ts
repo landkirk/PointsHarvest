@@ -8,7 +8,8 @@ import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { executeWithRetry } from '../util/execute-with-retry.js';
 import { FAIL } from '../util/failures.js';
-import { PHASE, loadRunState } from '../util/persistent-state.js';
+import { loadRunState } from '../util/persistent-state.js';
+import { PHASE } from '../util/phase.js';
 import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
@@ -50,7 +51,6 @@ class CompleteDailySets extends OrchestratorBase {
     await runActivityLoop({
       ctx,
       phase: PHASE.DAILY,
-      phaseLabel: 'Daily sets',
       activities: dailySets,
       alreadyCompletedCount,
       alreadyCompletedPoints,
