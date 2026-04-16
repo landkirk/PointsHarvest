@@ -17,6 +17,7 @@ interface ActivityDebugData {
 const dbgWarmUp = document.getElementById('dbg-warmup') as HTMLElement;
 const dbgExplore = document.getElementById('dbg-explore') as HTMLElement;
 const dbgDaily = document.getElementById('dbg-daily') as HTMLElement;
+const dbgMoreActivities = document.getElementById('dbg-more-activities') as HTMLElement;
 const dbgPcCounters = document.getElementById('dbg-pc-counters') as HTMLElement;
 const dbgLog = document.getElementById('dbg-log') as HTMLElement;
 
@@ -40,6 +41,11 @@ export function clearDebug(): void {
     { items: [], emptyMessage: 'Run the extension to see results.' },
     LIST_SIZE.MEDIUM,
   );
+  renderActivitySection(
+    dbgMoreActivities,
+    { items: [], emptyMessage: 'Run the extension to see results.' },
+    LIST_SIZE.MEDIUM,
+  );
   dbgPcCounters.innerHTML = '<div class="dbg-empty">No data yet.</div>';
   dbgLog.innerHTML = '<div class="dbg-empty">No events yet.</div>';
 }
@@ -59,13 +65,25 @@ export function appendLogEntry(entry: DebugEntry): void {
 }
 
 export function renderActivitiesAndCounters(state: RunState): void {
-  const allActivities = state.activityState?.allActivities ?? [];
-  const exploreActivities = allActivities.filter(
-    (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
-  );
-  const dailyActivities = allActivities.filter((a) => a.activityType === ACTIVITY_TYPE.DAILY_SET);
+  const exploreActivities: Activity[] = [];
+  const dailyActivities: Activity[] = [];
+  const moreActivities: Activity[] = [];
+  for (const a of state.activityState?.allActivities ?? []) {
+    if (a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) exploreActivities.push(a);
+    else if (a.activityType === ACTIVITY_TYPE.DAILY_SET) dailyActivities.push(a);
+    else if (a.activityType === ACTIVITY_TYPE.MORE_ACTIVITIES) moreActivities.push(a);
+  }
   renderActivitySection(dbgExplore, exploreToActivityData(exploreActivities), LIST_SIZE.LARGE);
-  renderActivitySection(dbgDaily, dailySetsToActivityData(dailyActivities), LIST_SIZE.MEDIUM);
+  renderActivitySection(
+    dbgDaily,
+    simpleActivityData(dailyActivities, 'No daily set activities found.'),
+    LIST_SIZE.MEDIUM,
+  );
+  renderActivitySection(
+    dbgMoreActivities,
+    simpleActivityData(moreActivities, 'No more activities tiles found.'),
+    LIST_SIZE.MEDIUM,
+  );
   renderPcCounters(state.searchCounters);
 }
 
@@ -179,15 +197,11 @@ function exploreToActivityData(activities: Activity[]): ActivityDebugData {
   return { stats, items: activities, emptyMessage: 'No activity cards found.', queue };
 }
 
-function dailySetsToActivityData(activities: Activity[]): ActivityDebugData {
+function simpleActivityData(activities: Activity[], emptyMessage: string): ActivityDebugData {
   if (activities.length === 0) {
     return { items: [], emptyMessage: 'Run the extension to see results.' };
   }
-  return {
-    stats: buildScanStats(activities),
-    items: activities,
-    emptyMessage: 'No daily set activities found.',
-  };
+  return { stats: buildScanStats(activities), items: activities, emptyMessage };
 }
 
 // ── Shared helpers ─────────────────────────────────────────────────────────

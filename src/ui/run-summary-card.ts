@@ -1,6 +1,18 @@
 import type { PhaseKey, RunSummary, RunEndReason } from '../util/persistent-state.js';
-import { PHASE, PHASE_KEYS, PHASE_LABELS, RUN_END } from '../util/persistent-state.js';
+import {
+  PHASE,
+  PHASE_CADENCE,
+  PHASE_KEYS,
+  PHASE_LABELS,
+  RUN_END,
+} from '../util/persistent-state.js';
 import { formatDuration, pluralize } from '../util/format.js';
+
+interface ActivityLineItem {
+  count: number;
+  singular: string;
+  plural: string;
+}
 
 const TOTAL_LABELS: Record<RunEndReason, string> = {
   [RUN_END.SUCCESS]: '',
@@ -25,10 +37,18 @@ export function renderRunSummary(summary: RunSummary | null): void {
   el.replaceChildren(...buildCard(summary));
 }
 
+function sumPhasePointsByCadence(s: RunSummary, cadence: 'weekly' | 'daily'): number {
+  let sum = 0;
+  for (const key of PHASE_KEYS) {
+    if (PHASE_CADENCE[key] === cadence) sum += s.phasePoints[key];
+  }
+  return sum;
+}
+
 function buildCard(s: RunSummary): Node[] {
   const nodes: Node[] = [];
-  const weekPts = s.phasePoints[PHASE.EXPLORE];
-  const todayPts = s.phasePoints[PHASE.DAILY] + s.phasePoints[PHASE.FARM];
+  const weekPts = sumPhasePointsByCadence(s, 'weekly');
+  const todayPts = sumPhasePointsByCadence(s, 'daily');
 
   const header = document.createElement('div');
   header.className = 'rs-header';
@@ -40,11 +60,11 @@ function buildCard(s: RunSummary): Node[] {
     total.classList.add('rs-total--err');
   }
   if (weekPts > 0 && todayPts > 0) {
-    total.textContent = `+${weekPts} explore (wk) · +${todayPts} today`;
+    total.textContent = `+${weekPts} weekly pts · +${todayPts} daily pts`;
   } else if (weekPts > 0) {
-    total.textContent = `+${weekPts} explore (wk)`;
+    total.textContent = `+${weekPts} weekly pts`;
   } else if (todayPts > 0) {
-    total.textContent = `+${todayPts} today`;
+    total.textContent = `+${todayPts} daily pts`;
   } else {
     total.textContent = '+0 pts';
   }
@@ -111,26 +131,28 @@ function buildPhaseRow(key: PhaseKey, s: RunSummary): HTMLElement {
 
   const pts = document.createElement('span');
   pts.className = 'rs-phase-points';
-  pts.textContent = points > 0 ? `+${points} pts` : '—';
+  const cadence = PHASE_CADENCE[key];
+  pts.textContent = points > 0 ? `+${points} ${cadence ? `${cadence} ` : ''}pts` : '—';
   row.appendChild(pts);
 
   return row;
 }
 
 function buildActivityLine(s: RunSummary): HTMLElement | null {
-  const { dailySetsCompleted, exploreCompleted } = s.activityCounts;
-  if (dailySetsCompleted === 0 && exploreCompleted === 0) return null;
-  const parts: string[] = [];
-  if (dailySetsCompleted > 0) {
-    parts.push(
-      `${dailySetsCompleted} ${pluralize(dailySetsCompleted, 'daily set card', 'daily set cards')}`,
-    );
-  }
-  if (exploreCompleted > 0) {
-    parts.push(
-      `${exploreCompleted} ${pluralize(exploreCompleted, 'explore card', 'explore cards')}`,
-    );
-  }
+  const { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted } = s.activityCounts;
+  const items: ActivityLineItem[] = [
+    { count: dailySetsCompleted, singular: 'daily set card', plural: 'daily set cards' },
+    { count: exploreCompleted, singular: 'explore card', plural: 'explore cards' },
+    {
+      count: moreActivitiesCompleted,
+      singular: 'more activities tile',
+      plural: 'more activities tiles',
+    },
+  ];
+  const parts = items
+    .filter((x) => x.count > 0)
+    .map((x) => `${x.count} ${pluralize(x.count, x.singular, x.plural)}`);
+  if (parts.length === 0) return null;
   const line = document.createElement('div');
   line.className = 'rs-activity-line';
   line.textContent = `Completed: ${parts.join(' · ')}`;

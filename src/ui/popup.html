@@ -440,9 +440,10 @@
       .phase-row--summary .rs-phase-points {
         font-size: 11px;
         color: var(--green);
-        width: 60px;
+        width: 100px;
         text-align: right;
         flex-shrink: 0;
+        white-space: nowrap;
       }
       .phase-row--summary.rs-phase--skipped .rs-phase-points {
         color: var(--text-secondary);
@@ -944,6 +945,12 @@
           <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
           <span class="phase-earned"></span>
         </div>
+        <div class="phase-row" id="phase-more-activities">
+          <span class="phase-label">More Activities</span>
+          <span class="phase-count"></span>
+          <div class="phase-bar-wrap"><div class="phase-bar"></div></div>
+          <span class="phase-earned"></span>
+        </div>
         <div class="phase-row" id="phase-farm">
           <span class="phase-label">PC Searches</span>
           <span class="phase-count"></span>
@@ -1045,6 +1052,17 @@
           <h2>Daily Sets</h2>
           <div class="dbg-section-body">
             <div id="dbg-daily">
+              <div class="dbg-list">
+                <div class="dbg-empty">Run the extension to see results.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dbg-section">
+          <h2>More Activities</h2>
+          <div class="dbg-section-body">
+            <div id="dbg-more-activities">
               <div class="dbg-list">
                 <div class="dbg-empty">Run the extension to see results.</div>
               </div>

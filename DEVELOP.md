@@ -116,6 +116,7 @@ src/                    Source files (edit these)
     activity-extraction.ts       Opens rewards tab, waits for content script, classifies and stores activities
     complete-explore-on-bing.ts  Iterates mapped cards, clicks each, runs searches
     complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
+    complete-more-activities.ts  Opens More Activities tiles, dwells, and validates; skips interactive tile types
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
     warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
@@ -248,7 +249,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Opens the rewards tab and focuses it before starting the orchestrator chain; all tabs are opened in the same window as the extension (the `windowId` is passed in the `START` message from the popup)
 - Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
-- `_executeRun` chains five sub-orchestrators (ActivityExtraction → WarmUp → ExploreOnBing → DailySets → FarmPcSearches) via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `runtime-state.ts` around each run
+- `_executeRun` chains six sub-orchestrators (ActivityExtraction → WarmUp → ExploreOnBing → DailySets → MoreActivities → FarmPcSearches) via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `runtime-state.ts` around each run
 - Records `startedAt` at the top of `run()` so `_endRun` can compute the run duration
 - `_endRun(ctx, endReason)` takes a `RunEndReason` from the `RUN_END` enum (`success`, `stopped`, `not-logged-in`, `fatal`, `setup-failed`); the centralized `END_MESSAGES` table in the same file maps each reason to its status string and debug message
 - On run end, builds a `RunSummary` via `buildRunSummary()` (from `util/run-summary.ts`) and persists it to `runState.lastRunSummary` alongside the final header state in a single `setRunState()` call
@@ -267,7 +268,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Scrolls the rewards page twice (700–1800 ms pauses between scrolls) before extraction to ensure all cards render
 - Sends `START_EXTRACT` to the content script and waits up to 20s for `ACTIVITIES_FOUND` response containing `{ cards: RawCard[], loggedIn: boolean }`
 - Throws `NotLoggedInError` if rewards page redirects away from `rewards.bing.com` (e.g., user not logged in)
-- Classifies each raw card via `classifyCard()` into `EXPLORE_ON_BING`, `DAILY_SET`, or `IGNORED` based on title/description patterns and source
+- Classifies each raw card via `classifyCard()` into `EXPLORE_ON_BING`, `DAILY_SET`, `MORE_ACTIVITIES`, or `IGNORED` based on title/description patterns and source
 - Enriches explore cards with `searchQuery` and `fallbackQuery` via `enrichSearchQueries()`
 - Enriches daily cards with `requiresUserAction`, `userActionKind`, and `userActionTimeoutMs` via `enrichUserActions()`; `userActionKind` is one of `'quiz' | 'poll' | 'puzzle' | null` (cards matching `test` are folded into `quiz`). Timeout is 2 min for polls, 10 min for quizzes/puzzles.
 - Stores the full `ActivityState` (all cards, rewardsTabId, loggedIn flag) to persistent storage for downstream orchestrators
@@ -295,6 +296,17 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
     - **Auto-closeable**: calls `lingerOnPage()` (standard 6–10s dwell), then closes the tab
   - Validates completion via `ActivityRunner` after each activity
   - Tracks phase progress (done vs total)
+
+### orchestrators/complete-more-activities.ts
+- Runs after Daily Sets to complete "More Activities" tiles on the rewards page
+- Filters for actionable more-activities cards (`activityType === MORE_ACTIVITIES`, `cardState === Actionable`)
+- Skips tiles whose title or description matches any skip keyword: `puzzle`, `quiz`, `browser extension`, `set bing`, `install`, `play` — logged as a warning; never clicked
+- For each remaining tile:
+  - Uses `TabManager.clickCardAndCaptureTab()` to click the tile; the href is a pre-built Bing search URL so the results page loads immediately — no `performSearch` needed
+  - If tab blocked by popup blocker, calls `_waitForPopupUnblock`
+  - Dwells 6–10s (`TIMING.LINGER_ON_PAGE`), closes the tab, and validates completion
+  - Retries once on validation failure via `executeWithRetry` (same pattern as daily sets)
+- No user-interaction path — every tile type that requires manual input is already in the skip list
 
 ### orchestrators/farm-pc-searches.ts
 - Runs after all activity cards to maximize PC search points by farming until the daily cap is reached
@@ -374,11 +386,11 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `resetRunState(overrides)` — reset all run fields to `INITIAL_RUN_STATE` (preserves preference keys; storage.local.set is additive)
 - `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phases, phasePoints)
 - `setDebugState()` / `getDebugLog()` / `getFailures()` — accessors for debug and failure sub-state
-- `PHASE` constants: `'warmup'`, `'explore'`, `'daily'`, `'farm'` — used as keys in `PhaseProgressMap` and `PhasePointsMap`
+- `PHASE` constants: `'warmup'`, `'explore'`, `'daily'`, `'more-activities'`, `'farm'` — used as keys in `PhaseProgressMap` and `PhasePointsMap`
 - `PHASE_KEYS: readonly PhaseKey[]` — exported tuple of all phase keys in order, used by the popup to iterate rows
-- `PHASE_LABELS: Record<PhaseKey, string>` — display names (`'Warm-up'`, `'Explore on Bing'`, `'Daily Sets'`, `'PC Searches'`) used by the run summary card
+- `PHASE_LABELS: Record<PhaseKey, string>` — display names (`'Warm-up'`, `'Explore on Bing'`, `'Daily Sets'`, `'More Activities'`, `'PC Searches'`) used by the run summary card
 - `RUN_END` constants and `RunEndReason` type: `'success' | 'stopped' | 'not-logged-in' | 'fatal' | 'setup-failed'` — passed into `_endRun` and stored on `RunSummary.endReason`
-- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phases, phasePoints, activityCounts: { dailySetsCompleted, exploreCompleted, locked, actionableLeftover }, failureCount }`
+- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phases, phasePoints, activityCounts: { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted, locked, actionableLeftover }, failureCount }`
 
 ### util/runtime-state.ts
 - `activeOrchestrator` / `activeContext` — in-memory only (not persisted); reset on service worker restart
@@ -493,9 +505,10 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - **Initialization**: Waits for rewards.bing.com SPA to render activity cards (polls DOM every 500ms up to 15s)
 - **Pre-extraction scrolling**: Scrolls the page twice with 700–1800 ms pauses between scrolls to ensure all cards load and are visible
 - **Card extraction** (`START_EXTRACT` handler):
-  - Extracts all actionable and locked cards from two sections:
-    - **Explore section** (main cards): `<a class="ds-card-sec">` and `.locked-card` elements outside the daily-sets container
+  - Extracts all actionable and locked cards from three sections:
+    - **Explore section** (main cards): `<a class="ds-card-sec">` and `.locked-card` elements outside the daily-sets and more-activities containers
     - **Daily sets section** (`#daily-sets`): tiles for quizzes, polls, surveys, offers
+    - **More activities section** (`#more-activities`): additional activity tiles with pre-built search URLs; cards use id prefix `M1–MN` and `source: CARD_SOURCE.MORE_ACTIVITIES`
   - Each card yields a `RawCard` with fields: `id` (E1–EN for explore, D1–DN for daily), `title`, `description`, `points`, `cardState`, `source`, `dataBiId`
   - Classifies card state via `determineCardState()`:
     - `Locked` — `.locked-card` parent or `aria-disabled="true"`
@@ -799,7 +812,7 @@ Split into two independent persistent objects in `chrome.storage.local` (via `ut
 - `failures` — list of soft failures (max 50)
 - `header` — run progress state:
   - `headerMessage` — current status message
-  - `activePhase` — currently executing phase (`'warmup'` | `'explore'` | `'daily'` | `'farm'` | null)
+  - `activePhase` — currently executing phase (`'warmup'` | `'explore'` | `'daily'` | `'more-activities'` | `'farm'` | null)
   - `phases` — per-phase progress (`{ warmup: null, explore: { done, total }, ... }`)
   - `phasePoints` — per-phase earned points (`{ warmup: 0, explore: 50, ... }`)
 - `debug` — debug log entries

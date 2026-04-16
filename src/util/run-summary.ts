@@ -12,6 +12,7 @@ export function buildRunSummary(
   const activities = state.activityState?.allActivities ?? [];
   let dailySetsCompleted = 0;
   let exploreCompleted = 0;
+  let moreActivitiesCompleted = 0;
   let locked = 0;
   let actionableLeftover = 0;
   for (const a of activities) {
@@ -19,6 +20,7 @@ export function buildRunSummary(
     if (a.cardState === CardState.Completed) {
       if (a.activityType === ACTIVITY_TYPE.DAILY_SET) dailySetsCompleted++;
       else if (a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) exploreCompleted++;
+      else if (a.activityType === ACTIVITY_TYPE.MORE_ACTIVITIES) moreActivitiesCompleted++;
     } else if (a.cardState === CardState.Locked) {
       locked++;
     } else if (a.cardState === CardState.Actionable) {
@@ -30,7 +32,13 @@ export function buildRunSummary(
     ...opts,
     phases: state.header.phases,
     phasePoints: state.header.phasePoints,
-    activityCounts: { dailySetsCompleted, exploreCompleted, locked, actionableLeftover },
+    activityCounts: {
+      dailySetsCompleted,
+      exploreCompleted,
+      moreActivitiesCompleted,
+      locked,
+      actionableLeftover,
+    },
     failureCount: state.failures.length,
   };
 }

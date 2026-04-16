@@ -11,7 +11,7 @@ import {
   enrichSearchQueries,
   enrichUserActions,
 } from '../util/activity.js';
-import type { RawCard, Activity, ActivityState } from '../util/activity.js';
+import type { Activity, ActivityState } from '../util/activity.js';
 import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
 import { NotLoggedInError } from '../util/errors.js';
@@ -33,16 +33,16 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
 
     if (!result.loggedIn) throw new NotLoggedInError();
 
-    const explore = result.allActivities.filter(
-      (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
-    ).length;
-    const daily = result.allActivities.filter(
-      (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET,
-    ).length;
-    const ignored = result.allActivities.length - explore - daily;
+    const counts = { explore: 0, daily: 0, more: 0, ignored: 0 };
+    for (const a of result.allActivities) {
+      if (a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) counts.explore++;
+      else if (a.activityType === ACTIVITY_TYPE.DAILY_SET) counts.daily++;
+      else if (a.activityType === ACTIVITY_TYPE.MORE_ACTIVITIES) counts.more++;
+      else counts.ignored++;
+    }
     await ctx.dbg(
       DBG.INFO,
-      `Extracted ${result.allActivities.length} cards: ${explore} explore, ${daily} daily, ${ignored} ignored`,
+      `Extracted ${result.allActivities.length} cards: ${counts.explore} explore, ${counts.daily} daily, ${counts.more} more activities, ${counts.ignored} ignored`,
     );
 
     await setRunState({ activityState: result });
@@ -96,24 +96,28 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
           return;
         }
 
-        const allActivities: Activity[] = msg.cards.map((card: RawCard) => ({
-          id: card.id,
-          title: card.title,
-          description: card.description,
-          points: card.points,
-          cardState: card.cardState,
-          activityType: classifyCard(card),
-          requiresUserAction: false,
-          userActionKind: null,
-          userActionTimeoutMs: 0,
-        }));
-
-        const exploreActivities = allActivities.filter(
-          (a) => a.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING,
-        );
-        const dailyActivities = allActivities.filter(
-          (a) => a.activityType === ACTIVITY_TYPE.DAILY_SET,
-        );
+        const allActivities: Activity[] = [];
+        const exploreActivities: Activity[] = [];
+        const dailyActivities: Activity[] = [];
+        for (const card of msg.cards) {
+          const activity: Activity = {
+            id: card.id,
+            title: card.title,
+            description: card.description,
+            points: card.points,
+            cardState: card.cardState,
+            activityType: classifyCard(card),
+            requiresUserAction: false,
+            userActionKind: null,
+            userActionTimeoutMs: 0,
+          };
+          allActivities.push(activity);
+          if (activity.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) {
+            exploreActivities.push(activity);
+          } else if (activity.activityType === ACTIVITY_TYPE.DAILY_SET) {
+            dailyActivities.push(activity);
+          }
+        }
 
         enrichSearchQueries(exploreActivities);
         enrichUserActions(dailyActivities);

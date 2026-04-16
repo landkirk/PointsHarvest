@@ -56,8 +56,8 @@ class CompleteDailySets extends OrchestratorBase {
       alreadyCompletedPoints,
       lingerLabel: 'between daily set activities',
       statusLine: (a) => `Opening: "${truncate(a.title, LABEL_MAX)}"`,
-      attempt: async (a, i) => {
-        return await executeWithRetry(
+      attempt: async (a, i) =>
+        executeWithRetry(
           ctx,
           () => this.attemptActivity(ctx, rewardsTabId, a),
           {
@@ -69,8 +69,7 @@ class CompleteDailySets extends OrchestratorBase {
             category: FAIL.VALIDATION,
             message: `Daily set activity ${i + 1} still not validated after retry — skipping`,
           },
-        );
-      },
+        ),
     });
   }
 

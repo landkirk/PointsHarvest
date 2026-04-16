@@ -16,30 +16,17 @@ import { renderRunSummary } from './run-summary-card.js';
 const dot = document.getElementById('dot') as HTMLElement;
 const statusEl = document.getElementById('status') as HTMLElement;
 const bar = document.getElementById('progress-bar') as HTMLElement;
-const phaseEls: Record<PhaseKey, HTMLElement> = {
-  warmup: document.getElementById('phase-warmup') as HTMLElement,
-  explore: document.getElementById('phase-explore') as HTMLElement,
-  daily: document.getElementById('phase-daily') as HTMLElement,
-  farm: document.getElementById('phase-farm') as HTMLElement,
-};
-const phaseCountEls: Record<PhaseKey, HTMLElement> = {
-  warmup: phaseEls.warmup.querySelector('.phase-count') as HTMLElement,
-  explore: phaseEls.explore.querySelector('.phase-count') as HTMLElement,
-  daily: phaseEls.daily.querySelector('.phase-count') as HTMLElement,
-  farm: phaseEls.farm.querySelector('.phase-count') as HTMLElement,
-};
-const phaseBarEls: Record<PhaseKey, HTMLElement> = {
-  warmup: phaseEls.warmup.querySelector('.phase-bar') as HTMLElement,
-  explore: phaseEls.explore.querySelector('.phase-bar') as HTMLElement,
-  daily: phaseEls.daily.querySelector('.phase-bar') as HTMLElement,
-  farm: phaseEls.farm.querySelector('.phase-bar') as HTMLElement,
-};
-const phaseEarnedEls: Record<PhaseKey, HTMLElement> = {
-  warmup: phaseEls.warmup.querySelector('.phase-earned') as HTMLElement,
-  explore: phaseEls.explore.querySelector('.phase-earned') as HTMLElement,
-  daily: phaseEls.daily.querySelector('.phase-earned') as HTMLElement,
-  farm: phaseEls.farm.querySelector('.phase-earned') as HTMLElement,
-};
+const phaseEls = {} as Record<PhaseKey, HTMLElement>;
+const phaseCountEls = {} as Record<PhaseKey, HTMLElement>;
+const phaseBarEls = {} as Record<PhaseKey, HTMLElement>;
+const phaseEarnedEls = {} as Record<PhaseKey, HTMLElement>;
+for (const key of PHASE_KEYS) {
+  const row = document.getElementById(`phase-${key}`) as HTMLElement;
+  phaseEls[key] = row;
+  phaseCountEls[key] = row.querySelector('.phase-count') as HTMLElement;
+  phaseBarEls[key] = row.querySelector('.phase-bar') as HTMLElement;
+  phaseEarnedEls[key] = row.querySelector('.phase-earned') as HTMLElement;
+}
 
 function phaseEarnedLabel(phase: PhaseKey, pts: number): string {
   return `+${pts} pts ${PHASE_TIME_LABEL[phase]}`;

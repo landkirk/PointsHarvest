@@ -9,10 +9,11 @@ import { CardState, CARD_SOURCE } from '../util/activity.js';
 import { TIMING, TIMEOUTS, randMs, rawRandMs, sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
-import type { RawCard } from '../util/activity.js';
+import type { RawCard, CardSource } from '../util/activity.js';
 
 const SELECTORS = {
   DAILY_SETS_CONTAINER: '#daily-sets',
+  MORE_ACTIVITIES_CONTAINER: '#more-activities',
   CARD_ACTIONABLE: 'a.ds-card-sec',
   CARD_LOCKED: '.locked-card',
   POINTS_EARNED: '[aria-label="Points you have earned"]',
@@ -39,6 +40,17 @@ function parseCardPoints(card: Element): number {
   return isNaN(n) ? 0 : n;
 }
 
+function parseAriaTitleAndDescription(el: Element): { title: string; description: string } {
+  const parts = (el.getAttribute('aria-label') || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const title = parts[0] || (el.textContent ?? '').trim().slice(0, 60);
+  const descP = el.querySelector(SELECTORS.CARD_DESCRIPTION);
+  const description = descP ? (descP.textContent ?? '').trim() : parts.slice(1).join(', ');
+  return { title, description };
+}
+
 const MAX_WAIT_MS = TIMEOUTS.REWARDS_DOM_MAX_WAIT;
 const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_DOM_POLL;
 
@@ -56,6 +68,45 @@ function determineCardState(card: Element): CardState {
   return CardState.Unknown;
 }
 
+interface SectionOpts {
+  idPrefix: string;
+  source: CardSource;
+  getTitleDesc: (el: Element) => { title: string; description: string };
+  getDataBiId?: (el: Element) => string;
+}
+
+function collectSectionCards(
+  els: Element[],
+  opts: SectionOpts,
+  cards: RawCard[],
+  cardEls: Map<string, HTMLAnchorElement>,
+): void {
+  let index = 0;
+  for (const el of els) {
+    const state = determineCardState(el);
+    const href = (el as HTMLAnchorElement).href || '';
+    const id = `${opts.idPrefix}${++index}`;
+    const { title, description } = opts.getTitleDesc(el);
+    cards.push({
+      id,
+      title,
+      description,
+      points: parseCardPoints(el),
+      cardState: state,
+      source: opts.source,
+      dataBiId: opts.getDataBiId?.(el) ?? '',
+    });
+    if (href && state === CardState.Actionable) cardEls.set(id, el as HTMLAnchorElement);
+  }
+}
+
+function dailyTitleDesc(el: Element): { title: string; description: string } {
+  return {
+    title: el.getAttribute('aria-label') || '',
+    description: el.textContent?.trim().slice(0, 120) || '',
+  };
+}
+
 function extractAllCards(): {
   cards: RawCard[];
   hasDailySection: boolean;
@@ -64,69 +115,57 @@ function extractAllCards(): {
   const cards: RawCard[] = [];
   const cardEls = new Map<string, HTMLAnchorElement>();
 
-  // ── Explore section (main cards, excluding daily-sets container) ──────
+  // ── Explore section (main cards, excluding daily-sets and more-activities containers) ──
   const exploreEls = [
     ...document.querySelectorAll(SELECTORS.CARD_LOCKED),
     ...Array.from(document.querySelectorAll(SELECTORS.CARD_ACTIONABLE)).filter(
       (a) => !a.closest(SELECTORS.CARD_LOCKED),
     ),
-  ].filter((card) => !card.closest(SELECTORS.DAILY_SETS_CONTAINER));
-
-  let exploreIndex = 0;
-  for (const el of exploreEls) {
-    const state = determineCardState(el);
-    const ariaLabel = el.getAttribute('aria-label') || '';
-    const href = (el as HTMLAnchorElement).href || '';
-    const pts = parseCardPoints(el);
-    const id = `E${++exploreIndex}`;
-
-    const parts = ariaLabel
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const title = parts[0] || (el.textContent ?? '').trim().slice(0, 60);
-    const descP = el.querySelector(SELECTORS.CARD_DESCRIPTION);
-    const description = descP ? (descP.textContent ?? '').trim() : parts.slice(1).join(', ');
-    const parentBiId = el.closest(SELECTORS.BI_TRACKED)?.getAttribute('data-bi-id') || '';
-
-    cards.push({
-      id,
-      title,
-      description,
-      points: pts,
-      cardState: state,
+  ].filter(
+    (card) =>
+      !card.closest(SELECTORS.DAILY_SETS_CONTAINER) &&
+      !card.closest(SELECTORS.MORE_ACTIVITIES_CONTAINER),
+  );
+  collectSectionCards(
+    exploreEls,
+    {
+      idPrefix: 'E',
       source: CARD_SOURCE.EXPLORE,
-      dataBiId: parentBiId,
-    });
-    if (href && state === CardState.Actionable) cardEls.set(id, el as HTMLAnchorElement);
-  }
+      getTitleDesc: parseAriaTitleAndDescription,
+      getDataBiId: (el) => el.closest(SELECTORS.BI_TRACKED)?.getAttribute('data-bi-id') || '',
+    },
+    cards,
+    cardEls,
+  );
 
   // ── Daily sets section ────────────────────────────────────────────────
   const dailyContainer = document.querySelector(SELECTORS.DAILY_SETS_CONTAINER);
   if (dailyContainer) {
-    const dailyEls = Array.from(dailyContainer.querySelectorAll(SELECTORS.CARD_ACTIONABLE));
-    let dailyIndex = 0;
-
-    for (const el of dailyEls) {
-      const state = determineCardState(el);
-      const ariaLabel = el.getAttribute('aria-label') || '';
-      const href = (el as HTMLAnchorElement).href || '';
-      const pts = parseCardPoints(el);
-      const id = `D${++dailyIndex}`;
-
-      cards.push({
-        id,
-        title: ariaLabel,
-        description: el.textContent?.trim().slice(0, 120) || '',
-        points: pts,
-        cardState: state,
-        source: CARD_SOURCE.DAILY_SET,
-        dataBiId: '',
-      });
-      if (href && state === CardState.Actionable) cardEls.set(id, el as HTMLAnchorElement);
-    }
+    collectSectionCards(
+      Array.from(dailyContainer.querySelectorAll(SELECTORS.CARD_ACTIONABLE)),
+      { idPrefix: 'D', source: CARD_SOURCE.DAILY_SET, getTitleDesc: dailyTitleDesc },
+      cards,
+      cardEls,
+    );
   } else {
     console.warn('[rewards-content] Selector not found:', SELECTORS.DAILY_SETS_CONTAINER);
+  }
+
+  // ── More activities section ───────────────────────────────────────────
+  const moreActivitiesContainer = document.querySelector(SELECTORS.MORE_ACTIVITIES_CONTAINER);
+  if (moreActivitiesContainer) {
+    collectSectionCards(
+      Array.from(moreActivitiesContainer.querySelectorAll(SELECTORS.CARD_ACTIONABLE)),
+      {
+        idPrefix: 'M',
+        source: CARD_SOURCE.MORE_ACTIVITIES,
+        getTitleDesc: parseAriaTitleAndDescription,
+      },
+      cards,
+      cardEls,
+    );
+  } else {
+    console.warn('[rewards-content] Selector not found:', SELECTORS.MORE_ACTIVITIES_CONTAINER);
   }
 
   return { cards, hasDailySection: !!dailyContainer, cardEls };

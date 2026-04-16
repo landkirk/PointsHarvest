@@ -1,6 +1,6 @@
 # RewardFarm
 
-A Chrome extension that automates daily Bing Rewards points by running your searches and completing "Explore on Bing" activities automatically.
+A Chrome extension that automates daily Bing Rewards points by running your searches and completing "Explore on Bing", "Daily Sets", and "More Activities" cards automatically.
 
 ## Links
 
@@ -24,9 +24,10 @@ This extension:
    - Staggered page dwells (6–10s per page) affected by your speed preference
 6. Closes each search tab when done
 7. Clicks each daily set activity card on the rewards page (the same way Explore cards are clicked, so Bing can track completion); for quizzes, polls, tests, and puzzles it activates the opened tab and waits for you to complete them manually (click **Done** when finished); for other activity types it dwells briefly and closes automatically
-8. Farms remaining PC search points automatically using additional queries from a rotation pool
-9. Closes all tabs with staggered timing to appear more human-like
-10. Shows a run summary card with the run duration, points earned per phase, and activity counts
+8. Completes "More Activities" tiles — opens each tile's pre-built search URL, dwells 6–10s, closes, and validates; tiles containing skip keywords (puzzle, quiz, browser extension, set Bing, install, play) are skipped automatically
+9. Farms remaining PC search points automatically using additional queries from a rotation pool
+10. Closes all tabs with staggered timing to appear more human-like
+11. Shows a run summary card with the run duration, points earned per phase, and activity counts
 
 ## Installation
 
@@ -56,7 +57,7 @@ The extension tracks the last run date and progress:
 - If you run it today and complete all searches, it shows "Done for today!" and won't run again until tomorrow
 - If interrupted mid-run, it resumes from where it left off (same day only)
 - Each new day, the date check resets and you can run it again
-- The popup shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, PC Search); earned points count up as each phase credits them
+- The popup shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, More Activities, PC Search); earned points count up as each phase credits them
 - When the run ends, the popup shows a summary card with duration, points earned per phase, and activity counts
 
 ## How it works
@@ -86,6 +87,7 @@ src/                  Source files (edit these)
     activity-extraction.ts       Opens rewards tab, extracts and classifies activity cards
     complete-explore-on-bing.ts  Iterates mapped cards, clicks each, runs searches
     complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
+    complete-more-activities.ts  Opens More Activities tiles, dwells, and validates; skips interactive tile types
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
     warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
@@ -157,6 +159,15 @@ For each daily set activity:
     → dwell 6–10s → close tab
   → validate activity marked complete
   → linger 6–10s → next activity
+       │
+       ▼
+orchestrators/complete-more-activities.ts —
+For each More Activities tile (skipping puzzle/quiz/browser extension/set bing/install/play):
+  send clickCard → content script clicks the tile
+  → pre-built Bing search URL opens in new tab → wait for tab to load
+  → dwell 6–10s → close tab
+  → validate activity marked complete
+  → linger 6–10s → next tile
        │
        ▼
 orchestrators/farm-pc-searches.ts —

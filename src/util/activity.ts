@@ -5,6 +5,7 @@ import { TIMEOUTS } from './timing.js';
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
   EXPLORE_ON_BING: 'exploreOnBing',
+  MORE_ACTIVITIES: 'moreActivities',
   IGNORED: 'ignored',
 } as const;
 export type ActivityType = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];
@@ -12,6 +13,7 @@ export type ActivityType = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];
 export const CARD_SOURCE = {
   EXPLORE: 'explore',
   DAILY_SET: 'dailySet',
+  MORE_ACTIVITIES: 'moreActivities',
 } as const;
 export type CardSource = (typeof CARD_SOURCE)[keyof typeof CARD_SOURCE];
 
@@ -51,12 +53,28 @@ export interface RawCard {
 
 const EXPLORE_ON_BING_RE = /search (?:on|using|with) bing/i;
 const CARD_IGNORE_STRINGS = ['share', 'referral'];
+const MORE_ACTIVITIES_IGNORE_STRINGS = [
+  'puzzle',
+  'quiz',
+  'browser extension',
+  'set bing',
+  'install',
+  'play',
+  'test',
+  'search more',
+];
 
 /** Classify a raw card into an ActivityType based on source and heuristics. */
 export function classifyCard(card: RawCard): ActivityType {
   const combined = `${card.title} ${card.description}`.toLowerCase();
   if (CARD_IGNORE_STRINGS.some((s) => combined.includes(s))) return ACTIVITY_TYPE.IGNORED;
   if (card.source === CARD_SOURCE.DAILY_SET) return ACTIVITY_TYPE.DAILY_SET;
+  if (card.source === CARD_SOURCE.MORE_ACTIVITIES) {
+    if (MORE_ACTIVITIES_IGNORE_STRINGS.some((s) => combined.includes(s))) {
+      return ACTIVITY_TYPE.IGNORED;
+    }
+    return ACTIVITY_TYPE.MORE_ACTIVITIES;
+  }
   if (
     EXPLORE_ON_BING_RE.test(card.title) ||
     EXPLORE_ON_BING_RE.test(card.description) ||

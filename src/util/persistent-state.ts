@@ -20,6 +20,7 @@ export const PHASE = {
   WARMUP: 'warmup',
   EXPLORE: 'explore',
   DAILY: 'daily',
+  MORE_ACTIVITIES: 'more-activities',
   FARM: 'farm',
 } as const;
 
@@ -27,17 +28,25 @@ export type PhaseKey = (typeof PHASE)[keyof typeof PHASE];
 
 export const PHASE_KEYS: readonly PhaseKey[] = Object.values(PHASE);
 
-export const PHASE_TIME_LABEL: Record<PhaseKey, string> = {
+export const PHASE_CADENCE: Record<PhaseKey, '' | 'weekly' | 'daily'> = {
   warmup: '',
-  explore: 'this week',
-  daily: 'today',
-  farm: 'today',
+  explore: 'weekly',
+  daily: 'daily',
+  'more-activities': 'weekly',
+  farm: 'daily',
 };
+
+const CADENCE_TIME_LABEL = { '': '', weekly: 'this week', daily: 'today' } as const;
+
+export const PHASE_TIME_LABEL: Record<PhaseKey, string> = Object.fromEntries(
+  PHASE_KEYS.map((k) => [k, CADENCE_TIME_LABEL[PHASE_CADENCE[k]]]),
+) as Record<PhaseKey, string>;
 
 export const PHASE_LABELS: Record<PhaseKey, string> = {
   warmup: 'Warm-up',
   explore: 'Explore on Bing',
   daily: 'Daily Sets',
+  'more-activities': 'More Activities',
   farm: 'PC Searches',
 };
 
@@ -50,6 +59,7 @@ export interface PhaseProgressMap {
   warmup: PhaseProgress | null;
   explore: PhaseProgress | null;
   daily: PhaseProgress | null;
+  'more-activities': PhaseProgress | null;
   farm: PhaseProgress | null;
 }
 
@@ -85,6 +95,7 @@ export interface RunSummary {
   activityCounts: {
     dailySetsCompleted: number;
     exploreCompleted: number;
+    moreActivitiesCompleted: number;
     locked: number;
     actionableLeftover: number;
   };
@@ -133,8 +144,8 @@ export const INITIAL_RUN_STATE: RunState = {
   header: {
     headerMessage: 'idle',
     activePhase: null,
-    phases: { warmup: null, explore: null, daily: null, farm: null },
-    phasePoints: { warmup: 0, explore: 0, daily: 0, farm: 0 },
+    phases: { warmup: null, explore: null, daily: null, 'more-activities': null, farm: null },
+    phasePoints: { warmup: 0, explore: 0, daily: 0, 'more-activities': 0, farm: 0 },
   },
   debug: {
     debugLog: [],
