@@ -5,11 +5,11 @@
 // Actionable cards are <a class="ds-card-sec"> elements; locked cards are <div class="locked-card">.
 // "Search on Bing" activities are identified via aria-label on the card element.
 
-import { CardState, CARD_SOURCE } from '../util/activity.js';
+import { CardState, CARD_SOURCE } from '../util/activity-types.js';
 import { TIMING, TIMEOUTS, randMs, rawRandMs, sleep } from '../util/timing.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import type { AppMessage } from '../util/messaging.js';
-import type { RawCard, CardSource } from '../util/activity.js';
+import type { RawCard, CardSource } from '../util/activity-types.js';
 
 const SELECTORS = {
   DAILY_SETS_CONTAINER: '#daily-sets',

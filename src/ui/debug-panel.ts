@@ -1,8 +1,8 @@
-import { CardState, ACTIVITY_TYPE } from '../util/activity.js';
+import { CardState, ACTIVITY_TYPE } from '../util/activity-types.js';
 import { PHASE, phaseForActivityType } from '../util/phase.js';
 import type { PhaseKey } from '../util/phase.js';
 import type { RunState, SearchCounter } from '../util/persistent-state.js';
-import type { Activity } from '../util/activity.js';
+import type { Activity } from '../util/activity-types.js';
 import type { DebugEntry } from '../util/debug.js';
 
 // ── Generic activity debug view ─────────────────────────────────────────────

@@ -18,7 +18,7 @@ export interface ProgressBroadcast {
   phaseStates: PhaseStates;
 }
 
-import type { RawCard } from './activity.js';
+import type { RawCard } from './activity-types.js';
 import type { UserPreferences } from './persistent-state.js';
 
 // ── Message actions ────────────────────────────────────────────────────────

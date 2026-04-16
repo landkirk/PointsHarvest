@@ -1,5 +1,5 @@
 import type { RunEndReason, RunState, RunSummary } from './persistent-state.js';
-import { ACTIVITY_TYPE, CardState } from './activity.js';
+import { ACTIVITY_TYPE, CardState } from './activity-types.js';
 
 export function buildRunSummary(
   state: RunState,

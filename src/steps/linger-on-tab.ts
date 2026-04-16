@@ -1,7 +1,7 @@
 import { setHeaderState } from '../util/persistent-state.js';
 import { sleep } from '../util/timing.js';
 import { LABEL_MAX, truncate } from '../util/format.js';
-import type { Activity } from '../util/activity.js';
+import type { Activity } from '../util/activity-types.js';
 import type { Context } from '../util/context.js';
 
 export interface LingerHandle {

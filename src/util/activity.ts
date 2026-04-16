@@ -1,55 +1,8 @@
 import { VALIDATION_RETRY_QUERIES } from './search-queries.js';
-import { loadRunState, setRunState } from './persistent-state.js';
 import { TIMEOUTS } from './timing.js';
-
-export const ACTIVITY_TYPE = {
-  DAILY_SET: 'dailySet',
-  EXPLORE_ON_BING: 'exploreOnBing',
-  MORE_ACTIVITIES: 'moreActivities',
-  IGNORED: 'ignored',
-} as const;
-export type ActivityType = (typeof ACTIVITY_TYPE)[keyof typeof ACTIVITY_TYPE];
-
-export const CARD_SOURCE = {
-  EXPLORE: 'explore',
-  DAILY_SET: 'dailySet',
-  MORE_ACTIVITIES: 'moreActivities',
-} as const;
-export type CardSource = (typeof CARD_SOURCE)[keyof typeof CARD_SOURCE];
-
-export interface ActivityState {
-  allActivities: Activity[];
-  loggedIn: boolean;
-  rewardsTabId: number | null;
-}
-
-export interface Activity {
-  id: string;
-  title: string;
-  description: string;
-  activityType: ActivityType;
-  cardState: CardState;
-  points: number;
-  searchQuery?: string | null;
-  fallbackQuery?: string | null;
-  requiresUserAction: boolean;
-  userActionKind: UserActionKind | null;
-  userActionTimeoutMs: number;
-}
-
-export type UserActionKind = 'quiz' | 'poll' | 'puzzle';
-
-/** Raw card data sent from content script before classification. */
-export interface RawCard {
-  id: string;
-  title: string;
-  description: string;
-  points: number;
-  cardState: CardState;
-  source: CardSource;
-  /** Parent data-bi-id attribute, used for explore-on-bing classification. */
-  dataBiId: string;
-}
+import { loadRunState, setRunState } from './persistent-state.js';
+import { ACTIVITY_TYPE, CARD_SOURCE, CardState } from './activity-types.js';
+import type { Activity, ActivityType, RawCard, UserActionKind } from './activity-types.js';
 
 const EXPLORE_ON_BING_RE = /search (?:on|using|with) bing/i;
 const CARD_IGNORE_STRINGS = ['share', 'referral'];
@@ -85,14 +38,6 @@ export function classifyCard(card: RawCard): ActivityType {
   return ACTIVITY_TYPE.IGNORED;
 }
 
-export const enum CardState {
-  Actionable = 'actionable',
-  Completed = 'completed',
-  Locked = 'locked',
-  Unknown = 'unknown',
-  NotFound = 'not-found',
-}
-
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity
 // descriptions and returns the remainder as a usable search query.
 // If the description is unhelpful, falls back to the title text.
@@ -122,7 +67,7 @@ export function findRetryQuery(query: string): string | null {
 
 export function sumCompleted(activities: Activity[]): { count: number; points: number } {
   return activities.reduce(
-    (acc, a) => {
+    (acc: { count: number; points: number }, a: Activity) => {
       if (a.cardState === CardState.Completed) {
         acc.count++;
         acc.points += a.points;
@@ -131,18 +76,6 @@ export function sumCompleted(activities: Activity[]): { count: number; points: n
     },
     { count: 0, points: 0 },
   );
-}
-
-export async function markActivityCompleted(activityId: string): Promise<void> {
-  const run = await loadRunState();
-  const activityState = run.activityState;
-  if (!activityState) return;
-
-  const activity = activityState.allActivities.find((a) => a.id === activityId);
-  if (activity) {
-    activity.cardState = CardState.Completed;
-    await setRunState({ activityState });
-  }
 }
 
 const USER_ACTION_RE = /\b(quiz|poll|test|puzzle)\b/i;
@@ -174,4 +107,15 @@ export function enrichSearchQueries(activities: Activity[]): Activity[] {
     activity.fallbackQuery = q ? findRetryQuery(q) : null;
   }
   return activities;
+}
+
+export async function markActivityCompleted(activityId: string): Promise<void> {
+  const run = await loadRunState();
+  const activityState = run.activityState;
+  if (!activityState) return;
+  const activity = activityState.allActivities.find((a: Activity) => a.id === activityId);
+  if (activity) {
+    activity.cardState = CardState.Completed;
+    await setRunState({ activityState });
+  }
 }

@@ -1,11 +1,11 @@
-import { CardState } from '../util/activity.js';
+import { CardState } from '../util/activity-types.js';
 import { MSG_ACTION } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { sleep, randMs, TIMING } from '../util/timing.js';
 import { StepBase } from '../interfaces/step.js';
 import { truncate, LABEL_MAX } from '../util/format.js';
 
-import type { Activity } from '../util/activity.js';
+import type { Activity } from '../util/activity-types.js';
 import type { Context } from '../util/context.js';
 
 export const enum ValidationStatus {

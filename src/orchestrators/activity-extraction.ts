@@ -5,13 +5,9 @@ import { DBG } from '../util/debug.js';
 import { TIMEOUTS } from '../util/timing.js';
 import { setRunState, loadRunState } from '../util/persistent-state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import {
-  classifyCard,
-  ACTIVITY_TYPE,
-  enrichSearchQueries,
-  enrichUserActions,
-} from '../util/activity.js';
-import type { Activity, ActivityState } from '../util/activity.js';
+import { classifyCard, enrichSearchQueries, enrichUserActions } from '../util/activity.js';
+import { ACTIVITY_TYPE } from '../util/activity-types.js';
+import type { Activity, ActivityState } from '../util/activity-types.js';
 import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
 import { NotLoggedInError } from '../util/errors.js';

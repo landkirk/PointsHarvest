@@ -1,7 +1,7 @@
 import type { DebugEntry } from './debug.js';
 import { FAIL, isFailCategory } from './failures.js';
 import type { FailureCategory, FailureEntry } from './failures.js';
-import type { ActivityState } from './activity.js';
+import type { ActivityState } from './activity-types.js';
 import { INITIAL_PHASE_STATES } from './phase.js';
 import type { PhaseKey, PhaseStates } from './phase.js';
 

@@ -1,5 +1,5 @@
-import { ACTIVITY_TYPE } from './activity.js';
-import type { ActivityType } from './activity.js';
+import { ACTIVITY_TYPE } from './activity-types.js';
+import type { ActivityType } from './activity-types.js';
 
 export type PhaseKey = 'warmup' | 'explore' | 'daily' | 'more-activities' | 'farm';
 

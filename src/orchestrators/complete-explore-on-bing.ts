@@ -10,8 +10,9 @@ import { FAIL } from '../util/failures.js';
 import { loadRunState } from '../util/persistent-state.js';
 import { PHASE } from '../util/phase.js';
 
-import { sumCompleted, ACTIVITY_TYPE, CardState } from '../util/activity.js';
-import type { Activity } from '../util/activity.js';
+import { sumCompleted } from '../util/activity.js';
+import { ACTIVITY_TYPE, CardState } from '../util/activity-types.js';
+import type { Activity } from '../util/activity-types.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
 import { TabCaptureStatus } from '../util/tab-manager.js';

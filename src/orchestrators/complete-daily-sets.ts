@@ -2,7 +2,8 @@
 // Activities matching quiz/poll/test/puzzle keywords linger until the user signals completion.
 
 import { LABEL_MAX, pluralize, truncate } from '../util/format.js';
-import { ACTIVITY_TYPE, CardState, sumCompleted } from '../util/activity.js';
+import { sumCompleted } from '../util/activity.js';
+import { ACTIVITY_TYPE, CardState } from '../util/activity-types.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -13,7 +14,7 @@ import { PHASE } from '../util/phase.js';
 import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
-import type { Activity } from '../util/activity.js';
+import type { Activity } from '../util/activity-types.js';
 import { TabCaptureStatus } from '../util/tab-manager.js';
 import { runActivityLoop } from '../util/run-activity-loop.js';
 

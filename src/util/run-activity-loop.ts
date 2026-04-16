@@ -1,7 +1,7 @@
 import { lingerOnPage } from './timing.js';
 import { DBG } from './debug.js';
 import { markActivityCompleted } from './activity.js';
-import type { Activity } from './activity.js';
+import type { Activity } from './activity-types.js';
 import type { Context } from './context.js';
 import type { PhaseDefinition } from './phase.js';
 

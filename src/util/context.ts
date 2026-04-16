@@ -4,7 +4,7 @@ import { fail } from './failures.js';
 import { MSG_ACTION } from './messaging.js';
 import type { OrchestratorBase } from '../interfaces/orchestrator.js';
 import type { StepBase } from '../interfaces/step.js';
-import type { Activity } from './activity.js';
+import type { Activity } from './activity-types.js';
 import type { HeaderState, RunState } from './persistent-state.js';
 import type { DebugType } from './debug.js';
 import type { FailureCategory } from './failures.js';
