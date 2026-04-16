@@ -326,6 +326,12 @@ btnDashboard.addEventListener('click', (e) => {
   });
 });
 
+const btnContact = document.getElementById('btn-contact') as HTMLAnchorElement;
+btnContact.addEventListener('click', (e) => {
+  e.preventDefault();
+  chrome.tabs.create({ url: 'https://pointsharvest.com/contact.html' }).catch(() => {});
+});
+
 // ── Service worker keepalive ───────────────────────────────────────────────
 // A long-lived port prevents Chrome from killing the service worker while the
 // side panel is open.  A heartbeat every 20s guards against Chrome's 30s port
