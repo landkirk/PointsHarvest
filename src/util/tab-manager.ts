@@ -189,6 +189,12 @@ export class TabManager {
       const resolve = this._captureResolve;
       this._captureResolve = null;
       resolve(tab);
+    } else if (
+      tab.id !== undefined &&
+      tab.openerTabId !== undefined &&
+      this.openedTabIds.has(tab.openerTabId)
+    ) {
+      this.openedTabIds.add(tab.id);
     }
   }
 
