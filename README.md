@@ -177,7 +177,7 @@ if not at cap, run searches with rotation queries until cap reached or no progre
        ▼
 Close all tabs with staggered delays (300–1200 ms between each);
 status set to "Done for today!" with notification
-Per-phase progress (Warm-up, Explore, Daily Sets, PC Search) and point totals
+Per-phase progress (Warm-up, Explore, Daily Sets, More Activities, PC Search) and point totals
 sent to popup in real time throughout
 ```
 

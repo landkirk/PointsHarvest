@@ -1,6 +1,6 @@
 {
   "name": "pointsharvest",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
@@ -10,7 +10,7 @@
     "extension:type-check": "tsc --noEmit",
     "extension:main": "esbuild src/background.ts src/ui/popup.ts src/ui/onboarding.ts --bundle --outdir=dist --platform=browser --target=es2022 --minify",
     "extension:content": "esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --minify && esbuild src/ui/popup.html src/ui/onboarding.html --loader:.html=copy --outdir=dist/ui",
-    "extension:assets": "cp manifest.json dist/ && cp -r src/ui/screens/. dist/ui/screens && cp -r icons dist/icons",
+    "extension:assets": "cp manifest.json dist/ && cp LICENSE dist/ && cp -r src/ui/screens/. dist/ui/screens && cp -r icons dist/icons",
     "extension:watch": "concurrently --names tsc,esbuild --prefix-colors blue,green \"tsc --noEmit --watch --preserveWatchOutput\" \"npm run extension:watch:content\"",
     "extension:watch:content": "concurrently \"esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --watch\" \"esbuild src/ui/popup.html src/ui/onboarding.html --loader:.html=copy --outdir=dist/ui --watch\" \"esbuild src/ui/screens/*.html --loader:.html=copy --outdir=dist/ui/screens --watch\" \"esbuild manifest.json --loader:.json=copy --outdir=dist --watch\"",
     "extension:lint": "eslint src/ && prettier --check src/",

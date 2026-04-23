@@ -12,9 +12,9 @@ export const SCREENS: OnboardingScreen[] = [
     bodyFile: 'ui/screens/bing-warning-v1.html',
   },
   {
-    id: 'changelog-2.1.0',
-    title: "What's New in 2.1.0",
-    bodyFile: 'ui/screens/changelog-2.1.0.html',
+    id: 'changelog-2.2.0',
+    title: "What's New in 2.2.0",
+    bodyFile: 'ui/screens/changelog-2.2.0.html',
   },
 ];
 
