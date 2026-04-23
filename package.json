@@ -1,8 +1,14 @@
 {
   "name": "pointsharvest",
   "version": "2.2.0",
-  "private": true,
   "license": "SEE LICENSE IN LICENSE",
+  "author": "Landon Kirk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/landkirk/PointsHarvest.git"
+  },
+  "bugs": "https://github.com/landkirk/PointsHarvest/issues",
+  "homepage": "https://pointsharvest.com",
   "scripts": {
     "build": "npm run extension:build && npm run website:build",
     "extension:build": "npm run extension:lint:fix && npm run extension:clean && npm run extension:type-check && npm run extension:main && npm run extension:content && npm run extension:assets",

@@ -4,3 +4,7 @@ docs
 node_modules
 .kiro
 .claude
+.env
+.env.*
+.DS_Store
+*.log

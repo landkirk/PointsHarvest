@@ -1,4 +1,4 @@
-# RewardFarm
+# Points Harvest
 
 A Chrome extension that automates daily Bing Rewards points by running your searches and completing "Explore on Bing", "Daily Sets", and "More Activities" cards automatically.
 
