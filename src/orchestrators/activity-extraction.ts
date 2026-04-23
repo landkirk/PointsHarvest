@@ -11,6 +11,7 @@ import type { Activity, ActivityState } from '../util/activity-types.js';
 import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
 import { NotLoggedInError } from '../util/errors.js';
+import { notLoggedInAction } from '../steps/wait-for-user-action.js';
 
 class ActivityExtractionOrchestrator extends OrchestratorBase {
   readonly name = 'Activity extraction';
@@ -25,9 +26,20 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       return;
     }
 
-    const result = await this.waitForExtraction(ctx, rewardsTabId);
+    let result = await this.waitForExtraction(ctx, rewardsTabId);
 
-    if (!result.loggedIn) throw new NotLoggedInError();
+    if (!result.loggedIn) {
+      await this._waitForUserAction(ctx, notLoggedInAction());
+      ctx.signal.throwIfAborted();
+      // Reload the rewards page to pick up the new login state
+      try {
+        await chrome.tabs.update(rewardsTabId, { url: REWARDS_URL });
+      } catch {
+        throw new NotLoggedInError(); // tab was closed
+      }
+      result = await this.waitForExtraction(ctx, rewardsTabId);
+      if (!result.loggedIn) throw new NotLoggedInError();
+    }
 
     const counts = { explore: 0, daily: 0, more: 0, ignored: 0 };
     for (const a of result.allActivities) {

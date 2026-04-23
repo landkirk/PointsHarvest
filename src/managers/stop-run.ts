@@ -12,7 +12,7 @@ class StopRun {
     const controller = getActiveController();
     if (!controller || controller.signal.aborted) return;
     controller.abort(new StoppedError());
-    await setRunState({ isLingering: false });
+    await setRunState({ isLingering: false, activeUserAction: null });
     const ctx = createContext(AbortSignal.abort(new StoppedError()));
     await getActiveContext()?.activeOrchestrator?.stop(ctx);
     await this.tabs.closeAll();

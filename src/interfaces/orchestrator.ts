@@ -1,15 +1,20 @@
 import { StoppedError } from './stoppable.js';
 import type { Context } from '../util/context.js';
 import { TabManager } from '../util/tab-manager.js';
-import { waitForPopupUnblock, type PermissionWaitHandle } from '../steps/wait-for-popup-unblock.js';
-import { clearPermissionFailures, FAIL } from '../util/failures.js';
+import {
+  waitForUserAction,
+  popupBlockedAction,
+  type UserActionConfig,
+  type UserActionHandle,
+} from '../steps/wait-for-user-action.js';
+import { clearFailuresByCategory } from '../util/failures.js';
 
 export { StoppedError };
 
 export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   abstract readonly name: string;
 
-  protected _currentPermissionWait: PermissionWaitHandle | null = null;
+  protected _currentUserActionWait: UserActionHandle | null = null;
 
   constructor(protected readonly tabs: TabManager) {}
 
@@ -24,23 +29,24 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   }
 
   protected async _onStop(_ctx: Context): Promise<void> {
-    this._currentPermissionWait?.resolve();
-    this._currentPermissionWait = null;
+    this._resolveUserActionWait();
   }
 
-  // Records a ctx.fail, then pauses execution until the user fixes Chrome popup
-  // permissions and clicks Done (or Stop is pressed).
-  protected async _waitForPopupUnblock(ctx: Context, label: string): Promise<void> {
-    await ctx.fail(
-      FAIL.PERMISSION,
-      `Chrome blocked the activity tab ("${label}"). To fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects → Allow → rewards.bing.com`,
-    );
-    const wait = waitForPopupUnblock(ctx, label);
-    this._currentPermissionWait = wait;
+  // Records a failure, shows a banner, then pauses execution until the user
+  // completes the required action and clicks Done (or Stop is pressed).
+  protected async _waitForUserAction(ctx: Context, config: UserActionConfig): Promise<void> {
+    await ctx.fail(config.failureCategory, config.failureMessage);
+    const wait = waitForUserAction(ctx, config);
+    this._currentUserActionWait = wait;
     await wait.promise;
-    this._currentPermissionWait = null;
-    await clearPermissionFailures();
+    this._currentUserActionWait = null;
+    await clearFailuresByCategory(config.failureCategory);
     await ctx.broadcastProgress();
+  }
+
+  // Convenience wrapper: pauses until the user fixes Chrome popup permissions.
+  protected async _waitForPopupUnblock(ctx: Context, label: string): Promise<void> {
+    return this._waitForUserAction(ctx, popupBlockedAction(label));
   }
 
   onTabUpdated(tabId: number, changeInfo: { status?: string }): void {
@@ -54,7 +60,11 @@ export abstract class OrchestratorBase<TArgs extends unknown[] = []> {
   onTabRemoved(_tabId: number): void {}
 
   onUserActionComplete(): void {
-    this._currentPermissionWait?.resolve();
-    this._currentPermissionWait = null;
+    this._resolveUserActionWait();
+  }
+
+  private _resolveUserActionWait(): void {
+    this._currentUserActionWait?.resolve();
+    this._currentUserActionWait = null;
   }
 }

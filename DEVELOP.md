@@ -124,7 +124,7 @@ src/                    Source files (edit these)
     perform-search.ts          Dwell and execute a single search in a tab
     linger-on-tab.ts           Pause automation and wait for user to complete a tile
     validate-activity.ts       Confirm an activity is marked complete on the rewards page
-    wait-for-popup-unblock.ts  Wait for user to fix Chrome popup blocker after a tab is blocked
+    wait-for-user-action.ts    Generic step for pausing until the user completes a required action
   util/
     activity-runner.ts  ActivityRunner class — executes an activity with optional retry logic
     activity.ts         Activity type, CardState enum, classifyCard(), enrichSearchQueries(), enrichUserActions()
@@ -149,7 +149,7 @@ src/                    Source files (edit these)
     onboarding.html     First-run onboarding UI (ToS, Bing warning, changelog)
     onboarding.ts       Onboarding flow controller
     debug-panel.ts      renderDebug(), appendLogEntry(), renderActivitiesAndCounters()
-    failure-banner.ts   renderFailures(), appendFailure()
+    failure-banner.ts   renderActionBanner(), renderFailures(), appendFailure()
     screens/            HTML fragments for onboarding screens (ToS, Bing warning, changelog)
   content/
     rewards-content.ts  Content script injected into rewards.bing.com (bundled by esbuild)
@@ -362,9 +362,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - 20% chance of an upward scroll near end of dwell (25% of total downward distance)
   - All scroll sends are fire-and-forget; failures silently ignored
 
-### steps/wait-for-popup-unblock.ts
-- Records a `FAIL.PERMISSION` failure with fix instructions, sets `isLingering: true`, and waits for the user to click **Done** (via `USER_ACTION_COMPLETE`) or for a `PERMISSION_WAIT` timeout
-- Returns a `PermissionWaitHandle` `{ promise, resolve }` so the caller (via `OrchestratorBase._waitForPopupUnblock`) can resolve it early on stop
+### steps/wait-for-user-action.ts
+- Generic step for pausing until the user completes a required action (e.g. fixing popup permissions, signing in)
+- `UserActionConfig` — data-driven config: `headerMessage`, `bannerTitle`, `bannerInstructions`, `actionButtonLabel`, `actionButtonUrl`, `failureCategory`, `failureMessage`, `timeoutMs`, `theme`
+- `waitForUserAction(ctx, config)` — sets `isLingering: true` and `activeUserAction` on RunState, waits for Done (`USER_ACTION_COMPLETE`) or timeout, then clears both
+- Factory functions: `popupBlockedAction(label)` (amber theme, FAIL.PERMISSION) and `notLoggedInAction()` (danger theme, FAIL.AUTH)
+- Called via `OrchestratorBase._waitForUserAction(ctx, config)` which also records the failure and clears it on completion
 
 ### util/context.ts
 - `createContext(signal)` returns a `Context` object that bundles all orchestrator/step utilities:
@@ -457,7 +460,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - **Speed multiplier** select (Normal 1.0×, Fast 0.6×, Slow 4.0×, Stealth 8.0×) — persisted to `timingMultiplier` in preferences
   - **Debug mode** checkbox — enables verbose logging
   - **Disable notifications** checkbox — suppresses desktop notifications on run completion
-- **Setup banner** — shown when a `FAIL.PERMISSION`-category failure occurs (e.g., Chrome popup blocker); includes button to open `chrome://settings/content/popups`; clears on next `clearPermissionFailures()` call
+- **Action banner** — data-driven banner shown when `activeUserAction` is set on RunState (e.g., popup blocked, not logged in); renders title, instructions, and action button from `UserActionConfig`; themed via `.theme-amber` or `.theme-danger` CSS classes; clears when the user action completes
 - **Keepalive port**:
   - Opens long-lived `chrome.runtime.Port` named `KEEPALIVE_PORT` on load
   - Sends heartbeat every 20s to prevent Chrome from killing the service worker while panel is open
@@ -489,8 +492,9 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `clearDebug()` — clears all sections
 
 ### ui/failure-banner.ts
-- `renderFailures(failures)` — renders all failures in the failure banner with timestamps and messages
-- `appendFailure(failure)` — appends a single new failure to the banner in real time (called on `FAILURE_ENTRY` message)
+- `renderActionBanner(config)` — data-driven banner for active user actions (popup blocked, not logged in); themed via `.theme-amber` / `.theme-danger` CSS classes; skips DOM updates when config hasn't changed
+- `renderFailures(failures, suppressCategory?)` — renders all failures in the failure banner, optionally suppressing a category already shown by the action banner
+- `appendFailure(failure)` — appends a single new failure to the banner in real time (called on `FAILURE_ENTRY` message); suppresses the active action's failure category
 - Each failure displays: time, category badge, message, and context (orchestrator/step/activity if available)
 - Scrollable list (height-constrained) to show recent failures
 

@@ -30,10 +30,10 @@ export interface FailureEntry {
 
 const MAX_FAILURES = 50;
 
-/** Removes all failures with category 'permission' from persistent state. */
-export async function clearPermissionFailures(): Promise<void> {
+/** Removes all failures matching the given category from persistent state. */
+export async function clearFailuresByCategory(category: FailureCategory): Promise<void> {
   const failures = await getFailures();
-  const filtered = failures.filter((f) => f.category !== FAIL.PERMISSION);
+  const filtered = failures.filter((f) => f.category !== category);
   if (filtered.length !== failures.length) {
     await setRunState({ failures: filtered });
   }

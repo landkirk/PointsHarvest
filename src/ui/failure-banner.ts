@@ -1,22 +1,49 @@
-import type { FailureEntry } from '../util/failures.js';
-import { FAIL } from '../util/failures.js';
+import type { FailureEntry, FailureCategory } from '../util/failures.js';
+import type { UserActionConfig } from '../steps/wait-for-user-action.js';
 import { esc } from './debug-panel.js';
 
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
-const permissionBanner = document.getElementById('permission-banner') as HTMLElement;
-const btnOpenSettings = document.getElementById('btn-open-settings') as HTMLButtonElement;
+const actionBanner = document.getElementById('action-banner') as HTMLElement;
+const actionBannerTitle = document.getElementById('action-banner-title') as HTMLElement;
+const actionBannerInstructions = document.getElementById(
+  'action-banner-instructions',
+) as HTMLElement;
+const actionBannerBtn = document.getElementById('action-banner-btn') as HTMLButtonElement;
 const failureBanner = document.getElementById('failure-banner') as HTMLElement;
 const failureSummary = document.getElementById('failure-summary') as HTMLElement;
 const failureList = document.getElementById('failure-list') as HTMLElement;
 
-// ── Permission warning banner ──────────────────────────────────────────────
+// ── User-action banner (data-driven) ─────────────────────────────────────
 
-btnOpenSettings.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'chrome://settings/content/popups' }).catch(() => {
-    /* non-critical: user can open settings manually */
-  });
-});
+let prevConfig: UserActionConfig | null = null;
+let activeSuppress: FailureCategory | undefined;
+
+export function renderActionBanner(config: UserActionConfig | null): void {
+  if (config === prevConfig) return;
+  prevConfig = config;
+  activeSuppress = config?.failureCategory;
+  if (!config) {
+    actionBanner.style.display = 'none';
+    return;
+  }
+  actionBanner.style.display = 'block';
+  actionBanner.className = `theme-${config.theme}`;
+  actionBannerTitle.textContent = config.bannerTitle;
+  actionBannerInstructions.textContent = config.bannerInstructions;
+  if (config.actionButtonUrl) {
+    const url = config.actionButtonUrl;
+    actionBannerBtn.style.display = '';
+    actionBannerBtn.textContent = config.actionButtonLabel;
+    actionBannerBtn.onclick = () => {
+      chrome.tabs.create({ url }).catch(() => {
+        /* non-critical: user can open manually */
+      });
+    };
+  } else {
+    actionBannerBtn.style.display = 'none';
+  }
+}
 
 // ── Failure banner ─────────────────────────────────────────────────────────
 
@@ -26,38 +53,23 @@ function updateFailureSummary(count: number): void {
   failureSummary.textContent = `${count} failure${count === 1 ? '' : 's'} — click to ${failureListExpanded ? 'collapse' : 'expand'}`;
 }
 
-export function renderFailures(failures: FailureEntry[]): void {
-  if (!failures || failures.length === 0) {
-    failureBanner.style.display = 'none';
-    permissionBanner.style.display = 'none';
-    failureList.innerHTML = '';
-    return;
-  }
-  let hasPermission = false;
-  const nonPermission = failures.filter((f) => {
-    if (f.category === FAIL.PERMISSION) {
-      hasPermission = true;
-      return false;
-    }
-    return true;
-  });
-  permissionBanner.style.display = hasPermission ? 'block' : 'none';
-  if (nonPermission.length === 0) {
+export function renderFailures(failures: FailureEntry[], suppressCategory?: FailureCategory): void {
+  const displayed = (failures ?? []).filter(
+    (f) => !suppressCategory || f.category !== suppressCategory,
+  );
+  if (displayed.length === 0) {
     failureBanner.style.display = 'none';
     failureList.innerHTML = '';
     return;
   }
   failureBanner.style.display = 'block';
-  updateFailureSummary(nonPermission.length);
-  failureList.innerHTML = nonPermission.map((f) => failureItemHtml(f)).join('');
+  updateFailureSummary(displayed.length);
+  failureList.innerHTML = displayed.map((f) => failureItemHtml(f)).join('');
   failureList.style.display = failureListExpanded ? 'block' : 'none';
 }
 
 export function appendFailure(f: FailureEntry): void {
-  if (f.category === FAIL.PERMISSION) {
-    permissionBanner.style.display = 'block';
-    return;
-  }
+  if (activeSuppress && f.category === activeSuppress) return;
   failureBanner.style.display = 'block';
   const div = document.createElement('div');
   div.innerHTML = failureItemHtml(f);

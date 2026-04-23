@@ -4,6 +4,7 @@ import type { FailureCategory, FailureEntry } from './failures.js';
 import type { ActivityState } from './activity-types.js';
 import { INITIAL_PHASE_STATES } from './phase.js';
 import type { PhaseKey, PhaseStates } from './phase.js';
+import type { UserActionConfig } from '../steps/wait-for-user-action.js';
 
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
@@ -65,6 +66,7 @@ export interface UserPreferences {
 export interface RunState {
   isRunning: boolean;
   isLingering: boolean;
+  activeUserAction: UserActionConfig | null;
   warmUpQueries: string[];
   searchCounters: SearchCounter[];
   rewardsTabId: number | null;
@@ -87,6 +89,7 @@ export const INITIAL_PREFERENCES: UserPreferences = {
 export const INITIAL_RUN_STATE: RunState = {
   isRunning: false,
   isLingering: false,
+  activeUserAction: null,
   warmUpQueries: [],
   searchCounters: [],
   rewardsTabId: null,

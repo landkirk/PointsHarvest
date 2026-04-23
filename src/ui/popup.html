@@ -202,39 +202,57 @@
         background: var(--danger-hover);
       }
 
-      /* ── Permission warning banner ── */
-      #permission-banner {
+      /* ── User-action banner (generic, theme-driven) ── */
+      #action-banner {
         margin-bottom: 12px;
-        background: var(--bg-permission);
-        border: 1px solid var(--orange);
         border-radius: 6px;
         padding: 8px 10px;
         font-size: 11px;
       }
-      #permission-msg {
-        color: var(--amber);
+      #action-banner.theme-amber {
+        background: var(--bg-permission);
+        border: 1px solid var(--orange);
+      }
+      #action-banner.theme-danger {
+        background: var(--bg-failure);
+        border: 1px solid var(--danger-border);
+      }
+      #action-banner-title {
         font-weight: 600;
         margin-bottom: 4px;
       }
-      #permission-instructions {
+      #action-banner.theme-amber #action-banner-title {
+        color: var(--amber);
+      }
+      #action-banner.theme-danger #action-banner-title {
+        color: var(--red);
+      }
+      #action-banner-instructions {
         color: var(--text-secondary);
         line-height: 1.5;
         margin-bottom: 6px;
       }
-      #permission-instructions strong {
-        color: var(--text-primary);
-      }
-      #btn-open-settings {
+      #action-banner-btn {
         width: auto;
         padding: 4px 10px;
         font-size: 11px;
         font-weight: 500;
-        background: var(--orange-dark);
-        color: #fde68a;
         border-radius: 4px;
       }
-      #btn-open-settings:hover {
+      #action-banner.theme-amber #action-banner-btn {
+        background: var(--orange-dark);
+        color: #fde68a;
+      }
+      #action-banner.theme-amber #action-banner-btn:hover {
         background: var(--orange);
+      }
+      #action-banner.theme-danger #action-banner-btn {
+        background: var(--danger-bg);
+        color: var(--red);
+        border: 1px solid var(--danger-border);
+      }
+      #action-banner.theme-danger #action-banner-btn:hover {
+        background: var(--danger-hover);
       }
 
       /* ── Failure banner ── */
@@ -958,13 +976,10 @@
           <span class="phase-earned"></span>
         </div>
       </div>
-      <div id="permission-banner" style="display: none">
-        <div id="permission-msg">Chrome is blocking activity tabs from opening.</div>
-        <div id="permission-instructions">
-          Fix: Chrome Settings → Privacy and security → Site settings → Pop-ups and redirects →
-          Allow → <strong>rewards.bing.com</strong>
-        </div>
-        <button id="btn-open-settings">Open Pop-up Settings</button>
+      <div id="action-banner" style="display: none">
+        <div id="action-banner-title"></div>
+        <div id="action-banner-instructions"></div>
+        <button id="action-banner-btn" style="display: none"></button>
       </div>
       <div id="failure-banner" style="display: none" aria-live="polite">
         <div id="failure-summary"></div>

@@ -17,6 +17,12 @@ import { KEEPALIVE_PORT } from './util/config.js';
 const startRun = new StartRun();
 const stopRun = new StopRun(startRun.tabs);
 
+function clearStaleRunState(): void {
+  setRunState({ isRunning: false, isLingering: false, activeUserAction: null }).then(() =>
+    setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
+  );
+}
+
 // ── Initialization ─────────────────────────────────────────────────────────
 
 try {
@@ -82,16 +88,11 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     if (orch) {
       orch.onUserActionComplete();
     } else {
-      // Worker restarted mid-linger — clear stale UI state
-      setRunState({ isRunning: false, isLingering: false }).then(() =>
-        setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
-      );
+      clearStaleRunState();
     }
   }
   if (msg.action === MSG_ACTION.RESET_STALE) {
-    setRunState({ isRunning: false, isLingering: false }).then(() =>
-      setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
-    );
+    clearStaleRunState();
   }
   if (msg.action === MSG_ACTION.SET_PREFERENCE) {
     if (msg.updates.timingMultiplier !== undefined) {

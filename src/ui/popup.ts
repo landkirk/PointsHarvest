@@ -8,7 +8,7 @@ import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
 import { renderDebug, appendLogEntry } from './debug-panel.js';
-import { renderFailures, appendFailure } from './failure-banner.js';
+import { renderActionBanner, renderFailures, appendFailure } from './failure-banner.js';
 import { renderPrefs, bindPrefs, getSkipWarmUp, getDebugMode } from './prefs-panel.js';
 import { renderRunSummary } from './run-summary-card.js';
 
@@ -174,7 +174,8 @@ async function render(): Promise<void> {
     renderPhaseStates(phaseStates, activePhase ?? undefined);
   }
   renderRunSummary(summary);
-  renderFailures(run.failures ?? []);
+  renderActionBanner(run.activeUserAction ?? null);
+  renderFailures(run.failures ?? [], run.activeUserAction?.failureCategory);
   if (getDebugMode()) {
     renderDebug(run);
   }
