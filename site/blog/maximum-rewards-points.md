@@ -23,7 +23,7 @@ Most people never get close to the maximum because keeping up with every activit
 
 ### Automated by Points Harvest: ~7,932 Points
 
-These activities are handled automatically by the Points Harvest extension. Run it once a day and it works through them for you — no subscriptions required, just a Microsoft account and a desktop browser. The extension runs three phases in order:
+These activities are handled automatically by the Points Harvest extension. Run it once a day and it works through them for you — no subscriptions required, just a Microsoft account and a desktop browser. The extension runs four phases in order:
 
 #### Phase 1: Explore with Bing (~1,782/month)
 
@@ -54,7 +54,14 @@ These activities are handled automatically by the Points Harvest extension. Run 
 
   *Effort: zero — earned automatically by running the extension daily.*
 
-#### Phase 3: Search Farm (4,500/month)
+#### Phase 3: More Activities (~6 points/week)
+
+- **More Activities tiles** — varies week-to-week
+  Additional activity cards that appear below the daily set on the Rewards dashboard. These are similar to the Explore on Bing cards — each tile links to a Bing search page. Points Harvest opens the tile, dwells on the page, closes it, and validates completion. Tiles that require interaction (puzzles, quizzes, install prompts) are skipped automatically. Only a handful of points are typically available each week (~6 points), so the contribution to your monthly total is small but effortless.
+
+  *Effort: zero — fully automated.*
+
+#### Phase 4: Search Farm (4,500/month)
 
 - **PC Search** — 150 points/day = **4,500/month**
   Search for anything on Bing using a desktop browser. Each search earns 5 points, up to 30 searches per day. Points Harvest runs searches automatically until your daily cap is reached. This is the single largest automatable category, and the most mind-numbing to do by hand.
