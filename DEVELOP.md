@@ -665,7 +665,7 @@ Read the full diff for each commit — not just the stat, the actual code change
 ### 2. Update docs (do this before touching version strings)
 
 - **DEVELOP.md** — update every section that describes changed behavior: orchestrator docs, state docs, message passing, architecture notes, etc. Read the source files to verify claims before writing.
-- **README.md** — update every user-facing description that no longer matches reality: the "What it does" steps, the flow diagram, the Notes section, Usage.
+- **README.md** — update every user-facing description that no longer matches reality: the "What it does" list, Usage, Settings, and Tips sections.
 - **CLAUDE.md** — update Key Layers and Message Passing if architectural facts changed.
 
 ### 3. Write the changelog
