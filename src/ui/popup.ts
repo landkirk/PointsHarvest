@@ -315,11 +315,16 @@ btnDashboard.addEventListener('click', (e) => {
   });
 });
 
-const btnContact = document.getElementById('btn-contact') as HTMLAnchorElement;
-btnContact.addEventListener('click', (e) => {
-  e.preventDefault();
-  chrome.tabs.create({ url: 'https://pointsharvest.com/contact.html' }).catch(() => {});
-});
+for (const [id, path] of [
+  ['link-terms', '/terms.html'],
+  ['link-privacy', '/privacy.html'],
+  ['link-contact', '/contact.html'],
+] as const) {
+  document.getElementById(id)!.addEventListener('click', (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: `https://pointsharvest.com${path}` }).catch(() => {});
+  });
+}
 
 // ── Service worker keepalive ───────────────────────────────────────────────
 // A long-lived port prevents Chrome from killing the service worker while the

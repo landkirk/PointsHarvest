@@ -89,14 +89,19 @@
       #btn-dashboard:hover {
         text-decoration: underline;
       }
-      #btn-contact {
-        font-size: 11px;
-        font-weight: 500;
-        color: var(--blue);
-        text-decoration: none;
-        flex-shrink: 0;
+      .popup-footer {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding: 10px 0 2px;
       }
-      #btn-contact:hover {
+      .popup-footer a {
+        font-size: 11px;
+        color: var(--text-disabled);
+        text-decoration: none;
+      }
+      .popup-footer a:hover {
+        color: var(--text-secondary);
         text-decoration: underline;
       }
       h1 span.dot.running {
@@ -932,7 +937,6 @@
       <h1>
         <span class="dot" id="dot"></span> PointsHarvest
         <a id="btn-dashboard" href="#" title="Open Bing Rewards dashboard">Dashboard ↗</a>
-        <a id="btn-contact" href="#" title="Contact / support">Contact ↗</a>
       </h1>
       <div
         id="update-status"
@@ -1039,6 +1043,12 @@
             <div class="speed-desc" id="speed-desc"></div>
           </div>
         </div>
+      </div>
+
+      <div class="popup-footer">
+        <a id="link-terms" href="#">Terms</a>
+        <a id="link-privacy" href="#">Privacy</a>
+        <a id="link-contact" href="#">Contact</a>
       </div>
 
       <div id="debug-panel">
