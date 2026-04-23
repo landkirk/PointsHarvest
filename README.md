@@ -1,6 +1,6 @@
 # Points Harvest
 
-Earn Bing Rewards on autopilot. Points Harvest is a free Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.
+Earn Bing Rewards on autopilot. Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.
 
 Users in the United States can potentially earn around **7,900 points per month** (~$100/year) through the extension alone. [See the full breakdown.](https://pointsharvest.com/blog/maximum-rewards-points/)
 

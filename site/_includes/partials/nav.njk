@@ -4,5 +4,6 @@
       <a href="/"{% if page.url == "/" or page.url == "/index.html" %} class="active"{% endif %}>Home</a>
       <a href="/blog/"{% if page.url.startsWith("/blog/") %} class="active"{% endif %}>Blog</a>
       <a href="/contact.html"{% if page.url == "/contact.html" %} class="active"{% endif %}>Contact</a>
+      <a href="{{ site.githubUrl }}" target="_blank" rel="noopener">GitHub</a>
     </div>
   </nav>

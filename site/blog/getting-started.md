@@ -6,7 +6,7 @@ description: A step-by-step guide to installing Points Harvest and earning your 
 
 ## What is Points Harvest?
 
-Points Harvest is a free Chrome extension that automates your daily [Bing Rewards](https://rewards.microsoft.com) routine. Instead of manually clicking through searches and daily activities every day, you load the extension, click **Run today's searches**, and let it run.
+Points Harvest is a free, open-source Chrome extension that automates your daily [Bing Rewards](https://rewards.microsoft.com) routine. Instead of manually clicking through searches and daily activities every day, you load the extension, click **Run today's searches**, and let it run.
 
 It handles:
 

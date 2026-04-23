@@ -2,7 +2,7 @@
 layout: base.njk
 permalink: /index.html
 title: Points Harvest — Automate Your Bing Rewards
-description: Points Harvest is a free Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required.
+description: Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches and Explore activities — minimal interaction required.
 showContactLink: true
 extraStyles:
   - /landing.css
@@ -13,11 +13,12 @@ extraScripts:
 
   <section class="hero">
     <h1>Earn Bing Rewards<br /><span>on autopilot</span></h1>
-    <p>Points Harvest is a Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.</p>
+    <p>Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.</p>
     <p>Users in the United States can potentially earn around <strong>7,900 points per month</strong> (~$100/year) through the extension alone. <a href="/blog/maximum-rewards-points/">See the full breakdown.</a></p>
     <p class="hero-disclaimer">Not affiliated with or endorsed by Microsoft.</p>
     <div class="cta-group">
       <a class="btn btn-primary" href="{{ site.downloadUrl }}" download>Download Latest ({{ site.extensionVersion }})</a>
+      <a class="btn btn-secondary" href="{{ site.githubUrl }}" target="_blank" rel="noopener">View on GitHub</a>
     </div>
   </section>
 
@@ -173,9 +174,9 @@ extraScripts:
       </details>
 
       <details>
-        <summary>Is it really free? Any catch?</summary>
+        <summary>Is it really free and open-source? Any catch?</summary>
         <div class="faq-body">
-          Yes, completely free. No account, no login, no subscription. The extension runs entirely on your device — there is no tracking or analytics of any kind.
+          Yes, completely free and <a href="{{ site.githubUrl }}" target="_blank" rel="noopener">open-source</a>. No account, no login, no subscription. The source code is publicly available on GitHub — you can inspect exactly what the extension does. It runs entirely on your device with no tracking or analytics of any kind.
         </div>
       </details>
 
