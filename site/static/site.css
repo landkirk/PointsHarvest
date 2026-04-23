@@ -140,3 +140,7 @@ code {
   font-size: 0.85em;
   font-family: "SF Mono", "Fira Code", monospace;
 }
+
+@media (max-width: 600px) {
+  .nav-links a[href="/"] { display: none; }
+}
