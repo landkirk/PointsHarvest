@@ -5,7 +5,6 @@
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "build": "npm run extension:build && npm run website:build",
-    
     "extension:build": "npm run extension:lint:fix && npm run extension:clean && npm run extension:type-check && npm run extension:main && npm run extension:content && npm run extension:assets",
     "extension:clean": "rm -rf dist",
     "extension:type-check": "tsc --noEmit",
@@ -16,7 +15,6 @@
     "extension:watch:content": "concurrently \"esbuild src/content/rewards-content.ts src/content/search-content.ts --bundle --outdir=dist/content --platform=browser --target=es2022 --watch\" \"esbuild src/ui/popup.html src/ui/onboarding.html --loader:.html=copy --outdir=dist/ui --watch\" \"esbuild src/ui/screens/*.html --loader:.html=copy --outdir=dist/ui/screens --watch\" \"esbuild manifest.json --loader:.json=copy --outdir=dist --watch\"",
     "extension:lint": "eslint src/ && prettier --check src/",
     "extension:lint:fix": "eslint src/ --fix && prettier --write src/",
-    
     "website:build": "eleventy",
     "website:watch": "eleventy --serve",
     "website:preview": "concurrently -n eleventy,browser \"eleventy --serve\" \"sleep 1 && xdg-open http://localhost:8080\""
@@ -27,10 +25,10 @@
     "chrome-types": "^0.1.425",
     "concurrently": "^9.2.1",
     "esbuild": "^0.28.0",
-    "eslint": "^10.2.0",
+    "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.8.2",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.2"
+    "prettier": "^3.8.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.0"
   }
 }
