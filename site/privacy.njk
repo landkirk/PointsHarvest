@@ -1,0 +1,64 @@
+---
+layout: base.njk
+permalink: /privacy.html
+title: Privacy Policy — Points Harvest
+description: How Points Harvest handles your data — it doesn't collect any.
+extraStyles:
+  - /legal.css
+---
+
+  <section class="page-hero">
+    <div class="section-label">Privacy</div>
+    <h1>Your data stays <span>yours</span>.</h1>
+    <p>Points Harvest does not collect, transmit, or sell any personal information.</p>
+  </section>
+
+  <section class="legal-main">
+    <h2>What data the extension accesses</h2>
+    <p>Points Harvest requests the following browser permissions, each used for a specific purpose:</p>
+    <ul>
+      <li><strong>Tabs</strong> — open and manage Bing pages during automated runs.</li>
+      <li><strong>Storage</strong> — save run progress, preferences, and debug logs locally on your device.</li>
+      <li><strong>Side Panel</strong> — display the extension's control panel in Chrome's side panel.</li>
+      <li><strong>Notifications</strong> — notify you when a run completes.</li>
+    </ul>
+    <p>The extension also accesses two domains:</p>
+    <ul>
+      <li><strong>*.bing.com</strong> — interact with Bing search and the Rewards dashboard on your behalf.</li>
+      <li><strong>r2.pointsharvest.com</strong> — check for extension updates (version manifest only).</li>
+    </ul>
+
+    <h2>What data is stored</h2>
+    <p>All data is stored locally on your device using <code>chrome.storage.local</code>. This includes:</p>
+    <ul>
+      <li>Run dates and progress tracking</li>
+      <li>Search query queues</li>
+      <li>Debug logs</li>
+      <li>User preferences and settings</li>
+      <li>Onboarding screen history</li>
+    </ul>
+    <p>This data never leaves your device. There is no server, no database, and no cloud sync.</p>
+
+    <h2>What data is transmitted</h2>
+    <p>The extension makes exactly one type of outbound request: a version check to <code>r2.pointsharvest.com</code> to fetch a small JSON manifest. This request contains no cookies, no user identifiers, and no personal information.</p>
+    <p>All interactions with Bing happen directly between your browser and Microsoft's servers — the same as if you performed the actions manually. Points Harvest does not proxy, intercept, or relay any of this traffic.</p>
+
+    <h2>Third-party services</h2>
+    <p>Points Harvest uses no analytics, no telemetry, no advertising, and no tracking of any kind — in the extension or on this website. The marketing site is static HTML hosted on GitHub Pages with no server-side processing.</p>
+
+    <h2>Cookies</h2>
+    <p>The extension does not set any cookies. This website does not set any cookies. Bing sets its own cookies as part of normal browsing — Points Harvest does not read, modify, or transmit them.</p>
+
+    <h2>Children's privacy</h2>
+    <p>Points Harvest is not directed at children under 13. Since we do not collect any data from anyone, no special provisions for children's data apply.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If this policy changes, the updated version will be posted on this page. Extension users will be notified of material changes via the in-extension onboarding screen system.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy? <a href="/contact.html">Get in touch</a> or email <a href="mailto:pointsharvest@protonmail.com">pointsharvest@protonmail.com</a>.</p>
+
+    <div class="legal-updated">
+      <p>Last updated: April 2025. This document is for informational purposes and is not legal advice.</p>
+    </div>
+  </section>

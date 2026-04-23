@@ -5,7 +5,7 @@ export interface OnboardingScreen {
 }
 
 export const SCREENS: OnboardingScreen[] = [
-  { id: 'tos-v1', title: 'Terms of Use', bodyFile: 'ui/screens/tos-v1.html' },
+  { id: 'tos-v2', title: 'Updated Terms of Use', bodyFile: 'ui/screens/tos-v2.html' },
   {
     id: 'bing-warning-v1',
     title: 'Bing Account Risk',

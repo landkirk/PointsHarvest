@@ -1,8 +1,12 @@
   <footer>
-    {%- if showContactLink %}
-    <p>Questions or feedback? <a href="/contact.html">Contact us</a>.</p>
-    {%- endif %}
-    <p>Points Harvest is free and open-source on <a href="{{ site.githubUrl }}" target="_blank" rel="noopener">GitHub</a>.</p>
-    <p>Points Harvest is an independent tool with no affiliation with Microsoft, Bing, or the Rewards program. It is not endorsed, authorized, or supported by Microsoft in any way.</p>
-    <p>Microsoft, Bing, and Bing Rewards are trademarks of Microsoft Corporation.</p>
+    <div class="footer-links">
+      <a href="{{ site.githubUrl }}" target="_blank" rel="noopener">GitHub</a>
+      {%- if showContactLink %}
+      <a href="/contact.html">Contact</a>
+      {%- endif %}
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+    <p class="footer-tagline">Points Harvest is free and open-source.</p>
+    <p class="footer-disclaimer">Not affiliated with, endorsed by, or supported by Microsoft. Microsoft, Bing, and Bing Rewards are trademarks of Microsoft Corporation.</p>
   </footer>

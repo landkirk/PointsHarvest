@@ -7,29 +7,28 @@ extraStyles:
   - /contact.css
 ---
 
-  <section class="contact-hero">
+  <section class="page-hero">
     <div class="section-label">Contact</div>
     <h1>Let's <span>talk</span>.</h1>
     <p>Questions, bug reports, feature ideas — all welcome. For bugs and feature requests, <a href="{{ site.githubUrl }}/issues" target="_blank" rel="noopener">open a GitHub issue</a>. For everything else, email is the fastest way to reach us.</p>
   </section>
 
   <section class="contact-main">
-    <div class="email-card">
-      <div class="email-card-icon" aria-hidden="true">✉</div>
-      <div class="email-card-label">Email</div>
-      <a class="email-address" href="mailto:pointsharvest@protonmail.com">pointsharvest@protonmail.com</a>
-      <div class="email-card-actions">
-        <a class="btn btn-primary" href="mailto:pointsharvest@protonmail.com">Send an email</a>
-      </div>
-    </div>
-
-    <div class="email-card">
-      <div class="email-card-icon" aria-hidden="true">💻</div>
-      <div class="email-card-label">GitHub Issues</div>
-      <a class="email-address" href="{{ site.githubUrl }}/issues" target="_blank" rel="noopener">PointsHarvest/issues</a>
-      <div class="email-card-actions">
-        <a class="btn btn-primary" href="{{ site.githubUrl }}/issues" target="_blank" rel="noopener">Open an issue</a>
-      </div>
+    <div class="contact-channels">
+      <a class="channel" href="mailto:pointsharvest@protonmail.com">
+        <span class="channel-icon" aria-hidden="true">✉</span>
+        <span class="channel-text">
+          <span class="channel-label">Email</span>
+          <span class="channel-value">pointsharvest@protonmail.com</span>
+        </span>
+      </a>
+      <a class="channel" href="{{ site.githubUrl }}/issues" target="_blank" rel="noopener">
+        <span class="channel-icon" aria-hidden="true">💻</span>
+        <span class="channel-text">
+          <span class="channel-label">GitHub Issues</span>
+          <span class="channel-value">PointsHarvest/issues</span>
+        </span>
+      </a>
     </div>
 
     <div class="topic-grid">

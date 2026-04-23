@@ -17,6 +17,18 @@ eleventyExcludeFromCollections: true
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>{{ site.baseUrl }}/privacy.html</loc>
+    <lastmod>{{ latest | isoDate }}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>{{ site.baseUrl }}/terms.html</loc>
+    <lastmod>{{ latest | isoDate }}</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.3</priority>
+  </url>
   {%- for post in collections.posts %}
   <url>
     <loc>{{ site.baseUrl }}{{ post.url }}</loc>
