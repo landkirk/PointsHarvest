@@ -31,7 +31,7 @@
     "chrome-types": "^0.1.433",
     "concurrently": "^10.0.3",
     "esbuild": "^0.28.1",
-    "eslint": "^10.6.0",
+    "eslint": "^10.7.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.9.5",
     "typescript": "^6.0.3",
