@@ -62,4 +62,4 @@ Open the extension side panel to access these settings:
 - [Developer Guide](DEVELOP.md) — build from source, architecture, and contributing
 - [Rewards Dashboard](https://rewards.bing.com/) — where points and activities are tracked
 - [Redeem Rewards](https://rewards.bing.com/redeem) — spend your points
-- [Contact](https://pointsharvest.com/contact/) — bug reports, feature requests, and feedback
+- [Contact](https://pointsharvest.com/contact.html) — bug reports, feature requests, and feedback

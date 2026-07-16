@@ -15,7 +15,7 @@ const MORE_ACTIVITIES_IGNORE_STRINGS = [
   'test',
   'search more',
   'bing app',
-  'set a goal'
+  'set a goal',
 ];
 
 /**

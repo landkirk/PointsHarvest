@@ -729,7 +729,7 @@ Delete the previous version's changelog HTML file from `src/ui/screens/`.
 ```bash
 git grep "OLD_VERSION"   # e.g. git grep "1.9.0"
 ```
-Fix any remaining references. Ignore `package-lock.json` — it will show the old version but do **not** run `npm install` to update it; the lock file is updated as a side effect of the build step.
+Fix any remaining references. Ignore `package-lock.json` — its top-level `version` field will keep showing the old version. `npm run build` never runs `npm install`, so nothing in the release process touches it; it drifts until the next dependency-bump commit and that's fine — npm doesn't require it to match `package.json` to function. Do **not** run `npm install` just to sync it.
 
 ### 7. Build and tag
 
