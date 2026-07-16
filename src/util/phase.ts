@@ -52,10 +52,12 @@ export const PHASE = {
   },
 } as const satisfies Record<string, PhaseDefinition>;
 
+// Must mirror the orchestrator chain in managers/start-run.ts — the popup renders
+// progress bars in this order, so a mismatch fills them out of sequence.
 export const PHASES: readonly PhaseDefinition[] = [
   PHASE.WARMUP,
-  PHASE.EXPLORE,
   PHASE.DAILY,
+  PHASE.EXPLORE,
   PHASE.MORE_ACTIVITIES,
   PHASE.FARM,
 ];

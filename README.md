@@ -11,7 +11,7 @@ Not affiliated with or endorsed by Microsoft.
 - **Explore on Bing** — Detects and completes all your "Search on Bing" activity cards, mapping each to the right query automatically
 - **Daily Set tiles** — Opens daily set activities and handles simple ones automatically; surfaces quizzes and polls so you can complete them
 - **More Activities** — Completes additional activity tiles automatically — opens each tile's search page, dwells, and validates; skips puzzles, quizzes, and install prompts
-- **PC Search farming** — After activities are done, farms remaining PC searches until the daily cap is reached
+- **PC Search farming** — After activities are done, farms remaining PC searches until the daily cap is reached. The cap depends on your Rewards level, and the extension reads yours rather than assuming a fixed number
 - **Hands-on when it matters** — Quizzes, polls, and puzzles are surfaced for you to complete manually; the extension handles everything else
 
 The extension uses randomized timing and realistic browsing patterns to avoid detection. When the run finishes, a summary card shows the duration, points earned per phase, and activity counts.
@@ -32,12 +32,10 @@ Want to build from source? See the [Developer Guide](DEVELOP.md).
 
 Click the extension icon to open the side panel, then click **Run today's searches**.
 
-The extension tracks the last run date and progress:
-- If you've completed all searches today, it shows "Done for today!" and won't run again until tomorrow
-- If interrupted mid-run, it resumes from where it left off (same day only)
-- Each new day resets so you can run again
-- The popup shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, More Activities, PC Searches) and earned points count up as each phase credits them
-- When the run ends, a summary card shows the duration, points earned per phase, and activity counts
+- The side panel shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, More Activities, PC Searches), and earned points count up as each phase credits them
+- When the run finishes, it shows "Done for today!" and a summary card with the duration, points earned per phase, and activity counts
+- Runs are safe to repeat. The extension reads what Bing has already credited at the start of every run and skips it, so if a run is interrupted you can simply start another one — it will pick up only what's still outstanding
+- While a run is going, Chrome displays a **"PointsHarvest started debugging this browser"** banner. This is expected: clicking activity tiles on Bing's redesigned dashboard only counts if the click is a real browser input event, which requires that permission. The banner disappears when the run ends
 
 ## Settings
 
@@ -55,7 +53,8 @@ Open the extension side panel to access these settings:
 - Quizzes, polls, and puzzles are surfaced for you automatically — complete them in the Bing tab, then click **Done** in the popup (or just close the tab) to continue
 - If Chrome's popup blocker prevents an activity tab from opening, the extension pauses and shows exact fix instructions — allow pop-ups for `rewards.bing.com` in Chrome settings, then click **Done** to continue
 - The extension only runs when you manually trigger it — there is no auto-schedule
-- If the extension detects you're not logged into Bing Rewards, it will abort with an error message — sign into your Microsoft account first
+- If you aren't signed into Bing Rewards, the extension pauses and prompts you to sign in rather than failing outright — sign in, then click **Done** to continue. It only aborts if you're still signed out afterwards
+- Leave the Bing Rewards tab alone while a run is in progress. Opening Chrome DevTools on it will stop activity tiles from being credited
 
 ## Links
 

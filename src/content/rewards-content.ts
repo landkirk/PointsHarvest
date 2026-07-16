@@ -1,355 +1,468 @@
-// Injected into rewards.bing.com
-// Waits for the SPA to render activity cards, then reports them to the background.
-// Cards are clicked on demand (one at a time) via 'clickCard' messages from the background.
+// Injected into rewards.bing.com. Message router for the rewards dashboard.
+//
+// Extraction reads the dashboard JSON API (util/rewards-api.ts) — never the DOM.
+// The DOM is touched only to *locate* a card so the background can click it, and
+// to expand the sections that render their tiles lazily.
 
-// Actionable cards are <a class="ds-card-sec"> elements; locked cards are <div class="locked-card">.
-// "Search on Bing" activities are identified via aria-label on the card element.
+import { CardState, sectionByKey, sectionForActivityType } from '../util/activity-types.js';
+import type { ActivityType, RawCard, SectionDescriptor } from '../util/activity-types.js';
+import { TIMEOUTS, sleep } from '../util/timing.js';
+import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from '../util/messaging.js';
+import type {
+  AppMessage,
+  ClickPoint,
+  CountersResponse,
+  LocateResponse,
+} from '../util/messaging.js';
+import {
+  clean,
+  fetchDashboard,
+  fetchDashboardResult,
+  mapDashboardToCards,
+  mapDashboardToCounters,
+  promoComplete,
+} from '../util/rewards-api.js';
+import { urlKey } from '../util/url.js';
 
-import { CardState, CARD_SOURCE } from '../util/activity-types.js';
-import { TIMING, TIMEOUTS, randMs, rawRandMs, sleep } from '../util/timing.js';
-import { MSG_ACTION } from '../util/messaging.js';
-import type { AppMessage } from '../util/messaging.js';
-import type { RawCard, CardSource } from '../util/activity-types.js';
+const MAX_WAIT_MS = TIMEOUTS.REWARDS_EXTRACT_MAX_WAIT;
+const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_EXTRACT_POLL;
 
-const SELECTORS = {
-  DAILY_SETS_CONTAINER: '#daily-sets',
-  MORE_ACTIVITIES_CONTAINER: '#more-activities',
-  CARD_ACTIONABLE: 'a.ds-card-sec',
-  CARD_LOCKED: '.locked-card',
-  POINTS_EARNED: '[aria-label="Points you have earned"]',
-  POINTS_IN_PROGRESS: '[aria-label="Points in progress"]',
-  POINTS_WILL_EARN: '[aria-label="Points you will earn"]',
-  BI_TRACKED: '[data-bi-id]',
-  COUNTER_CARD: '.pointsBreakdownCard',
-  COUNTER_TITLE: '.title-detail p',
-  COUNTER_DETAIL: 'p.pointsDetail',
-  CARD_DESCRIPTION: '.contentContainer p',
-  POINTS_VALUE: '.pointsString',
-} as const;
+// The header renders a bare "Sign in" control beside the account avatar when
+// there's no session (signed in, it shows the account name instead), and carries
+// no marketing copy that text sniffing could catch. Match on an element whose
+// *entire* text is "Sign in" so ordinary prose containing the words can't trip it.
+const SIGN_IN_LABEL = /^sign in$/i;
 
-const CLICK_SIMULATION = {
-  COORD_OFFSET_RANGE: 3, // ±3px jitter from element center
-  MOVE_COUNT_RANGE: 3, // 1–3 mouse move events
-  POINTER_ID: 1 as const,
-} as const;
-
-function parseCardPoints(card: Element): number {
-  const raw = card.querySelector(SELECTORS.POINTS_VALUE)?.textContent?.trim();
-  if (!raw) return 0;
-  const n = parseInt(raw, 10);
-  return isNaN(n) ? 0 : n;
+/**
+ * Only a control the user can actually see counts. Headers routinely render both
+ * auth states and toggle between them with CSS, and the SPA can paint a signed-out
+ * skeleton before the session hydrates — so a text match alone reports a signed-in
+ * user as logged out, which ends their run with "Not logged in".
+ */
+function isVisible(el: HTMLElement): boolean {
+  // checkVisibility covers display/visibility/content-visibility; the rect check
+  // is the floor (also catches detached and zero-size nodes).
+  if (el.getClientRects().length === 0) return false;
+  return el.checkVisibility?.({ visibilityProperty: true, opacityProperty: true }) ?? true;
 }
 
-function parseAriaTitleAndDescription(el: Element): { title: string; description: string } {
-  const parts = (el.getAttribute('aria-label') || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  const title = parts[0] || (el.textContent ?? '').trim().slice(0, 60);
-  const descP = el.querySelector(SELECTORS.CARD_DESCRIPTION);
-  const description = descP ? (descP.textContent ?? '').trim() : parts.slice(1).join(', ');
-  return { title, description };
-}
-
-const MAX_WAIT_MS = TIMEOUTS.REWARDS_DOM_MAX_WAIT;
-const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_DOM_POLL;
-
-// Card elements retained after extraction so they can be clicked on demand.
-const extractedEls = new Map<string, HTMLAnchorElement>();
-
-// Returns a CardState. Locked check must come first — locked cards still contain the points-earned span.
-// In-progress cards (hourglass icon, "Activated!" tooltip) are treated as actionable.
-function determineCardState(card: Element): CardState {
-  if (card.closest(SELECTORS.CARD_LOCKED)) return CardState.Locked;
-  if (card.getAttribute('aria-disabled') === 'true') return CardState.Locked;
-  if (card.querySelector(SELECTORS.POINTS_EARNED)) return CardState.Completed;
-  if (card.querySelector(SELECTORS.POINTS_IN_PROGRESS)) return CardState.Actionable;
-  if (card.querySelector(SELECTORS.POINTS_WILL_EARN)) return CardState.Actionable;
-  return CardState.Unknown;
-}
-
-interface SectionOpts {
-  idPrefix: string;
-  source: CardSource;
-  getTitleDesc: (el: Element) => { title: string; description: string };
-  getDataBiId?: (el: Element) => string;
-}
-
-function collectSectionCards(
-  els: Element[],
-  opts: SectionOpts,
-  cards: RawCard[],
-  cardEls: Map<string, HTMLAnchorElement>,
-): void {
-  let index = 0;
-  for (const el of els) {
-    const state = determineCardState(el);
-    const href = (el as HTMLAnchorElement).href || '';
-    const id = `${opts.idPrefix}${++index}`;
-    const { title, description } = opts.getTitleDesc(el);
-    cards.push({
-      id,
-      title,
-      description,
-      points: parseCardPoints(el),
-      cardState: state,
-      source: opts.source,
-      dataBiId: opts.getDataBiId?.(el) ?? '',
-    });
-    if (href && state === CardState.Actionable) cardEls.set(id, el as HTMLAnchorElement);
-  }
-}
-
-function dailyTitleDesc(el: Element): { title: string; description: string } {
-  return {
-    title: el.getAttribute('aria-label') || '',
-    description: el.textContent?.trim().slice(0, 120) || '',
-  };
-}
-
-function extractAllCards(): {
-  cards: RawCard[];
-  hasDailySection: boolean;
-  cardEls: Map<string, HTMLAnchorElement>;
-} {
-  const cards: RawCard[] = [];
-  const cardEls = new Map<string, HTMLAnchorElement>();
-
-  // ── Explore section (main cards, excluding daily-sets and more-activities containers) ──
-  const exploreEls = [
-    ...document.querySelectorAll(SELECTORS.CARD_LOCKED),
-    ...Array.from(document.querySelectorAll(SELECTORS.CARD_ACTIONABLE)).filter(
-      (a) => !a.closest(SELECTORS.CARD_LOCKED),
-    ),
-  ].filter(
-    (card) =>
-      !card.closest(SELECTORS.DAILY_SETS_CONTAINER) &&
-      !card.closest(SELECTORS.MORE_ACTIVITIES_CONTAINER),
+function hasSignInControl(): boolean {
+  const candidates = document.querySelectorAll<HTMLElement>('p, a, button, span');
+  return Array.from(candidates).some(
+    (el) => SIGN_IN_LABEL.test((el.textContent ?? '').trim().replace(/\s+/g, ' ')) && isVisible(el),
   );
-  collectSectionCards(
-    exploreEls,
-    {
-      idPrefix: 'E',
-      source: CARD_SOURCE.EXPLORE,
-      getTitleDesc: parseAriaTitleAndDescription,
-      getDataBiId: (el) => el.closest(SELECTORS.BI_TRACKED)?.getAttribute('data-bi-id') || '',
-    },
-    cards,
-    cardEls,
-  );
-
-  // ── Daily sets section ────────────────────────────────────────────────
-  const dailyContainer = document.querySelector(SELECTORS.DAILY_SETS_CONTAINER);
-  if (dailyContainer) {
-    collectSectionCards(
-      Array.from(dailyContainer.querySelectorAll(SELECTORS.CARD_ACTIONABLE)),
-      { idPrefix: 'D', source: CARD_SOURCE.DAILY_SET, getTitleDesc: dailyTitleDesc },
-      cards,
-      cardEls,
-    );
-  } else {
-    console.warn('[rewards-content] Selector not found:', SELECTORS.DAILY_SETS_CONTAINER);
-  }
-
-  // ── More activities section ───────────────────────────────────────────
-  const moreActivitiesContainer = document.querySelector(SELECTORS.MORE_ACTIVITIES_CONTAINER);
-  if (moreActivitiesContainer) {
-    collectSectionCards(
-      Array.from(moreActivitiesContainer.querySelectorAll(SELECTORS.CARD_ACTIONABLE)),
-      {
-        idPrefix: 'M',
-        source: CARD_SOURCE.MORE_ACTIVITIES,
-        getTitleDesc: parseAriaTitleAndDescription,
-      },
-      cards,
-      cardEls,
-    );
-  } else {
-    console.warn('[rewards-content] Selector not found:', SELECTORS.MORE_ACTIVITIES_CONTAINER);
-  }
-
-  return { cards, hasDailySection: !!dailyContainer, cardEls };
 }
 
-// Returns { searchCounters, searchCounterDebug }
-function extractSearchCounters(): {
-  searchCounters: { type: string; current: number; max: number }[];
-} {
-  const cards = Array.from(document.querySelectorAll(SELECTORS.COUNTER_CARD));
-  if (cards.length === 0) {
-    console.warn('[rewards-content] Selector not found:', SELECTORS.COUNTER_CARD);
-  }
-  const counters: { type: string; current: number; max: number }[] = [];
+/**
+ * Whether the page looks signed-out. Only positive evidence counts — anything
+ * else (including a page that is still loading) reads as `false`.
+ *
+ * This is a heuristic over someone else's markup, not an authority. Callers hold
+ * it against the API, which is the actual source of truth: a successful
+ * `fetchDashboard()` proves a session and vetoes this outright, so never report
+ * logged-out on this alone while the dashboard is still readable.
+ *
+ * All this buys is latency. A logged-out user is reported logged-out either way
+ * — an unread dashboard settles that at the deadline — so this only decides
+ * whether they wait REWARDS_EXTRACT_MAX_WAIT to hear it. That makes any false
+ * positive a strictly bad trade, hence the two conservative gates: the page must
+ * have finished loading (a still-loading SPA can paint a signed-out skeleton
+ * before the session hydrates), and the control must be visible.
+ */
+function looksLoggedOut(): boolean {
+  if (document.readyState !== 'complete') return false;
+  if (hasSignInControl()) return true;
 
-  for (const card of cards) {
-    const type = card.querySelector(SELECTORS.COUNTER_TITLE)?.textContent?.trim() || '';
-    const rawText = card.querySelector(SELECTORS.COUNTER_DETAIL)?.textContent?.trim() || '';
-
-    // rawText example: "5 / 150"
-    const parts = rawText.split('/');
-    if (parts.length < 2) continue;
-
-    const current = parseInt(parts[0].trim());
-    const max = parseInt(parts[1].trim());
-    if (!type || isNaN(current) || isNaN(max)) continue;
-
-    counters.push({ type, current, max });
-  }
-
-  return { searchCounters: counters };
-}
-
-// Returns true if the rewards dashboard is visible (i.e. user is logged in).
-function isLoggedIn(rawText: string): boolean | null {
-  const bodyText = rawText.toLowerCase();
-
-  const DASHBOARD_SIGNALS = [
-    'available points',
-    "today's points",
-    'streak count',
-    'streak protection',
-    'explore on bing',
-    'points breakdown',
-  ];
-  if (DASHBOARD_SIGNALS.some((s: string) => bodyText.includes(s))) return true;
-
+  const bodyText = (document.body?.textContent || '').toLowerCase();
   const LOGOUT_SIGNALS = ['sign in to start earning', 'sign in to earn', 'start earning rewards'];
-  if (LOGOUT_SIGNALS.some((s: string) => bodyText.includes(s))) return false;
-
-  return null; // inconclusive — page may still be loading
+  return LOGOUT_SIGNALS.some((s: string) => bodyText.includes(s));
 }
 
-function waitAndExtract(): void {
-  const start = Date.now();
-
-  const poll = async () => {
-    const bodyText = document.body?.textContent || '';
-    if (bodyText.trim().length < 50) {
-      if (Date.now() - start < MAX_WAIT_MS) {
-        setTimeout(poll, POLL_INTERVAL_MS);
-        return;
-      }
-    }
-
-    const loginStatus = isLoggedIn(bodyText);
-    if (loginStatus === false) {
-      chrome.runtime.sendMessage({
-        action: MSG_ACTION.ACTIVITIES_FOUND,
-        cards: [],
-        loggedIn: false,
-      });
-      return;
-    }
-    if (loginStatus === null) {
-      if (Date.now() - start < MAX_WAIT_MS) {
-        setTimeout(poll, POLL_INTERVAL_MS);
-        return;
-      }
-    }
-
-    window.scrollBy({ top: randMs(...TIMING.SCROLL_RANGE_PX), behavior: 'smooth' });
-    await sleep(randMs(...TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE));
-    window.scrollBy({ top: randMs(...TIMING.SCROLL_RANGE_PX), behavior: 'smooth' });
-    await sleep(randMs(...TIMING.REWARDS_PRE_EXTRACT_SCROLL_PAUSE));
-
-    const { cards, hasDailySection, cardEls } = extractAllCards();
-
-    if (cards.length > 0 || hasDailySection || Date.now() - start >= MAX_WAIT_MS) {
-      extractedEls.clear();
-      cardEls.forEach((el, id) => extractedEls.set(id, el));
-
-      chrome.runtime.sendMessage({
-        action: MSG_ACTION.ACTIVITIES_FOUND,
-        cards,
-        loggedIn: true,
-      });
-    } else {
-      setTimeout(poll, POLL_INTERVAL_MS);
-    }
-  };
-
-  poll();
+function sendActivities(cards: RawCard[], loggedIn: boolean): void {
+  chrome.runtime.sendMessage({
+    action: MSG_ACTION.ACTIVITIES_FOUND,
+    cards,
+    loggedIn,
+  });
 }
 
-function resolveEl(id: string): HTMLAnchorElement | undefined {
-  return extractedEls.get(id);
-}
-
-// Return a random offset in [-range, +range]
-function randomOffset(range: number): number {
-  return (Math.random() * 2 - 1) * range;
-}
-
-async function simulateClick(el: HTMLAnchorElement): Promise<void> {
-  const rect = el.getBoundingClientRect();
-  // Validate element is visible; getBoundingClientRect still returns coords for hidden elements
-  if (rect.width === 0 || rect.height === 0) {
-    throw new Error('Cannot click invisible element');
+/**
+ * Read the dashboard JSON API, retrying until `deadline` (an absolute timestamp).
+ *
+ * There is nothing to wait for in the DOM first: the API answers as soon as the
+ * document exists, independent of how much of the SPA has rendered.
+ */
+async function extractLoop(deadline: number): Promise<void> {
+  const result = await fetchDashboardResult();
+  if (result.status === 'ok') {
+    sendActivities(mapDashboardToCards(result.dashboard), true);
+    return;
   }
 
-  // Add jitter to avoid detection by click-pattern analysis
-  const cx = rect.left + rect.width / 2 + randomOffset(CLICK_SIMULATION.COORD_OFFSET_RANGE);
-  const cy = rect.top + rect.height / 2 + randomOffset(CLICK_SIMULATION.COORD_OFFSET_RANGE);
-
-  const eventOptions = {
-    bubbles: true,
-    cancelable: true,
-    clientX: cx,
-    clientY: cy,
-    screenX: cx + window.screenX,
-    screenY: cy + window.screenY,
-    view: window,
-    pointerId: CLICK_SIMULATION.POINTER_ID,
-    pointerType: 'mouse' as const,
-  };
-
-  el.dispatchEvent(new PointerEvent('pointerover', eventOptions));
-
-  const moveCount = Math.floor(Math.random() * CLICK_SIMULATION.MOVE_COUNT_RANGE) + 1;
-  for (let i = 0; i < moveCount; i++) {
-    el.dispatchEvent(new PointerEvent('pointermove', eventOptions));
-    await sleep(rawRandMs(...TIMING.CLICK_SIMULATION_MOVE_DELAY));
+  // Conclusive logged-out signals: the API said so, or the page is offering a
+  // sign-in control. Report immediately so the run prompts for sign-in.
+  if (result.status === 'logged-out' || looksLoggedOut()) {
+    sendActivities([], false);
+    return;
   }
 
-  const pointerdownOptions = { ...eventOptions, buttons: 1 };
-  el.dispatchEvent(new PointerEvent('pointerdown', pointerdownOptions));
-  await sleep(rawRandMs(...TIMING.CLICK_SIMULATION_HOLD_DOWN_DELAY));
+  if (Date.now() < deadline) {
+    setTimeout(() => void extractLoop(deadline), POLL_INTERVAL_MS);
+    return;
+  }
 
-  // pointerup has buttons: 0 per pointer event spec (button released)
-  el.dispatchEvent(new PointerEvent('pointerup', eventOptions));
-  await sleep(rawRandMs(...TIMING.CLICK_SIMULATION_RELEASE_DELAY));
+  // Out of time with the dashboard still unread. We cannot confirm a session, so
+  // we must not claim one: zero cards + `loggedIn: true` renders as a cheerful
+  // "Done for today!", which is the worst possible answer for someone who was
+  // never signed in (and a logged-out redirect to the sign-in host rejects on
+  // CORS, so this is exactly where that user lands). Reporting logged-out is the
+  // safe reading of an unreadable dashboard — it prompts for sign-in and
+  // re-extracts, which costs a signed-in user one dismissable prompt and tells
+  // the truth to everyone else.
+  sendActivities([], false);
+}
 
-  el.dispatchEvent(new MouseEvent('click', eventOptions));
+// ── Card resolution ─────────────────────────────────────────────────────────
+
+// clean() (zero-width strip + whitespace collapse, NBSP included) plus
+// lowercasing, so DOM titles compare equal to the cleaned API titles.
+function cleanText(s: string): string {
+  return clean(s).toLowerCase();
+}
+
+/** Every card is an anchor; shared so the tile *count* and the tile *lookup* can't drift. */
+const TILE_SELECTOR = 'a[href]';
+
+function sectionEl(id: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`section#${CSS.escape(id)}`);
+}
+
+/**
+ * Cards currently rendered in a section — the measure of whether its phase can
+ * run at all. Deliberately does NOT fall back to the document like `cardAnchors`
+ * does: a document-wide count would report tiles for a section that isn't even
+ * on the page, which is exactly the state callers use this to detect.
+ */
+function tileCount(section: HTMLElement | null): number {
+  return section ? section.querySelectorAll(TILE_SELECTOR).length : 0;
+}
+
+/**
+ * The anchors a card could be, narrowed to its own section.
+ *
+ * Titles are only unique *within* a section: `/earn` also renders `section#quests`
+ * and `section#levelup`, whose tiles can share a title — or merely a text prefix —
+ * with an activity, and a document-wide scan silently returns whichever comes
+ * first in DOM order. Falls back to the whole document when the section isn't
+ * present (an id that drifted), which is no worse than an unscoped scan.
+ */
+function cardAnchors(activityType: ActivityType): HTMLAnchorElement[] {
+  const section = sectionForActivityType(activityType);
+  const el = section ? sectionEl(section.id) : null;
+  return Array.from((el ?? document).querySelectorAll<HTMLAnchorElement>(TILE_SELECTOR));
+}
+
+// Primary matcher: locate the card anchor by its title. Explore tiles all share
+// ONE destinationUrl, so the title (unique per tile) is the only reliable key.
+// Matches the img[alt], then the title <p>, then the anchor text.
+function findCardByTitle(
+  title: string,
+  anchors: HTMLAnchorElement[],
+): HTMLAnchorElement | undefined {
+  const want = cleanText(title);
+  if (!want) return undefined;
+  return (
+    anchors.find((a) => cleanText(a.querySelector('img')?.alt ?? '') === want) ??
+    anchors.find((a) => cleanText(a.querySelector('p')?.textContent ?? '') === want) ??
+    anchors.find((a) => cleanText(a.textContent ?? '').startsWith(want))
+  );
+}
+
+// Origin + path + query, lowercased — a stable key for comparing a card's live
+// href against the API's destinationUrl regardless of fragment or casing.
+function normalizeHref(u: string): string {
+  return urlKey(u, { withQuery: true, base: location.href });
+}
+
+/**
+ * Fallback matcher, used when title matching misses.
+ *
+ * The promo name is tried FIRST because it is the only discriminating key here:
+ * every explore tile shares one destinationUrl (the Bing homepage), so a URL
+ * match against an explore card cannot say WHICH tile is meant. The name is
+ * embedded in the href for the cards that carry it (daily-set BTDSUOID / filter
+ * params); destinationUrl is the last resort, and only counts when it matches
+ * exactly one anchor — on a shared href, reporting the card absent beats
+ * silently clicking (and crediting) the wrong tile.
+ *
+ * Returns undefined when the card isn't in the DOM.
+ */
+function findCardByDestination(
+  destinationUrl: string,
+  promoName: string,
+  anchors: HTMLAnchorElement[],
+): HTMLAnchorElement | undefined {
+  if (!destinationUrl && !promoName) return undefined;
+
+  if (promoName) {
+    const byName = anchors.find((a) => {
+      try {
+        return decodeURIComponent(a.href).includes(promoName);
+      } catch {
+        return a.href.includes(promoName);
+      }
+    });
+    if (byName) return byName;
+  }
+  if (destinationUrl) {
+    const target = normalizeHref(destinationUrl);
+    const matches = anchors.filter((a) => normalizeHref(a.href) === target);
+    if (matches.length === 1) return matches[0];
+  }
+  return undefined;
+}
+
+/** Resolve an activity to its anchor: by title, then by promo name / destination. */
+function resolveCard(msg: {
+  title: string;
+  destinationUrl: string;
+  promoName: string;
+  activityType: ActivityType;
+}): HTMLAnchorElement | undefined {
+  const anchors = cardAnchors(msg.activityType);
+  return (
+    findCardByTitle(msg.title, anchors) ??
+    findCardByDestination(msg.destinationUrl, msg.promoName, anchors)
+  );
+}
+
+// ── Section control resolution ──────────────────────────────────────────────
+
+/** How a control was resolved — logged so selector drift is diagnosable from a run log. */
+type Via = 'section-descendant' | 'aria-controls' | 'label' | 'text-scan' | 'none';
+
+/** The element `aria-controls` points at, if it resolves. */
+function controlledPanel(btn: HTMLElement): HTMLElement | null {
+  const id = btn.getAttribute('aria-controls');
+  return id ? document.getElementById(id) : null;
+}
+
+/** The nearest heading above a control, searching its own header container. */
+function nearbyHeading(btn: HTMLElement): string {
+  let node: HTMLElement | null = btn.parentElement;
+  for (let i = 0; i < 3 && node; i++) {
+    if (node.tagName === 'SECTION' || node.tagName === 'MAIN') break;
+    const h = node.querySelector('h2');
+    if (h) return cleanText(h.textContent ?? '');
+    node = node.parentElement;
+  }
+  return '';
+}
+
+function matchesLabel(text: string, desc: SectionDescriptor): boolean {
+  return text !== '' && desc.labelPatterns.some((p) => p.test(text));
+}
+
+/**
+ * Find a section's disclosure toggle — the control that gates whether its cards
+ * render at all.
+ *
+ * Ordered tiers, first match wins. Nothing here can key off the markup itself:
+ * classes are generated Tailwind and ids are generated by react-aria, so
+ * `aria-expanded` (which we must read anyway to know the state) is the only
+ * viable candidate filter. `slot="trigger"` and `data-react-aria-pressable` look
+ * tempting but discriminate nothing — the latter is on cards too.
+ *
+ * The label tier is last because it is the only *localized* signal: `aria-label`
+ * is "Keep earning" here and something else entirely on a non-English profile,
+ * whereas `section#moreactivities` holds everywhere. It still earns its place —
+ * see SectionDescriptor.labelPatterns.
+ */
+function resolveSectionToggle(
+  section: HTMLElement | null,
+  desc: SectionDescriptor,
+): { el: HTMLButtonElement; via: Via } | null {
+  // Any state, not just aria-expanded="false" — reading the state is the point.
+  const buttons = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'),
+  ).filter(isVisible);
+
+  if (section) {
+    // DOM order matters: the section header precedes the card grid, so its
+    // toggle wins over any per-card expandable nested deeper in the section.
+    const inside = buttons.find((b) => section.contains(b));
+    if (inside) return { el: inside, via: 'section-descendant' };
+
+    // The header may render outside the section element. Relate the two through
+    // the disclosure panel instead — in either direction, since the panel and
+    // the section are distinct elements and either may be the ancestor.
+    const byPanel = buttons.find((b) => {
+      const panel = controlledPanel(b);
+      return !!panel && (panel === section || panel.contains(section) || section.contains(panel));
+    });
+    if (byPanel) return { el: byPanel, via: 'aria-controls' };
+  }
+
+  const byLabel = buttons.find((b) => matchesLabel(cleanText(b.ariaLabel ?? ''), desc));
+  if (byLabel) return { el: byLabel, via: 'label' };
+
+  const byHeading = buttons.find((b) => matchesLabel(nearbyHeading(b), desc));
+  if (byHeading) return { el: byHeading, via: 'text-scan' };
+
+  return null;
+}
+
+/** The section's "Show more" pagination control, if it still has pages to reveal. */
+function resolveShowMore(section: HTMLElement): HTMLButtonElement | null {
+  return (
+    Array.from(section.querySelectorAll<HTMLButtonElement>('button')).find(
+      (b) => /\b(show|see|view)\s+more\b/i.test(b.textContent ?? '') && isVisible(b),
+    ) ?? null
+  );
+}
+
+/**
+ * An element's on-screen geometry, for the background to aim a trusted click at.
+ * Scrolls it into view first, so callers must only reach here once they've
+ * decided a click is actually needed — this is not a free query.
+ */
+async function locateElement(el: HTMLElement): Promise<ClickPoint | null> {
+  el.scrollIntoView({ block: 'center', inline: 'center' });
+  await sleep(TIMEOUTS.SCROLL_SETTLE);
+  const r = el.getBoundingClientRect();
+  if (r.width === 0 || r.height === 0) return null;
+  return {
+    x: r.left + r.width / 2,
+    y: r.top + r.height / 2,
+    w: r.width,
+    h: r.height,
+    vw: window.innerWidth,
+    vh: window.innerHeight,
+  };
 }
 
 chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
   if (msg.action === MSG_ACTION.START_EXTRACT) {
-    waitAndExtract();
+    void extractLoop(Date.now() + MAX_WAIT_MS);
     return undefined;
   }
 
-  if (msg.action === MSG_ACTION.CLICK_CARD) {
-    const card = resolveEl(msg.id);
-    if (!card) {
-      sendResponse({ clicked: false, error: `no card with id ${msg.id}` });
-      return true;
-    }
-    // Return promise directly so Chrome properly awaits the response
-    simulateClick(card)
-      .then(() => sendResponse({ clicked: true }))
-      .catch((err) => sendResponse({ clicked: false, error: String(err) }));
+  if (msg.action === MSG_ACTION.LOCATE_CARD) {
+    // Tiles gate their activation beacon on a trusted click, which a content
+    // script can't forge. Instead we return the tile's on-screen center so the
+    // background can dispatch a real click via the debugger (CDP Input).
+    void (async () => {
+      const section = sectionForActivityType(msg.activityType);
+      const tiles = tileCount(section ? sectionEl(section.id) : null);
+      const reply = (r: LocateResponse) => sendResponse(r);
+
+      const card = resolveCard(msg);
+      if (!card) {
+        reply({
+          status: LOCATE_STATUS.Absent,
+          tiles,
+          reason: `no card element for ${msg.title || msg.promoName}`,
+        });
+        return;
+      }
+      const point = await locateElement(card);
+      if (!point) {
+        reply({ status: LOCATE_STATUS.Absent, tiles, reason: 'card not visible' });
+        return;
+      }
+      reply({ status: LOCATE_STATUS.Ready, point, tiles, via: 'card' });
+    })();
+    return true;
+  }
+
+  if (msg.action === MSG_ACTION.LOCATE_CONTROL) {
+    // Sections gate their tiles two ways: a disclosure toggle that renders no
+    // cards at all until expanded, and (Keep earning) a "Show more" button that
+    // pages in the rest. Both are located here and clicked by the background, so
+    // they get the same humanized gesture every tile gets.
+    //
+    // Locate only — never click. And decide the status *before* measuring: only
+    // the Ready branch may call locateElement, which scrolls. That keeps "already
+    // expanded" a cheap, side-effect-free query, which is what lets the caller
+    // poll it to confirm a click landed.
+    void (async () => {
+      const desc = sectionByKey(msg.sectionKey);
+      const section = sectionEl(desc.id);
+      const tiles = tileCount(section);
+      const reply = (r: LocateResponse) => sendResponse(r);
+
+      if (msg.control === CONTROL_KIND.SECTION_TOGGLE) {
+        const found = resolveSectionToggle(section, desc);
+        if (!found) {
+          reply({
+            status: LOCATE_STATUS.Absent,
+            tiles,
+            reason: `no disclosure toggle for section#${desc.id}`,
+          });
+          return;
+        }
+        if (found.el.getAttribute('aria-expanded') === 'true') {
+          reply({ status: LOCATE_STATUS.Satisfied, tiles, via: found.via });
+          return;
+        }
+        const point = await locateElement(found.el);
+        if (!point) {
+          reply({ status: LOCATE_STATUS.Absent, tiles, reason: 'section toggle not visible' });
+          return;
+        }
+        reply({ status: LOCATE_STATUS.Ready, point, tiles, via: found.via });
+        return;
+      }
+
+      // Show more. A section that isn't here, or has no button left, has no more
+      // pages to reveal — that's Satisfied, not Absent.
+      const showMore = section ? resolveShowMore(section) : null;
+      if (!showMore) {
+        reply({ status: LOCATE_STATUS.Satisfied, tiles, via: section ? 'text-scan' : 'none' });
+        return;
+      }
+      const point = await locateElement(showMore);
+      if (!point) {
+        reply({ status: LOCATE_STATUS.Satisfied, tiles, via: 'text-scan' });
+        return;
+      }
+      reply({ status: LOCATE_STATUS.Ready, point, tiles, via: 'text-scan' });
+    })();
     return true;
   }
 
   if (msg.action === MSG_ACTION.GET_COUNTERS) {
-    const { searchCounters } = extractSearchCounters();
-    sendResponse({ searchCounters });
-    return true;
+    void (async () => {
+      // The API is the only counter source, and the DOM has none: the old counter
+      // markup lived solely on /pointsbreakdown, which is gone (it redirects to a
+      // page with no live counter). `read: false` means "couldn't read the
+      // dashboard — poll again"; `read: true` with no counters is a definitive
+      // "this account has no live counter" and callers must not keep polling.
+      const dashboard = await fetchDashboard();
+      const response: CountersResponse = dashboard
+        ? { read: true, searchCounters: mapDashboardToCounters(dashboard) }
+        : { read: false, searchCounters: [] };
+      sendResponse(response);
+    })();
+    return true; // async sendResponse
   }
 
   if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
-    const card = resolveEl(msg.id);
-    sendResponse({ state: card ? determineCardState(card) : CardState.NotFound });
+    void (async () => {
+      // Read the promo's `complete` flag by name. Works from any rewards page and
+      // needs no card on screen. A promo the dashboard doesn't know about is
+      // NotFound, which validate-activity reports as an error rather than as an
+      // incomplete activity worth retrying.
+      if (msg.promoName) {
+        const dashboard = await fetchDashboard();
+        const complete = dashboard ? promoComplete(dashboard, msg.promoName) : null;
+        if (complete !== null) {
+          sendResponse({ state: complete ? CardState.Completed : CardState.Actionable });
+          return;
+        }
+      }
+      sendResponse({ state: CardState.NotFound });
+    })();
     return true;
   }
   return undefined;

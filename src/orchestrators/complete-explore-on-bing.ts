@@ -11,7 +11,7 @@ import { loadRunState } from '../util/persistent-state.js';
 import { PHASE } from '../util/phase.js';
 
 import { sumCompleted } from '../util/activity.js';
-import { ACTIVITY_TYPE, CardState } from '../util/activity-types.js';
+import { ACTIVITY_TYPE, CardState, SECTION } from '../util/activity-types.js';
 import type { Activity } from '../util/activity-types.js';
 import { performSearch } from '../steps/perform-search.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
@@ -44,6 +44,10 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
       DBG.INFO,
       `Found ${activities.length} actionable ${pluralize(activities.length, 'activity', 'activities')}`,
     );
+
+    if (activities.length > 0) {
+      if (!(await this.ensureSectionReady(ctx, rewardsTabId, SECTION.exploreOnBing))) return;
+    }
 
     const unmapped = activities.filter((a) => a.searchQuery === null).length;
     await ctx.dbg(
@@ -102,21 +106,11 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     searchQuery: string,
     rewardsTabId: number,
   ): Promise<boolean> {
-    let result = await this.tabs.clickCardAndCaptureTab(
-      ctx,
-      rewardsTabId,
-      activity.id,
-      activity.title,
-    );
+    let result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity);
     if (result.status === TabCaptureStatus.Blocked) {
       await this._waitForPopupUnblock(ctx, activity.title);
       ctx.signal.throwIfAborted();
-      result = await this.tabs.clickCardAndCaptureTab(
-        ctx,
-        rewardsTabId,
-        activity.id,
-        activity.title,
-      );
+      result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity);
     }
     if (result.status !== TabCaptureStatus.Ok) return false;
     const searchTab = result.tab;

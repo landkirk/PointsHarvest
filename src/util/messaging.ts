@@ -18,8 +18,67 @@ export interface ProgressBroadcast {
   phaseStates: PhaseStates;
 }
 
-import type { RawCard } from './activity-types.js';
+import type { ActivityType, RawCard, SectionKey } from './activity-types.js';
 import type { UserPreferences } from './persistent-state.js';
+
+// ── Locating clickable elements ────────────────────────────────────────────
+
+/** An element's on-screen geometry, from a locate message, used to aim a human-like click. */
+export interface ClickPoint {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  vw: number;
+  vh: number;
+}
+
+/** The controls (as opposed to cards) the content script can locate for clicking. */
+export const CONTROL_KIND = {
+  /** A section's disclosure toggle — collapsed sections don't render clickable cards. */
+  SECTION_TOGGLE: 'sectionToggle',
+  /** A section's "Show more" pagination control. */
+  SHOW_MORE: 'showMore',
+} as const;
+export type ControlKind = (typeof CONTROL_KIND)[keyof typeof CONTROL_KIND];
+
+export const LOCATE_STATUS = {
+  /** Found, and it needs clicking — `point` is valid. */
+  Ready: 'ready',
+  /** Nothing to click: already in the target state. */
+  Satisfied: 'satisfied',
+  /** No such element. */
+  Absent: 'absent',
+} as const;
+export type LocateStatus = (typeof LOCATE_STATUS)[keyof typeof LOCATE_STATUS];
+
+/**
+ * Reply to LOCATE_CARD / LOCATE_CONTROL. The content script only ever *locates* —
+ * the background does the clicking, over CDP, so the click is trusted.
+ *
+ * Note that "not found" maps to a different status per target: a missing card or
+ * section toggle is Absent, but a missing "Show more" button means there are no
+ * more pages — Satisfied. That's what lets one caller-side loop drive both.
+ *
+ * `tiles` is the card count in the target section (0 if the section isn't in the
+ * DOM) — the actual measure of whether a phase can proceed. `via` names the tier
+ * that resolved the element, for debugging selector drift.
+ */
+export type LocateResponse =
+  | { status: typeof LOCATE_STATUS.Ready; point: ClickPoint; tiles: number; via: string }
+  | { status: typeof LOCATE_STATUS.Satisfied; tiles: number; via: string }
+  | { status: typeof LOCATE_STATUS.Absent; tiles: number; reason: string };
+
+/**
+ * Reply to GET_COUNTERS. `read` separates "dashboard unreadable — worth polling
+ * again" from "read fine; `searchCounters` is the definitive answer, empty
+ * included". Without it an account with no live PC counter is indistinguishable
+ * from a failed fetch and burns the caller's whole poll budget.
+ */
+export interface CountersResponse {
+  read: boolean;
+  searchCounters: { type: string; current: number; max: number }[];
+}
 
 // ── Message actions ────────────────────────────────────────────────────────
 
@@ -27,7 +86,8 @@ export const MSG_ACTION = {
   // Background ↔ rewards content script
   START_EXTRACT: 'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
-  CLICK_CARD: 'clickCard',
+  LOCATE_CARD: 'locateCard',
+  LOCATE_CONTROL: 'locateControl',
   VALIDATE_ACTIVITY: 'validateActivity',
   // Background ↔ search content script
   PERFORM_SEARCH: 'performSearch',
@@ -81,8 +141,20 @@ export type AppMessage =
       cards: RawCard[];
       loggedIn: boolean;
     }
-  | { action: typeof MSG_ACTION.CLICK_CARD; id: string }
-  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; id: string }
+  | {
+      action: typeof MSG_ACTION.LOCATE_CARD;
+      title: string;
+      destinationUrl: string;
+      promoName: string;
+      /** Scopes card lookup to this activity's section — see sectionForActivityType. */
+      activityType: ActivityType;
+    }
+  | {
+      action: typeof MSG_ACTION.LOCATE_CONTROL;
+      control: ControlKind;
+      sectionKey: SectionKey;
+    }
+  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; promoName: string }
   | { action: typeof MSG_ACTION.GET_COUNTERS }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string }

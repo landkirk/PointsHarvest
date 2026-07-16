@@ -24,6 +24,17 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
     activity: Activity,
     rewardsTabId: number,
   ): Promise<ActivityValidationResult> {
+    const label = `[${activity.id}] ${truncate(activity.title, LABEL_MAX)}`;
+
+    // No promo name, no lookup: the dashboard can only answer by name, so the
+    // outcome is unknowable — for every attempt, which makes it pointless (and
+    // harmful) to report a retryable failure: the re-click double-activates the
+    // tile it just opened. Take the click on faith instead.
+    if (!activity.promoName) {
+      await ctx.dbg(DBG.WARN, `Validation skipped — promo has no name, assuming done: "${label}"`);
+      return { status: ValidationStatus.Completed };
+    }
+
     chrome.tabs.update(rewardsTabId, { active: true }).catch(() => {
       /* non-critical: tab may have closed */
     });
@@ -31,11 +42,9 @@ class ValidateActivityStep extends StepBase<[Activity, number], ActivityValidati
     const response = await chrome.tabs
       .sendMessage(rewardsTabId, {
         action: MSG_ACTION.VALIDATE_ACTIVITY,
-        id: activity.id,
+        promoName: activity.promoName,
       })
       .catch(() => null);
-
-    const label = `[${activity.id}] ${truncate(activity.title, LABEL_MAX)}`;
 
     if (!response) {
       await ctx.dbg(DBG.WARN, `Validation: no response — "${label}"`);

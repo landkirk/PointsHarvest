@@ -1,3 +1,5 @@
+import { REWARDS_URL, REWARDS_EARN_URL } from './config.js';
+
 export const ACTIVITY_TYPE = {
   DAILY_SET: 'dailySet',
   EXPLORE_ON_BING: 'exploreOnBing',
@@ -17,11 +19,93 @@ export const enum CardState {
   Actionable = 'actionable',
   Completed = 'completed',
   Locked = 'locked',
-  Unknown = 'unknown',
   NotFound = 'not-found',
 }
 
 export type UserActionKind = 'quiz' | 'poll' | 'puzzle';
+
+/**
+ * A section of the rewards page: where its cards live, and how to find the
+ * disclosure toggle that gates them.
+ *
+ * Shape only — `SectionDescriptor` below is the type to use, derived from the
+ * table so `key` carries its literal type rather than a bare string.
+ */
+interface SectionShape {
+  /** Must equal this entry's key in SECTION; it's what messages carry. */
+  readonly key: string;
+  /** Semantic DOM id — the durable anchor. Not localized, unlike everything else here. */
+  readonly id: string;
+  /** Human-readable name, for logs and failure messages only. Never a selector. */
+  readonly label: string;
+  /** The rewards page hosting this section — the site splits them across `/` and `/earn`. */
+  readonly url: string;
+  /**
+   * Matched against the toggle's `aria-label` / the section's `<h2>` — the
+   * last-resort tier of section-toggle resolution (see resolveSectionToggle).
+   *
+   * These are English-only and so rank *below* the id-based tiers, which hold in
+   * every locale. Do not delete them as redundant: if the site unmounts a
+   * collapsed section's children, `section#id` isn't in the DOM at the one moment
+   * we need it, and label matching is the only tier that can find the toggle.
+   */
+  readonly labelPatterns: readonly RegExp[];
+}
+
+/**
+ * The sections we click cards in. Semantic section ids are the only durable
+ * anchors on the site, and they scope card lookup to the right region — titles
+ * are only unique *within* a section, so a document-wide match can land on a
+ * quest, level-up, or nav anchor instead.
+ *
+ * Adding a section (`quests`, `levelup`) is one entry here — nothing else in the
+ * expand/click path needs to know about it.
+ */
+export const SECTION = {
+  dailySet: {
+    key: 'dailySet',
+    id: 'dailyset',
+    label: 'Daily set',
+    url: REWARDS_URL,
+    labelPatterns: [/^daily set$/i, /^today's daily set$/i],
+  },
+  exploreOnBing: {
+    key: 'exploreOnBing',
+    id: 'exploreonbing',
+    label: 'Explore on Bing',
+    url: REWARDS_EARN_URL,
+    labelPatterns: [/^explore on bing$/i],
+  },
+  moreActivities: {
+    key: 'moreActivities',
+    id: 'moreactivities',
+    label: 'Keep earning',
+    url: REWARDS_EARN_URL,
+    labelPatterns: [/^keep earning$/i, /^more activities$/i],
+  },
+} as const satisfies Record<string, SectionShape>;
+
+export type SectionKey = keyof typeof SECTION;
+export type SectionDescriptor = (typeof SECTION)[SectionKey];
+
+/** The section an activity's card lives in. Null for IGNORED, which is never clicked. */
+export function sectionForActivityType(activityType: ActivityType): SectionDescriptor | null {
+  switch (activityType) {
+    case ACTIVITY_TYPE.DAILY_SET:
+      return SECTION.dailySet;
+    case ACTIVITY_TYPE.EXPLORE_ON_BING:
+      return SECTION.exploreOnBing;
+    case ACTIVITY_TYPE.MORE_ACTIVITIES:
+      return SECTION.moreActivities;
+    default:
+      return null;
+  }
+}
+
+/** Resolve a descriptor from the key carried in a message payload. */
+export function sectionByKey(key: SectionKey): SectionDescriptor {
+  return SECTION[key];
+}
 
 export interface ActivityState {
   allActivities: Activity[];
@@ -36,6 +120,10 @@ export interface Activity {
   activityType: ActivityType;
   cardState: CardState;
   points: number;
+  /** Promotion `name` from the dashboard API; stable join key for click/validate. */
+  promoName: string;
+  /** Target URL of the activity; matches the card's `<a href>` in the DOM. */
+  destinationUrl: string;
   searchQuery?: string | null;
   fallbackQuery?: string | null;
   requiresUserAction: boolean;
@@ -51,6 +139,8 @@ export interface RawCard {
   points: number;
   cardState: CardState;
   source: CardSource;
-  /** Parent data-bi-id attribute, used for explore-on-bing classification. */
-  dataBiId: string;
+  /** Promotion `name` from the dashboard API; stable join key for click/validate. */
+  promoName: string;
+  /** Target URL of the activity; matches the card's `<a href>` in the DOM. */
+  destinationUrl: string;
 }

@@ -1,12 +1,12 @@
 // Farms daily PC search points by running searches until the cap is reached.
 
-import { REWARDS_BREAKDOWN_URL } from '../util/config.js';
 import { PC_SEARCH_QUERIES } from '../util/search-queries.js';
 import { shuffleArray } from '../util/array.js';
+import { PC_SEARCH_TYPE, REWARDS_URL } from '../util/config.js';
 import { lingerOnPage, TIMING } from '../util/timing.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
-import { PC_SEARCH_TYPE } from '../util/persistent-state.js';
+import { loadRunState } from '../util/persistent-state.js';
 import type { SearchCounter } from '../util/persistent-state.js';
 import { PHASE } from '../util/phase.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -17,21 +17,75 @@ import { FAIL } from '../util/failures.js';
 const MAX_NO_PROGRESS = 3;
 
 function findPcCounter(counters: SearchCounter[] | null | undefined): SearchCounter | undefined {
-  return counters?.find((c) => c.type.toLowerCase() === PC_SEARCH_TYPE);
+  return counters?.find((c) => c.type === PC_SEARCH_TYPE);
+}
+
+/** Any path on the rewards origin will do — the content script runs on all of them. */
+function onRewardsOrigin(url: string): boolean {
+  try {
+    return new URL(url).origin === new URL(REWARDS_URL).origin;
+  } catch {
+    return false;
+  }
 }
 
 class FarmPcSearches extends OrchestratorBase {
   readonly name = 'PC search farming';
 
   async run(ctx: Context): Promise<void> {
-    const tab = await this.tabs.openAndFocusTab(REWARDS_BREAKDOWN_URL, ctx.signal);
     ctx.signal.throwIfAborted();
-    await this._farm(ctx, tab.id);
+    const rewardsTabId = await this._ensureRewardsTab(ctx);
+    if (rewardsTabId === null) return;
+    await this._farm(ctx, rewardsTabId);
   }
 
-  private async _farm(ctx: Context, breakdownTabId: number): Promise<void> {
+  /**
+   * Reuse the already-open rewards tab — counters now come from its dashboard
+   * API, not a dedicated /pointsbreakdown tab (which no longer exists).
+   *
+   * That tab is opened once at run start and survives four phases, so the user
+   * may well have closed it by now. Re-open rather than skip: this phase is
+   * worth the whole daily search cap, and `GET_COUNTERS` to a closed tab is
+   * swallowed by fetch-counters, which would burn every poll before failing.
+   */
+  private async _ensureRewardsTab(ctx: Context): Promise<number | null> {
+    const existing = (await loadRunState()).rewardsTabId;
+    if (existing) {
+      const tab = await chrome.tabs.get(existing).catch(() => null);
+      // Alive is not enough: the tab survives four phases, so the user may have
+      // navigated it anywhere — and GET_COUNTERS to a tab without the rewards
+      // content script is swallowed poll by poll, exactly like a closed tab.
+      if (tab && tab.url && onRewardsOrigin(tab.url)) return existing;
+      if (tab) {
+        try {
+          await this.tabs.navigateTab(existing, REWARDS_URL, ctx.signal);
+          await ctx.dbg(DBG.WARN, 'Rewards tab had left rewards.bing.com — navigated it back');
+          return existing;
+        } catch {
+          ctx.signal.throwIfAborted(); // a Stop is not a broken tab — don't reopen
+          // navigation failed (tab just closed?) — fall through and reopen
+        }
+      }
+    }
+
+    try {
+      const tab = await this.tabs.openAndFocusTab(REWARDS_URL, ctx.signal);
+      this.tabs.untrackTab(tab.id); // managed by _endRun; must not be closed by closeAll()
+      await ctx.setState({ rewardsTabId: tab.id });
+      await ctx.dbg(DBG.WARN, 'Rewards tab was gone — reopened it to read search counters');
+      return tab.id;
+    } catch {
+      // A user Stop aborts the tab-load wait mid-reopen; that is not a broken
+      // tab and must not be logged as one — rethrow so the run ends cleanly.
+      ctx.signal.throwIfAborted();
+      await ctx.fail(FAIL.SEARCH, 'Rewards tab not open — cannot farm PC searches');
+      return null;
+    }
+  }
+
+  private async _farm(ctx: Context, rewardsTabId: number): Promise<void> {
     ctx.signal.throwIfAborted();
-    const searchCounters = await fetchCounters._run(ctx, breakdownTabId);
+    const searchCounters = await fetchCounters._run(ctx, rewardsTabId);
     if (searchCounters === null) return;
     const counter = findPcCounter(searchCounters);
 
@@ -86,8 +140,8 @@ class FarmPcSearches extends OrchestratorBase {
       await lingerOnPage('after PC search', TIMING.DELAY_BETWEEN_FARMING_SEARCHES, ctx.signal);
       ctx.signal.throwIfAborted();
 
-      this.tabs.focusTab(breakdownTabId);
-      const updated = await fetchCounters._run(ctx, breakdownTabId);
+      this.tabs.focusTab(rewardsTabId);
+      const updated = await fetchCounters._run(ctx, rewardsTabId);
       if (updated === null) {
         await ctx.fail(FAIL.SEARCH, 'PC farm aborted: counter fetch failed');
         return;

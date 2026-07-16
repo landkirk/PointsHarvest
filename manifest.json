@@ -3,7 +3,7 @@
   "name": "PointsHarvest",
   "version": "2.3.3",
   "description": "Automates daily Bing Rewards searches and Explore activities",
-  "permissions": ["tabs", "storage", "sidePanel", "notifications"],
+  "permissions": ["tabs", "storage", "sidePanel", "notifications", "debugger"],
   "icons": { "48": "icons/icon1024.png", "128": "icons/icon1024.png" },
   "host_permissions": [
     "https://*.bing.com/*",

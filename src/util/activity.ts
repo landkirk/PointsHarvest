@@ -4,7 +4,6 @@ import { loadRunState, setRunState } from './persistent-state.js';
 import { ACTIVITY_TYPE, CARD_SOURCE, CardState } from './activity-types.js';
 import type { Activity, ActivityType, RawCard, UserActionKind } from './activity-types.js';
 
-const EXPLORE_ON_BING_RE = /search (?:on|using|with) bing/i;
 const CARD_IGNORE_STRINGS = ['share', 'referral'];
 const MORE_ACTIVITIES_IGNORE_STRINGS = [
   'puzzle',
@@ -15,27 +14,38 @@ const MORE_ACTIVITIES_IGNORE_STRINGS = [
   'play',
   'test',
   'search more',
+  'bing app',
+  'set a goal'
 ];
 
-/** Classify a raw card into an ActivityType based on source and heuristics. */
+/**
+ * Classify a raw card into an ActivityType from its source.
+ *
+ * `source` is decided by whoever built the card and is trusted here. The API
+ * mapper (`rewards-api.ts`) already resolves explore via `isExplorePromo()`,
+ * which reads both the promo `name` and `attributes.offerid` — re-deriving that
+ * here from `promoName` alone silently dropped any promo marked only by its
+ * offer id, because `RawCard` never carried the offer id to re-check.
+ */
 export function classifyCard(card: RawCard): ActivityType {
   const combined = `${card.title} ${card.description}`.toLowerCase();
   if (CARD_IGNORE_STRINGS.some((s) => combined.includes(s))) return ACTIVITY_TYPE.IGNORED;
-  if (card.source === CARD_SOURCE.DAILY_SET) return ACTIVITY_TYPE.DAILY_SET;
-  if (card.source === CARD_SOURCE.MORE_ACTIVITIES) {
-    if (MORE_ACTIVITIES_IGNORE_STRINGS.some((s) => combined.includes(s))) {
+
+  switch (card.source) {
+    case CARD_SOURCE.DAILY_SET:
+      return ACTIVITY_TYPE.DAILY_SET;
+    case CARD_SOURCE.EXPLORE:
+      return ACTIVITY_TYPE.EXPLORE_ON_BING;
+    case CARD_SOURCE.MORE_ACTIVITIES:
+      // Zero-point promos are banners/campaigns, not earnable activities.
+      if (card.points === 0) return ACTIVITY_TYPE.IGNORED;
+      if (MORE_ACTIVITIES_IGNORE_STRINGS.some((s) => combined.includes(s))) {
+        return ACTIVITY_TYPE.IGNORED;
+      }
+      return ACTIVITY_TYPE.MORE_ACTIVITIES;
+    default:
       return ACTIVITY_TYPE.IGNORED;
-    }
-    return ACTIVITY_TYPE.MORE_ACTIVITIES;
   }
-  if (
-    EXPLORE_ON_BING_RE.test(card.title) ||
-    EXPLORE_ON_BING_RE.test(card.description) ||
-    card.dataBiId.includes('exploreonbing')
-  ) {
-    return ACTIVITY_TYPE.EXPLORE_ON_BING;
-  }
-  return ACTIVITY_TYPE.IGNORED;
 }
 
 // Strips the "Search on Bing to/for …" boilerplate that appears in most activity

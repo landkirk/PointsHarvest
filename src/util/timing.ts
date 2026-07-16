@@ -7,23 +7,41 @@ export const TIMING: Record<string, [number, number]> = {
   LINGER_ON_SEARCH: [3000, 6000], // dwell time on search tab
   DELAY_BETWEEN_FARMING_SEARCHES: [4000, 8000], // pause between PC farm searches
   FETCH_COUNTERS_POLL: [700, 1800], // jittered counter poll interval
-  REWARDS_PRE_EXTRACT_SCROLL_PAUSE: [700, 1800], // pause between scrolls before card extraction
   VALIDATE_ACTIVITY: [1400, 3800], // delay after clicking before validating activity completion
-  SCROLL_RANGE_PX: [200, 500], // pixels to scroll per action before card extraction
   CLICK_SIMULATION_MOVE_DELAY: [8, 25], // delay between pointer move events during click simulation
   CLICK_SIMULATION_HOLD_DOWN_DELAY: [60, 180], // delay between pointerdown and pointerup during click simulation
   CLICK_SIMULATION_RELEASE_DELAY: [10, 40], // delay after pointerup before click event
+  CLICK_SIMULATION_SETTLE_DELAY: [30, 90], // pause on target before pressing (trusted CDP click only)
   RESULT_CLICK_HOVER: [500, 1500], // pause after scrollIntoView before dispatching click events
   RESULT_CLICK_DWELL: [2000, 6000], // additional page dwell after clicking a result
+  RETRY_CLICK_PAUSE: [1500, 3500], // pause before re-clicking a card that opened no tab
 };
 
 export const TIMEOUTS = {
   FETCH_ACTIVITIES: 20_000, // rewards page extraction timeout
   FETCH_COUNTERS_MAX_POLLS: 20, // max polls before giving up
-  REWARDS_DOM_MAX_WAIT: 15_000, // max wait for DOM to render activities
-  REWARDS_DOM_POLL: 500, // DOM poll interval
+  // How long the content script keeps retrying the dashboard API before it
+  // reports the session unreadable. Stays under FETCH_ACTIVITIES so the
+  // background hears an answer rather than timing out on its own.
+  REWARDS_EXTRACT_MAX_WAIT: 15_000,
+  REWARDS_EXTRACT_POLL: 500, // API retry interval
   TAB_LOAD: 30_000, // default waitForTabLoad timeout
+  // How long an off-rewards page gets to redirect back before it counts as a
+  // sign-in redirect. Auth interstitials (login.live.com silent auth) finish
+  // loading and THEN bounce back via JS — 'complete' alone proves nothing.
+  AUTH_REDIRECT_GRACE: 5_000,
   TAB_CAPTURE: 10_000, // wait for a card-click to open a new tab
+  // Capture window for re-clicks. The retry exists for a first click that landed
+  // on an unpainted tile; a re-click that works opens its tab almost at once, so
+  // waiting the full first-attempt window only slows the blocked-pop-up verdict.
+  TAB_CAPTURE_RETRY: 3_000,
+  EXPAND_SECTION_RENDER: 1_500, // how long a section gets to render its tiles after a click
+  SECTION_CONFIRM_POLL: 250, // re-read a toggle's aria-expanded this often while confirming
+  SECTION_TOGGLE_CLICK_ROUNDS: 2, // clicks tried before a section is reported unexpandable
+  SHOW_MORE_CLICKS: 10, // max "Show more" pages to walk in one section
+  SCROLL_SETTLE: 350, // wait after scrollIntoView before reading a tile's coordinates
+  CARD_CLICK_ATTEMPTS: 3, // clicks tried before a card is reported as a blocked pop-up
+  DEBUGGER_ATTACH_SETTLE: 600, // first CDP input after a fresh attach can be dropped; let it warm up
   USER_ACTION_POLL: 2 * 60_000, // 2 min — poll activity (single click)
   USER_ACTION_QUIZ: 10 * 60_000, // 10 min — quiz/test/puzzle activity
   PERMISSION_WAIT: 10 * 60_000, // max wait for user to fix Chrome popup permissions

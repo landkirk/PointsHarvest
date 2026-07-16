@@ -13,7 +13,7 @@ import { setTimingMultiplier } from '../util/timing.js';
 import { TabManager } from '../util/tab-manager.js';
 import { REWARDS_URL } from '../util/config.js';
 import { createContext } from '../util/context.js';
-import { NotLoggedInError } from '../util/errors.js';
+import { errMsg, NotLoggedInError } from '../util/errors.js';
 import { ActivityExtractionOrchestrator } from '../orchestrators/activity-extraction.js';
 import { CompleteExploreOnBing } from '../orchestrators/complete-explore-on-bing.js';
 import { CompleteDailySets } from '../orchestrators/complete-daily-sets.js';
@@ -71,10 +71,7 @@ class StartRun {
 
     this._executeRun(ctx, skipWarmUp) // fire and forget
       .catch(async (err) => {
-        await ctx.fail(
-          FAIL.FATAL,
-          `Fatal run error: ${err instanceof Error ? err.message : String(err)}`,
-        );
+        await ctx.fail(FAIL.FATAL, `Fatal run error: ${errMsg(err)}`);
         await this._endRun(ctx, RUN_END.FATAL);
       });
   }
@@ -113,8 +110,15 @@ class StartRun {
         const warmUp = new WarmUpSearches(this.tabs);
         await this._runOrchestrator(ctx, warmUp, () => warmUp.run(ctx));
       }
-      await this._runOrchestrator(ctx, exploreOnBing, () => exploreOnBing.run(ctx));
+      // Ordered to minimize rewards-tab navigation: daily sets live on `/` and
+      // the other two on `/earn`. Extraction leaves the tab
+      // on `/`, so daily-first costs one navigation for the whole chain; explore
+      // first would cost three (`/earn` → `/` → `/earn`), each a page load plus a
+      // LINGER_ON_PAGE dwell. Nothing else depends on the order — warm-up never
+      // touches this tab and each orchestrator routes itself. PHASES in
+      // util/phase.ts mirrors this order for the popup's progress bars.
       await this._runOrchestrator(ctx, dailySets, () => dailySets.run(ctx));
+      await this._runOrchestrator(ctx, exploreOnBing, () => exploreOnBing.run(ctx));
       await this._runOrchestrator(ctx, moreActivities, () => moreActivities.run(ctx));
       await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));
     } catch (err) {
@@ -144,10 +148,7 @@ class StartRun {
     } catch (err) {
       if (err instanceof NotLoggedInError) throw err;
       if (err instanceof StoppedError) return;
-      await ctx.fail(
-        FAIL.FATAL,
-        `${orchestrator.name} failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      await ctx.fail(FAIL.FATAL, `${orchestrator.name} failed: ${errMsg(err)}`);
     } finally {
       await orchestrator.stop(ctx);
       ctx.activeOrchestrator = null;

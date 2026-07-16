@@ -9,8 +9,6 @@ import type { UserActionConfig } from '../steps/wait-for-user-action.js';
 // ── Persistent store ───────────────────────────────────────────────────────
 // Backed by chrome.storage.local. Survives service worker restarts.
 
-export const PC_SEARCH_TYPE = 'pc search';
-
 export interface SearchCounter {
   type: string;
   current: number;

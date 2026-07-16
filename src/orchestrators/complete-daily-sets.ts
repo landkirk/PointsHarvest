@@ -3,7 +3,7 @@
 
 import { LABEL_MAX, pluralize, truncate } from '../util/format.js';
 import { sumCompleted } from '../util/activity.js';
-import { ACTIVITY_TYPE, CardState } from '../util/activity-types.js';
+import { ACTIVITY_TYPE, CardState, SECTION } from '../util/activity-types.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
@@ -47,6 +47,7 @@ class CompleteDailySets extends OrchestratorBase {
         DBG.INFO,
         `Starting daily sets: ${dailySets.length} ${pluralize(dailySets.length, 'activity', 'activities')}`,
       );
+      if (!(await this.ensureSectionReady(ctx, rewardsTabId, SECTION.dailySet))) return;
     }
 
     await runActivityLoop({
@@ -80,7 +81,7 @@ class CompleteDailySets extends OrchestratorBase {
     activity: Activity,
   ): Promise<boolean> {
     const { title } = activity;
-    const result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity.id, title);
+    const result = await this.tabs.clickCardAndCaptureTab(ctx, rewardsTabId, activity);
     if (result.status === TabCaptureStatus.Failed) return false;
     if (result.status === TabCaptureStatus.Blocked) {
       await this._waitForPopupUnblock(ctx, title);

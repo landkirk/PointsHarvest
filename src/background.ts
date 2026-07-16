@@ -56,6 +56,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   getActiveContext()?.activeOrchestrator?.onTabRemoved(tabId);
 });
 
+// Chrome auto-detaches our debugger if the user opens DevTools or the tab closes;
+// keep TabManager's attached-set in sync so a later click can re-attach.
+chrome.debugger.onDetach.addListener((source) => {
+  if (source.tabId !== undefined) startRun.tabs.forgetDebuggee(source.tabId);
+});
+
 // ── Message routing ────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
