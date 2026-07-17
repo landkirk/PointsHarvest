@@ -285,6 +285,13 @@ function matchesLabel(text: string, desc: SectionDescriptor): boolean {
  * viable candidate filter. `slot="trigger"` and `data-react-aria-pressable` look
  * tempting but discriminate nothing — the latter is on cards too.
  *
+ * `aria-expanded` alone isn't enough, though: the section header's info (ⓘ)
+ * button is a react-aria popover trigger, so it *also* carries `aria-expanded`,
+ * and it precedes the real disclosure toggle in DOM order — a naive "first
+ * button inside the section" grabs it and we click the info bubble forever.
+ * Popover/menu/dialog triggers advertise themselves with `aria-haspopup`; a
+ * genuine disclosure toggle never does, so we drop any button that has it.
+ *
  * The label tier is last because it is the only *localized* signal: `aria-label`
  * is "Keep earning" here and something else entirely on a non-English profile,
  * whereas `section#moreactivities` holds everywhere. It still earns its place —
@@ -295,24 +302,26 @@ function resolveSectionToggle(
   desc: SectionDescriptor,
 ): { el: HTMLButtonElement; via: Via } | null {
   // Any state, not just aria-expanded="false" — reading the state is the point.
+  // Exclude popover/menu/dialog triggers (info buttons): they carry aria-expanded
+  // too, but a disclosure toggle never sets aria-haspopup.
   const buttons = Array.from(
     document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'),
-  ).filter(isVisible);
+  ).filter((b) => isVisible(b) && !b.hasAttribute('aria-haspopup'));
 
   if (section) {
+    // Prefer the button whose disclosure panel actually is (or wraps) this
+    // section's card grid — that's unambiguously the section's own toggle, not a
+    // sibling control that merely happens to sit inside the header.
+    const byOwnPanel = buttons.find((b) => {
+      const panel = controlledPanel(b);
+      return !!panel && (panel === section || panel.contains(section) || section.contains(panel));
+    });
+    if (byOwnPanel) return { el: byOwnPanel, via: 'aria-controls' };
+
     // DOM order matters: the section header precedes the card grid, so its
     // toggle wins over any per-card expandable nested deeper in the section.
     const inside = buttons.find((b) => section.contains(b));
     if (inside) return { el: inside, via: 'section-descendant' };
-
-    // The header may render outside the section element. Relate the two through
-    // the disclosure panel instead — in either direction, since the panel and
-    // the section are distinct elements and either may be the ancestor.
-    const byPanel = buttons.find((b) => {
-      const panel = controlledPanel(b);
-      return !!panel && (panel === section || panel.contains(section) || section.contains(panel));
-    });
-    if (byPanel) return { el: byPanel, via: 'aria-controls' };
   }
 
   const byLabel = buttons.find((b) => matchesLabel(cleanText(b.ariaLabel ?? ''), desc));
