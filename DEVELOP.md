@@ -412,7 +412,8 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `loadPreferences()` / `setPreference(updates)` — load/save user preferences
 - `loadRunState()` / `setRunState(updates)` — load/save run state; all writes serialized through `enqueueWrite()` to prevent race conditions
 - `resetRunState(overrides)` — reset all run fields to `INITIAL_RUN_STATE` (preserves preference keys; storage.local.set is additive)
-- `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phases, phasePoints)
+- `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phases, phasePoints, `linger`)
+- `LingerInfo` (`{ label, totalMs, endsAt }`) — mirrors the active `lingerOnPage()` call into `header.linger` via `util/linger-reporter.ts`'s `registerLingerReporter()` (wired up in `background.ts`), so the popup can render a live "pausing" countdown badge; cleared (`linger: null`) when the linger ends or the run stops
 - `setDebugState()` / `getDebugLog()` / `getFailures()` — accessors for debug and failure sub-state
 - `PHASE` constants: `'warmup'`, `'explore'`, `'daily'`, `'more-activities'`, `'farm'` — used as keys in `PhaseProgressMap` and `PhasePointsMap`
 - `PHASE_KEYS: readonly PhaseKey[]` — exported tuple of all phase keys in order, used by the popup to iterate rows

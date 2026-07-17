@@ -33,6 +33,7 @@ Want to build from source? See the [Developer Guide](DEVELOP.md).
 Click the extension icon to open the side panel, then click **Run today's searches**.
 
 - The side panel shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, More Activities, PC Searches), and earned points count up as each phase credits them
+- A pulsing ⏳ badge appears next to the status line whenever the extension is deliberately pausing between actions; hover it for a live countdown
 - When the run finishes, it shows "Done for today!" and a summary card with the duration, points earned per phase, and activity counts
 - Runs are safe to repeat. The extension reads what Bing has already credited at the start of every run and skips it, so if a run is interrupted you can simply start another one — it will pick up only what's still outstanding
 - While a run is going, Chrome displays a **"PointsHarvest started debugging this browser"** banner. This is expected: clicking activity tiles on Bing's redesigned dashboard only counts if the click is a real browser input event, which requires that permission. The banner disappears when the run ends
