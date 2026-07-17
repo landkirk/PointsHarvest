@@ -52,31 +52,55 @@ interface DashboardResponse {
 export type DashboardResult =
   | { status: 'ok'; dashboard: Dashboard }
   | { status: 'logged-out' }
-  | { status: 'error' };
+  // `detail` names the failure (threw, non-OK HTTP status, missing `dashboard`
+  // field) so a caller that reports "not logged in" can say why the read failed.
+  | { status: 'error'; detail: string };
 
 /**
  * Fetch and parse the dashboard JSON, reporting *why* it failed.
  *
- * Note the one case this cannot see: a logged-out request is redirected to a
- * cross-origin sign-in host, which fails the CORS check and rejects — identical
- * from here to a network failure, so it lands in `error`. Being logged out is
- * therefore not always detectable in a single call; callers must not read
- * `error` as "signed in".
+ * A logged-out (or stale-token) request 302s to the Microsoft OIDC sign-in host.
+ * `redirect: 'manual'` turns that cross-origin bounce into an *opaque redirect*
+ * response (`type: 'opaqueredirect'`, `status: 0`) instead of letting `fetch`
+ * follow it into a CORS rejection — so we can read it as a definitive
+ * `logged-out` here rather than a generic network `error`. (Under the default
+ * `redirect: 'follow'` this same case rejects on CORS and is indistinguishable
+ * from a network failure.)
  */
 export async function fetchDashboardResult(): Promise<DashboardResult> {
   try {
     // `no-store`: counter polls and post-click validation re-fetch this endpoint
     // expecting to see state *change*; a cached response would freeze them.
-    const res = await fetch(REWARDS_API_PATH, { credentials: 'include', cache: 'no-store' });
+    // `redirect: 'manual'`: see the JSDoc — a sign-in redirect must surface as
+    // logged-out, not as a thrown CORS error.
+    const res = await fetch(REWARDS_API_PATH, {
+      credentials: 'include',
+      cache: 'no-store',
+      redirect: 'manual',
+    });
+    // A redirect to the sign-in host: the request carried no valid session/token.
+    if (res.type === 'opaqueredirect') return { status: 'logged-out' };
     if (res.status === 401 || res.status === 403) return { status: 'logged-out' };
-    if (!res.ok) return { status: 'error' };
+    if (!res.ok) return { status: 'error', detail: `HTTP ${res.status} ${res.statusText}` };
     const text = await res.text();
     // A same-origin logged-out request serves the HTML login page, not a 401.
     if (text.trim().startsWith('<')) return { status: 'logged-out' };
-    const json = JSON.parse(text) as DashboardResponse;
-    return json.dashboard ? { status: 'ok', dashboard: json.dashboard } : { status: 'error' };
-  } catch {
-    return { status: 'error' };
+    let json: DashboardResponse;
+    try {
+      json = JSON.parse(text) as DashboardResponse;
+    } catch {
+      return { status: 'error', detail: `response was not JSON (${text.length} chars)` };
+    }
+    return json.dashboard
+      ? { status: 'ok', dashboard: json.dashboard }
+      : { status: 'error', detail: 'JSON had no `dashboard` field' };
+  } catch (err) {
+    // fetch() rejects on network failure or a cross-origin redirect that fails CORS
+    // (the shape a logged-out redirect to the sign-in host takes) — see the note above.
+    return {
+      status: 'error',
+      detail: `fetch threw: ${err instanceof Error ? err.message : String(err)}`,
+    };
   }
 }
 

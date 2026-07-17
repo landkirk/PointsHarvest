@@ -54,35 +54,37 @@ function hasSignInControl(): boolean {
 }
 
 /**
- * Whether the page looks signed-out. Only positive evidence counts — anything
- * else (including a page that is still loading) reads as `false`.
+ * Which signed-out signal the DOM shows, or `null` if none.
  *
- * This is a heuristic over someone else's markup, not an authority. Callers hold
- * it against the API, which is the actual source of truth: a successful
- * `fetchDashboard()` proves a session and vetoes this outright, so never report
- * logged-out on this alone while the dashboard is still readable.
+ * Only positive evidence counts — anything else (including a page that is still
+ * loading) reads as `null`. This is a heuristic over someone else's markup, not
+ * an authority: callers hold it against the API, which is the actual source of
+ * truth. A successful `fetchDashboard()` proves a session and vetoes this
+ * outright, so never report logged-out on this alone while the dashboard is still
+ * readable.
  *
- * All this buys is latency. A logged-out user is reported logged-out either way
- * — an unread dashboard settles that at the deadline — so this only decides
- * whether they wait REWARDS_EXTRACT_MAX_WAIT to hear it. That makes any false
- * positive a strictly bad trade, hence the two conservative gates: the page must
- * have finished loading (a still-loading SPA can paint a signed-out skeleton
- * before the session hydrates), and the control must be visible.
+ * Naming the matched signal (rather than a bare boolean) is what makes a
+ * "not logged in" verdict diagnosable in the debug log. The two conservative
+ * gates below keep false positives out: the page must have finished loading (a
+ * still-loading SPA can paint a signed-out skeleton before the session hydrates),
+ * and the control must be visible.
  */
-function looksLoggedOut(): boolean {
-  if (document.readyState !== 'complete') return false;
-  if (hasSignInControl()) return true;
+function loggedOutSignal(): string | null {
+  if (document.readyState !== 'complete') return null;
+  if (hasSignInControl()) return 'visible "Sign in" control in header';
 
   const bodyText = (document.body?.textContent || '').toLowerCase();
   const LOGOUT_SIGNALS = ['sign in to start earning', 'sign in to earn', 'start earning rewards'];
-  return LOGOUT_SIGNALS.some((s: string) => bodyText.includes(s));
+  const match = LOGOUT_SIGNALS.find((s) => bodyText.includes(s));
+  return match ? `page text contains "${match}"` : null;
 }
 
-function sendActivities(cards: RawCard[], loggedIn: boolean): void {
+function sendActivities(cards: RawCard[], loggedIn: boolean, reason?: string): void {
   chrome.runtime.sendMessage({
     action: MSG_ACTION.ACTIVITIES_FOUND,
     cards,
     loggedIn,
+    reason,
   });
 }
 
@@ -101,8 +103,13 @@ async function extractLoop(deadline: number): Promise<void> {
 
   // Conclusive logged-out signals: the API said so, or the page is offering a
   // sign-in control. Report immediately so the run prompts for sign-in.
-  if (result.status === 'logged-out' || looksLoggedOut()) {
-    sendActivities([], false);
+  const domSignal = loggedOutSignal();
+  if (result.status === 'logged-out' || domSignal) {
+    const reason =
+      result.status === 'logged-out'
+        ? 'dashboard API is unauthenticated — it 401/403d or redirected to the Microsoft sign-in host (session/token missing or expired)'
+        : `DOM signal: ${domSignal}`;
+    sendActivities([], false, reason);
     return;
   }
 
@@ -119,7 +126,12 @@ async function extractLoop(deadline: number): Promise<void> {
   // safe reading of an unreadable dashboard — it prompts for sign-in and
   // re-extracts, which costs a signed-in user one dismissable prompt and tells
   // the truth to everyone else.
-  sendActivities([], false);
+  // Only the `error` variant reaches here: `ok` and `logged-out` both returned above.
+  sendActivities(
+    [],
+    false,
+    `dashboard unreadable after ${MAX_WAIT_MS}ms (last fetch: ${result.detail}) and no DOM sign-in signal — treating as logged-out`,
+  );
 }
 
 // ── Card resolution ─────────────────────────────────────────────────────────

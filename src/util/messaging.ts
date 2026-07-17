@@ -140,6 +140,9 @@ export type AppMessage =
       action: typeof MSG_ACTION.ACTIVITIES_FOUND;
       cards: RawCard[];
       loggedIn: boolean;
+      // When `loggedIn` is false, why the content script concluded that — surfaced
+      // in the debug log so a signed-in user misreported as logged-out is diagnosable.
+      reason?: string;
     }
   | {
       action: typeof MSG_ACTION.LOCATE_CARD;

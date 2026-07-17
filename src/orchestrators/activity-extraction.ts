@@ -135,6 +135,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
         if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
 
         if (msg.loggedIn === false) {
+          void ctx.dbg(DBG.WARN, `Reported not logged in — ${msg.reason ?? 'no reason given'}`);
           settle(this.emptyResult(rewardsTabId, false));
           return;
         }
