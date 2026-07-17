@@ -15,13 +15,14 @@ type AnyOrchestrator = OrchestratorBase<any[]>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyStep = StepBase<any[], any>;
 
-function broadcast(header: HeaderState): void {
+export function broadcastHeader(header: HeaderState): void {
   chrome.runtime
     .sendMessage({
       action: MSG_ACTION.PROGRESS,
       headerMessage: header.headerMessage,
       activePhase: header.activePhase,
       phaseStates: header.phaseStates,
+      linger: header.linger,
     })
     .catch(() => {
       /* popup may be closed */
@@ -67,10 +68,10 @@ export function createContext(signal: AbortSignal): Context {
             : undefined;
         return { headerMessage, activePhase: phase.key, ...(phaseStates && { phaseStates }) };
       });
-      broadcast(merged);
+      broadcastHeader(merged);
     },
     async broadcastProgress(): Promise<void> {
-      broadcast(await getHeaderState());
+      broadcastHeader(await getHeaderState());
     },
   };
   return ctx;

@@ -135,6 +135,50 @@
         text-overflow: ellipsis;
       }
 
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .status-row .status {
+        margin-bottom: 0;
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+      .linger-badge {
+        position: relative;
+        flex-shrink: 0;
+        font-size: 12px;
+        line-height: 1;
+        cursor: default;
+        color: var(--amber);
+        text-shadow: 0 0 6px var(--amber);
+        animation: pulse 1.2s infinite;
+      }
+      .linger-badge[hidden] {
+        display: none;
+      }
+      .linger-badge .linger-tip {
+        display: none;
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        z-index: 10;
+        background: var(--bg-raised);
+        border: 1px solid var(--border-mid);
+        color: var(--text-secondary);
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 6px;
+        white-space: nowrap;
+        animation: none;
+      }
+      .linger-badge:hover .linger-tip,
+      .linger-badge:focus .linger-tip {
+        display: block;
+      }
+
       .progress-bar-wrap {
         background: var(--bg-subtle);
         border-radius: 4px;
@@ -942,7 +986,18 @@
         id="update-status"
         style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; margin-top: -8px"
       ></div>
-      <div class="status" id="status" aria-live="polite">Idle</div>
+      <div class="status-row">
+        <div class="status" id="status" aria-live="polite">Idle</div>
+        <span
+          id="linger-badge"
+          class="linger-badge"
+          hidden
+          tabindex="0"
+          role="img"
+          aria-label="Pausing"
+          >⏳<span class="linger-tip" id="linger-tip" role="tooltip"></span
+        ></span>
+      </div>
       <div class="progress-bar-wrap">
         <div class="progress-bar" id="progress-bar"></div>
       </div>

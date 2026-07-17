@@ -173,7 +173,7 @@ class StartRun {
     await setRunState({
       isRunning: false,
       lastRunSummary: summary,
-      header: { ...run.header, headerMessage: status, activePhase: null },
+      header: { ...run.header, headerMessage: status, activePhase: null, linger: null },
     });
     await ctx.dbg(success ? DBG.SUCCESS : DBG.ERROR, msg);
     await ctx.broadcastProgress();

@@ -17,10 +17,17 @@ export interface SearchCounter {
   maxPoints: number;
 }
 
+export interface LingerInfo {
+  label: string; // pass-through from lingerOnPage, e.g. 'search tab', 'daily set activity'
+  totalMs: number; // computed dwell duration (speed multiplier already baked in)
+  endsAt: number; // Date.now() + totalMs
+}
+
 export interface HeaderState {
   headerMessage: string;
   activePhase: PhaseKey | null;
   phaseStates: PhaseStates;
+  linger: LingerInfo | null;
 }
 
 export interface DebugState {
@@ -97,6 +104,7 @@ export const INITIAL_RUN_STATE: RunState = {
     headerMessage: 'idle',
     activePhase: null,
     phaseStates: INITIAL_PHASE_STATES,
+    linger: null,
   },
   debug: {
     debugLog: [],

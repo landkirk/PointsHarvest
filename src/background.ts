@@ -12,14 +12,19 @@ import {
 import { StartRun, getActiveController, getActiveContext } from './managers/start-run.js';
 import { StopRun } from './managers/stop-run.js';
 import { setTimingMultiplier } from './util/timing.js';
+import { registerLingerReporter } from './util/linger-reporter.js';
 import { KEEPALIVE_PORT } from './util/config.js';
 
 const startRun = new StartRun();
 const stopRun = new StopRun(startRun.tabs);
 
+// Surface page lingers to the popup badge. Runs at SW top level so it re-registers
+// on every worker start.
+registerLingerReporter();
+
 function clearStaleRunState(): void {
   setRunState({ isRunning: false, isLingering: false, activeUserAction: null }).then(() =>
-    setHeaderState({ headerMessage: 'Stopped', activePhase: null }),
+    setHeaderState({ headerMessage: 'Stopped', activePhase: null, linger: null }),
   );
 }
 

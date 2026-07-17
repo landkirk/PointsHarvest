@@ -91,6 +91,18 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+/** Notified whenever a linger starts and ends so other contexts (e.g. the
+ *  service worker) can surface it to the UI. Registered once via
+ *  `setLingerReporter`; keeps timing.ts free of state/broadcast dependencies. */
+export interface LingerReporter {
+  onLingerStart(label: string, ms: number): void;
+  onLingerEnd(): void;
+}
+let _lingerReporter: LingerReporter | null = null;
+export function setLingerReporter(r: LingerReporter | null): void {
+  _lingerReporter = r;
+}
+
 /** Dwell on a page for a random duration and log it.
  *  `scaled: false` ignores the speed multiplier for this linger.
  *  `onStart(ms)` is called with the computed duration after logging, before sleeping. */
@@ -103,5 +115,10 @@ export async function lingerOnPage(
   const ms = scaled ? randMs(...timing) : rawRandMs(...timing);
   await dbg(DBG.INFO, `Lingering on ${label} for ${(ms / 1000).toFixed(1)}s`);
   onStart?.(ms);
-  await sleep(ms, signal);
+  _lingerReporter?.onLingerStart(label, ms);
+  try {
+    await sleep(ms, signal);
+  } finally {
+    _lingerReporter?.onLingerEnd();
+  }
 }

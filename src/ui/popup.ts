@@ -3,7 +3,7 @@ import { KEEPALIVE_PORT } from '../util/config.js';
 import type { AppMessage } from '../util/messaging.js';
 import { PHASE_KEYS, PHASES_BY_KEY } from '../util/phase.js';
 import type { PhaseKey, PhaseStates } from '../util/phase.js';
-import type { RunState, UserPreferences } from '../util/persistent-state.js';
+import type { LingerInfo, RunState, UserPreferences } from '../util/persistent-state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
 import { showOnboarding } from './onboarding.js';
 import { checkForUpdate } from '../util/update-check.js';
@@ -17,6 +17,8 @@ import { renderRunSummary } from './run-summary-card.js';
 const dot = document.getElementById('dot') as HTMLElement;
 const statusEl = document.getElementById('status') as HTMLElement;
 const bar = document.getElementById('progress-bar') as HTMLElement;
+const lingerBadge = document.getElementById('linger-badge') as HTMLElement;
+const lingerTip = document.getElementById('linger-tip') as HTMLElement;
 const phaseEls = {} as Record<PhaseKey, HTMLElement>;
 const phaseCountEls = {} as Record<PhaseKey, HTMLElement>;
 const phaseBarEls = {} as Record<PhaseKey, HTMLElement>;
@@ -80,6 +82,45 @@ const debugPanel = document.getElementById('debug-panel') as HTMLElement;
 const btnPurge = document.getElementById('btn-purge') as HTMLElement;
 const btnDashboard = document.getElementById('btn-dashboard') as HTMLAnchorElement;
 
+// ── Linger badge ─────────────────────────────────────────────────────────────
+// A flashing "pausing" badge with a live countdown, shown during page lingers.
+
+let activeLinger: LingerInfo | null = null;
+let lingerInterval: ReturnType<typeof setInterval> | null = null;
+
+function stopLingerTick(): void {
+  if (lingerInterval !== null) {
+    clearInterval(lingerInterval);
+    lingerInterval = null;
+  }
+}
+
+function updateLingerTip(): void {
+  if (!activeLinger || Date.now() >= activeLinger.endsAt) {
+    lingerBadge.hidden = true;
+    activeLinger = null;
+    stopLingerTick();
+    return;
+  }
+  const secs = Math.ceil((activeLinger.endsAt - Date.now()) / 1000);
+  const text = `Pausing on ${activeLinger.label} — ${secs}s left`;
+  lingerTip.textContent = text;
+  lingerBadge.setAttribute('aria-label', text);
+}
+
+function renderLinger(linger: LingerInfo | null | undefined, isRunning: boolean): void {
+  const active = isRunning && linger != null && Date.now() < linger.endsAt;
+  activeLinger = active ? linger : null;
+  lingerBadge.hidden = !active;
+  if (!active) {
+    stopLingerTick();
+    return;
+  }
+  updateLingerTip();
+  // Guard against stacking intervals across repeated render() calls.
+  if (lingerInterval === null) lingerInterval = setInterval(updateLingerTip, 250);
+}
+
 // ── Main UI ────────────────────────────────────────────────────────────────
 
 function hasAnyProgress(phaseStates: PhaseStates | null | undefined): boolean {
@@ -136,7 +177,7 @@ async function render(): Promise<void> {
     return;
   }
   const { isRunning, isLingering, header } = run;
-  const { headerMessage, activePhase, phaseStates } = header;
+  const { headerMessage, activePhase, phaseStates, linger } = header;
 
   const activeProgress = activePhase ? (phaseStates?.[activePhase]?.progress ?? null) : null;
   const completed = activeProgress?.done ?? 0;
@@ -147,6 +188,7 @@ async function render(): Promise<void> {
   renderPrefs(prefs);
   debugPanel.classList.toggle('open', prefs.debugMode);
   statusEl.textContent = headerMessage || 'Idle';
+  renderLinger(linger, !!isRunning);
   bar.style.width = pct + '%';
 
   dot.className = 'dot';

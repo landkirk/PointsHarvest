@@ -16,10 +16,11 @@ export interface ProgressBroadcast {
   headerMessage: string;
   activePhase: PhaseKey | null;
   phaseStates: PhaseStates;
+  linger: LingerInfo | null;
 }
 
 import type { ActivityType, RawCard, SectionKey } from './activity-types.js';
-import type { UserPreferences } from './persistent-state.js';
+import type { LingerInfo, UserPreferences } from './persistent-state.js';
 
 // ── Locating clickable elements ────────────────────────────────────────────
 
