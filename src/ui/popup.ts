@@ -1,7 +1,7 @@
 import { MSG_ACTION } from '../util/messaging.js';
 import { KEEPALIVE_PORT } from '../util/config.js';
 import type { AppMessage } from '../util/messaging.js';
-import { PHASE_KEYS, PHASES_BY_KEY } from '../util/phase.js';
+import { PHASES, PHASE_KEYS, PHASES_BY_KEY } from '../util/phase.js';
 import type { PhaseKey, PhaseStates } from '../util/phase.js';
 import type { LingerInfo, RunState, UserPreferences } from '../util/persistent-state.js';
 import { SCREENS, UPDATE_SCREEN } from '../util/screens.js';
@@ -23,12 +23,22 @@ const phaseEls = {} as Record<PhaseKey, HTMLElement>;
 const phaseCountEls = {} as Record<PhaseKey, HTMLElement>;
 const phaseBarEls = {} as Record<PhaseKey, HTMLElement>;
 const phaseEarnedEls = {} as Record<PhaseKey, HTMLElement>;
-for (const key of PHASE_KEYS) {
-  const row = document.getElementById(`phase-${key}`) as HTMLElement;
-  phaseEls[key] = row;
-  phaseCountEls[key] = row.querySelector('.phase-count') as HTMLElement;
-  phaseBarEls[key] = row.querySelector('.phase-bar') as HTMLElement;
-  phaseEarnedEls[key] = row.querySelector('.phase-earned') as HTMLElement;
+// Rows are built from PHASES so their visual order always matches execution order.
+const phaseRowsWrap = document.getElementById('phase-rows') as HTMLElement;
+for (const phase of PHASES) {
+  const row = document.createElement('div');
+  row.className = 'phase-row';
+  row.id = `phase-${phase.key}`;
+  row.innerHTML =
+    '<span class="phase-label"></span><span class="phase-count"></span>' +
+    '<div class="phase-bar-wrap"><div class="phase-bar"></div></div>' +
+    '<span class="phase-earned"></span>';
+  (row.querySelector('.phase-label') as HTMLElement).textContent = phase.label;
+  phaseRowsWrap.appendChild(row);
+  phaseEls[phase.key] = row;
+  phaseCountEls[phase.key] = row.querySelector('.phase-count') as HTMLElement;
+  phaseBarEls[phase.key] = row.querySelector('.phase-bar') as HTMLElement;
+  phaseEarnedEls[phase.key] = row.querySelector('.phase-earned') as HTMLElement;
 }
 
 function phaseEarnedLabel(phase: PhaseKey, pts: number): string {

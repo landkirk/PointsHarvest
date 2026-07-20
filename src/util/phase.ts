@@ -52,8 +52,8 @@ export const PHASE = {
   },
 } as const satisfies Record<string, PhaseDefinition>;
 
-// Must mirror the orchestrator chain in managers/start-run.ts — the popup renders
-// progress bars in this order, so a mismatch fills them out of sequence.
+// Must mirror the orchestrator chain in managers/start-run.ts — the popup and
+// run summary build their phase rows from this array.
 export const PHASES: readonly PhaseDefinition[] = [
   PHASE.WARMUP,
   PHASE.DAILY,
