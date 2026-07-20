@@ -151,16 +151,18 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
 
   /**
    * Extract cards by reading the live DOM, section by section: navigate to the
-   * section's page, expand it (tiles unmount while collapsed), then have the
-   * content script parse its tiles into RawCards.
+   * section's page (daily set lives on `/`, the rest on `/earn`), expand it
+   * (tiles unmount while collapsed), then have the content script parse its
+   * tiles into RawCards. `ensureSectionReady` handles the page hop and lingers
+   * for the SPA render, so the re-injected content script is answering by the
+   * time the section is expanded.
    *
-   * Phase rollout: only the daily set is wired so far — explore and "Keep
-   * earning" land next and until then contribute zero cards, which their
-   * orchestrators already handle by skipping.
+   * Phase rollout: "Keep earning" (moreActivities) lands next and until then
+   * contributes zero cards, which its orchestrator already handles by skipping.
    */
   private async extractActivities(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
     const cards: RawCard[] = [];
-    for (const section of [SECTION.dailySet]) {
+    for (const section of [SECTION.dailySet, SECTION.exploreOnBing]) {
       ctx.signal.throwIfAborted();
       if (!(await this.ensureSectionReady(ctx, rewardsTabId, section))) continue;
       const res = await this.extractSections(rewardsTabId, [section.key]);
