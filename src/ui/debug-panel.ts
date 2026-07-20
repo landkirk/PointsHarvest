@@ -8,7 +8,7 @@ import type { DebugEntry } from '../util/debug.js';
 // ── Generic activity debug view ─────────────────────────────────────────────
 
 interface ActivityDebugData {
-  stats?: { total: number; actionable: number; locked: number; completed: number };
+  stats?: { total: number; actionable: number; completed: number };
   items: Activity[];
   emptyMessage: string;
   queue?: string[];
@@ -111,12 +111,11 @@ function renderActivitySection(
   let html = '';
 
   if (data.stats) {
-    const { total, actionable, locked, completed } = data.stats;
+    const { total, actionable, completed } = data.stats;
     html += `
       <div class="dom-stats">
         <span data-filter="all"                      title="Show all">${total} cards</span>
         <span data-filter="${CardState.Actionable}" title="Show actionable only">${actionable} actionable</span>
-        <span data-filter="${CardState.Locked}"     title="Show locked only">${locked} locked</span>
         <span data-filter="${CardState.Completed}"  title="Show completed only">${completed} completed</span>
       </div>`;
   }
@@ -173,13 +172,11 @@ function renderActivitySection(
 function buildScanStats(scan: Activity[]): {
   total: number;
   actionable: number;
-  locked: number;
   completed: number;
 } {
-  const stats = { total: scan.length, actionable: 0, locked: 0, completed: 0 };
+  const stats = { total: scan.length, actionable: 0, completed: 0 };
   for (const a of scan) {
     if (a.cardState === CardState.Actionable) stats.actionable++;
-    else if (a.cardState === CardState.Locked) stats.locked++;
     else if (a.cardState === CardState.Completed) stats.completed++;
   }
   return stats;

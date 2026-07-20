@@ -18,7 +18,6 @@ export type CardSource = (typeof CARD_SOURCE)[keyof typeof CARD_SOURCE];
 export const enum CardState {
   Actionable = 'actionable',
   Completed = 'completed',
-  Locked = 'locked',
   NotFound = 'not-found',
 }
 

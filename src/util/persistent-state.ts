@@ -53,7 +53,6 @@ export interface RunSummary {
     dailySetsCompleted: number;
     exploreCompleted: number;
     moreActivitiesCompleted: number;
-    locked: number;
     actionableLeftover: number;
   };
   failureCount: number;

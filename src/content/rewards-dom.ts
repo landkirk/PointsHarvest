@@ -116,7 +116,7 @@ export function tileState(tile: Element): CardState {
  * a 0-point quest/informational promo — the DOM equivalent of the API's
  * `pointProgressMax === 0`, and the caller's signal to skip the tile.
  */
-export function tilePoints(tile: Element): number | null {
+function tilePoints(tile: Element): number | null {
   const plus = clean(tile.querySelector(ACTIONABLE_POINTS_SELECTOR)?.textContent);
   const plusMatch = plus.match(/^\+\s*(\d+)$/);
   if (plusMatch) return Number(plusMatch[1]);

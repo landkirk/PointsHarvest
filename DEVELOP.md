@@ -419,7 +419,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `PHASE_KEYS: readonly PhaseKey[]` — exported tuple of all phase keys in order, used by the popup to iterate rows
 - `PHASE_LABELS: Record<PhaseKey, string>` — display names (`'Warm-up'`, `'Explore on Bing'`, `'Daily Sets'`, `'More Activities'`, `'PC Searches'`) used by the run summary card
 - `RUN_END` constants and `RunEndReason` type: `'success' | 'stopped' | 'not-logged-in' | 'fatal' | 'setup-failed'` — passed into `_endRun` and stored on `RunSummary.endReason`
-- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phases, phasePoints, activityCounts: { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted, locked, actionableLeftover }, failureCount }`
+- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phases, phasePoints, activityCounts: { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted, actionableLeftover }, failureCount }`
 
 ### util/runtime-state.ts
 - `activeOrchestrator` / `activeContext` — in-memory only (not persisted); reset on service worker restart
@@ -521,7 +521,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 ### ui/debug-panel.ts
 - `renderDebug()` — renders the full debug panel from stored state:
   - Event log section (timestamps, messages, associated orchestrator names)
-  - Activities breakdown section (explore vs daily card counts, actionable vs completed vs locked)
+  - Activities breakdown section (explore vs daily card counts, actionable vs completed)
   - Search counters section (PC search current/max)
 - `appendLogEntry(entry)` — appends a single new entry to the event log in real time (called on `DEBUG_ENTRY` message)
 - `renderActivitiesAndCounters()` — re-renders the activities and counters sections (called when extraction completes or counters update)
@@ -537,7 +537,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 ### ui/run-summary-card.ts
 - `renderRunSummaryCard(summary: RunSummary)` — builds and injects the end-of-run recap card into the popup after a run ends
 - Reads `lastRunSummary` from run state; formats the duration via `formatDuration()` from `util/format.ts` (`Xh Ym Zs` / `Ym Zs` / `Zs`)
-- Displays end reason (success / stopped / not-logged-in / fatal / setup-failed), per-phase points via `PHASE_LABELS`, and activity counts: daily sets completed, explore cards completed, locked, and any actionable leftovers
+- Displays end reason (success / stopped / not-logged-in / fatal / setup-failed), per-phase points via `PHASE_LABELS`, and activity counts: daily sets completed, explore cards completed, and any actionable leftovers
 - Shows the total failure count so the user can see at a glance whether the run had any soft failures
 
 ### content/rewards-content.ts

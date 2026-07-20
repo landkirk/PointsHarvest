@@ -45,7 +45,6 @@ export const CONTROL_KIND = {
   /** The open "Points breakdown" flyout's Close button. */
   DIALOG_CLOSE: 'dialogClose',
 } as const;
-export type ControlKind = (typeof CONTROL_KIND)[keyof typeof CONTROL_KIND];
 
 /** The controls that stand alone on the page rather than belonging to a section. */
 export type PageControlKind = typeof CONTROL_KIND.POINTS_TOGGLE | typeof CONTROL_KIND.DIALOG_CLOSE;
@@ -58,7 +57,6 @@ export const LOCATE_STATUS = {
   /** No such element. */
   Absent: 'absent',
 } as const;
-export type LocateStatus = (typeof LOCATE_STATUS)[keyof typeof LOCATE_STATUS];
 
 /**
  * Reply to LOCATE_CARD / LOCATE_CONTROL. The content script only ever *locates* —
@@ -159,8 +157,6 @@ export const MSG_ACTION = {
   READ_COUNTERS: 'readCounters',
   FAILURE_ENTRY: 'failureEntry',
 } as const;
-
-export type MsgAction = (typeof MSG_ACTION)[keyof typeof MSG_ACTION];
 
 // ── Discriminated union message types ─────────────────────────────────────
 

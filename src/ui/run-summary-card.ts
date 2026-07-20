@@ -163,15 +163,7 @@ function buildChips(s: RunSummary): HTMLElement | null {
       makeChip(`${s.failureCount} ${pluralize(s.failureCount, 'issue', 'issues')}`, 'rs-chip--err'),
     );
   }
-  const { locked, actionableLeftover } = s.activityCounts;
-  if (locked > 0) {
-    chips.push(
-      makeChip(
-        `${locked} locked ${pluralize(locked, 'card', 'cards')} — will unlock later this week`,
-        'rs-chip--warn',
-      ),
-    );
-  }
+  const { actionableLeftover } = s.activityCounts;
   if (actionableLeftover > 0) {
     chips.push(
       makeChip(
