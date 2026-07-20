@@ -1,0 +1,12 @@
+<ul>
+  <li>
+    Added auto-claim — at the end of each run, the extension now claims any pending points from the
+    rewards page's "Ready to claim" flyout, so earned points don't sit unclaimed and expire
+  </li>
+  <li>New "Claim points" row in the run progress list showing points claimed</li>
+  <li>
+    Fixed activity extraction, validation, and search counters occasionally failing silently — these
+    now read directly from the rewards page instead of an internal API that had stopped responding
+    for signed-in sessions
+  </li>
+</ul>
