@@ -81,10 +81,26 @@ export interface CountersResponse {
   searchCounters: { type: string; current: number; max: number }[];
 }
 
+/**
+ * Reply to REWARDS_STATUS — the readiness/login probe the background polls
+ * while waiting for the rewards page. A rejected sendMessage means the content
+ * script isn't injected yet; that (not a field here) is the "keep waiting"
+ * signal. `domComplete: false` says the page is still loading, so the absence
+ * of a logged-out signal proves nothing yet. Once `domComplete` is true,
+ * `loggedOutSignal` carries the matched sign-in evidence, or null for a page
+ * that shows none (the SPA can hydrate the header after readyState fires, so
+ * callers should re-probe a few times before trusting a null).
+ */
+export interface RewardsStatusResponse {
+  domComplete: boolean;
+  loggedOutSignal: string | null;
+}
+
 // ── Message actions ────────────────────────────────────────────────────────
 
 export const MSG_ACTION = {
   // Background ↔ rewards content script
+  REWARDS_STATUS: 'rewardsStatus',
   START_EXTRACT: 'startExtract',
   ACTIVITIES_FOUND: 'activitiesFound',
   LOCATE_CARD: 'locateCard',
@@ -136,6 +152,7 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.DEBUG_ENTRY; entry: DebugEntry }
   | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: FailureEntry }
   // Background ↔ Rewards content script
+  | { action: typeof MSG_ACTION.REWARDS_STATUS }
   | { action: typeof MSG_ACTION.START_EXTRACT }
   | {
       action: typeof MSG_ACTION.ACTIVITIES_FOUND;

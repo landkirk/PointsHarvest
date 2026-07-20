@@ -1,13 +1,12 @@
 import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
-import type { AppMessage } from '../util/messaging.js';
+import type { RewardsStatusResponse } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
-import { TIMEOUTS } from '../util/timing.js';
+import { TIMEOUTS, sleep } from '../util/timing.js';
 import { setRunState, loadRunState } from '../util/persistent-state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { classifyCard, enrichSearchQueries, enrichUserActions } from '../util/activity.js';
 import { ACTIVITY_TYPE } from '../util/activity-types.js';
-import type { Activity, ActivityState } from '../util/activity-types.js';
+import type { ActivityState } from '../util/activity-types.js';
 import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
 import { NotLoggedInError } from '../util/errors.js';
@@ -26,7 +25,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       return;
     }
 
-    let result = await this.waitForExtraction(ctx, rewardsTabId);
+    let result = await this.waitForRewardsReady(ctx, rewardsTabId);
 
     if (!result.loggedIn) {
       await this._waitForUserAction(ctx, notLoggedInAction());
@@ -37,7 +36,7 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
       } catch {
         throw new NotLoggedInError(); // tab was closed
       }
-      result = await this.waitForExtraction(ctx, rewardsTabId);
+      result = await this.waitForRewardsReady(ctx, rewardsTabId);
       if (!result.loggedIn) throw new NotLoggedInError();
     }
 
@@ -56,129 +55,107 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
     await setRunState({ activityState: result });
   }
 
-  private waitForExtraction(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
-    return new Promise<ActivityState>((resolve) => {
-      let settled = false;
-      let timeout: ReturnType<typeof setTimeout> | undefined;
-      let redirectGrace: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * Wait until the rewards tab can answer for itself, then judge the session
+   * and extract.
+   *
+   * Login is decided by polling the content script's REWARDS_STATUS probe — a
+   * DOM heuristic, and now the authority (the dashboard API 401s even for live
+   * sessions, so there is nothing to hold it against). A visible sign-in
+   * control convicts immediately; a fully-loaded page showing none must hold
+   * that answer across several consecutive probes before it counts, because
+   * the header where the evidence renders can hydrate after readyState fires.
+   */
+  private async waitForRewardsReady(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
+    // The budget covers reaching the content script (page load included); the
+    // first successful probe extends it once, so a slow load doesn't eat the
+    // window the readiness confirmation needs.
+    let deadline = Date.now() + TIMEOUTS.FETCH_ACTIVITIES;
+    let probeReached = false;
+    const CONFIRMATIONS_NEEDED = 3;
+    let confirmations = 0;
+    let offSiteSince: number | null = null;
 
-      const cleanup = () => {
-        clearTimeout(timeout);
-        clearTimeout(redirectGrace);
-        chrome.tabs.onUpdated.removeListener(onTabUpdated);
-        chrome.runtime.onMessage.removeListener(onMessage);
-        ctx.signal.removeEventListener('abort', onAbort);
-      };
+    while (Date.now() < deadline) {
+      if (ctx.signal.aborted) return this.emptyResult(rewardsTabId, true);
 
-      const settle = (result: ActivityState) => {
-        if (settled) return;
-        settled = true;
-        cleanup();
-        resolve(result);
-      };
+      const tab = await chrome.tabs.get(rewardsTabId).catch(() => null);
+      if (!tab) {
+        await ctx.fail(FAIL.TAB, 'Rewards tab closed while waiting for the page');
+        return this.emptyResult(rewardsTabId, false);
+      }
 
-      const armTimeout = () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(async () => {
-          await ctx.fail(FAIL.TAB, 'Rewards page timed out — no activities extracted');
-          // An unreadable dashboard is not evidence of a session, so we must not
-          // claim one: zero cards + `loggedIn: true` renders as a cheerful "Done
-          // for today!". Reporting logged-out prompts for sign-in and re-extracts
-          // — one dismissable prompt for a signed-in user, the truth for everyone
-          // else. (Abort is the exception below: a stopped run must not prompt.)
-          settle(this.emptyResult(rewardsTabId, false));
-        }, TIMEOUTS.FETCH_ACTIVITIES);
-      };
-
-      // Backstop for a page that never finishes loading; re-armed on START_EXTRACT.
-      armTimeout();
-
-      const onAbort = () => {
-        settle(this.emptyResult(rewardsTabId, true));
-      };
-
-      const onTabUpdated = async (
-        tabId: number,
-        changeInfo: { status?: string },
-        tab: chrome.tabs.Tab,
-      ): Promise<void> => {
-        if (tabId !== rewardsTabId || changeInfo.status !== 'complete' || !tab.url) return;
-        if (tab.url.startsWith(REWARDS_URL)) {
-          // Any pending "redirected away" verdict is void — the tab came back.
-          clearTimeout(redirectGrace);
-          redirectGrace = undefined;
-          // Restart the budget here, not at tab creation. The content script's own
-          // clock (REWARDS_EXTRACT_MAX_WAIT, 15s) starts on this event, so a
-          // deadline measured from tab creation spends the page's whole load time
-          // out of that window and times out a reply that was still coming —
-          // settling empty while extraction was still working.
-          armTimeout();
-          chrome.tabs.sendMessage(tabId, { action: MSG_ACTION.START_EXTRACT }).catch(() => {});
-        } else {
-          // Not proof of a dead session yet: sign-in flows bounce through auth
-          // interstitials (login.live.com) that reach 'complete' and only then
-          // JS-redirect back to rewards. Convict only if the tab is still off
-          // rewards.bing.com when the grace window expires.
-          if (redirectGrace !== undefined) return; // verdict already pending
-          const seenUrl = tab.url;
-          redirectGrace = setTimeout(async () => {
-            if (settled) return;
-            const current = await chrome.tabs.get(rewardsTabId).catch(() => null);
-            if (current?.url?.startsWith(REWARDS_URL)) return; // bounced back — extraction is proceeding
-            await ctx.fail(FAIL.AUTH, `Not logged in — redirected to: ${current?.url ?? seenUrl}`);
-            settle(this.emptyResult(rewardsTabId, false));
-          }, TIMEOUTS.AUTH_REDIRECT_GRACE);
+      if (tab.url && !tab.url.startsWith(REWARDS_URL)) {
+        // Not proof of a dead session yet: sign-in flows bounce through auth
+        // interstitials (login.live.com) that only later JS-redirect back to
+        // rewards. Convict only if the tab stays off rewards.bing.com for the
+        // whole grace window.
+        offSiteSince ??= Date.now();
+        confirmations = 0;
+        if (Date.now() - offSiteSince >= TIMEOUTS.AUTH_REDIRECT_GRACE) {
+          await ctx.fail(FAIL.AUTH, `Not logged in — redirected to: ${tab.url}`);
+          return this.emptyResult(rewardsTabId, false);
         }
-      };
-
-      const onMessage = (msg: AppMessage): undefined => {
-        if (msg.action !== MSG_ACTION.ACTIVITIES_FOUND) return;
-
-        if (msg.loggedIn === false) {
-          void ctx.dbg(DBG.WARN, `Reported not logged in — ${msg.reason ?? 'no reason given'}`);
-          settle(this.emptyResult(rewardsTabId, false));
-          return;
+      } else {
+        offSiteSince = null;
+        const status = await this.probeStatus(rewardsTabId);
+        if (status && !probeReached) {
+          probeReached = true;
+          deadline = Math.max(deadline, Date.now() + TIMEOUTS.REWARDS_EXTRACT_MAX_WAIT);
         }
-
-        const allActivities: Activity[] = [];
-        const exploreActivities: Activity[] = [];
-        const dailyActivities: Activity[] = [];
-        for (const card of msg.cards) {
-          const activity: Activity = {
-            id: card.id,
-            title: card.title,
-            description: card.description,
-            points: card.points,
-            cardState: card.cardState,
-            promoName: card.promoName,
-            destinationUrl: card.destinationUrl,
-            activityType: classifyCard(card),
-            requiresUserAction: false,
-            userActionKind: null,
-            userActionTimeoutMs: 0,
-          };
-          allActivities.push(activity);
-          if (activity.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) {
-            exploreActivities.push(activity);
-          } else if (activity.activityType === ACTIVITY_TYPE.DAILY_SET) {
-            dailyActivities.push(activity);
+        if (status?.domComplete) {
+          if (status.loggedOutSignal) {
+            await ctx.dbg(
+              DBG.WARN,
+              `Reported not logged in — DOM signal: ${status.loggedOutSignal}`,
+            );
+            return this.emptyResult(rewardsTabId, false);
           }
+          confirmations++;
+          if (confirmations >= CONFIRMATIONS_NEEDED) {
+            return this.extractActivities(ctx, rewardsTabId);
+          }
+        } else {
+          // Still loading, or the content script isn't injected yet.
+          confirmations = 0;
         }
+      }
 
-        enrichSearchQueries(exploreActivities);
-        enrichUserActions(dailyActivities);
+      try {
+        await sleep(TIMEOUTS.REWARDS_EXTRACT_POLL, ctx.signal);
+      } catch {
+        return this.emptyResult(rewardsTabId, true); // aborted mid-poll
+      }
+    }
 
-        settle({
-          allActivities,
-          loggedIn: true,
-          rewardsTabId,
-        });
-      };
+    // Out of time without an answer. We cannot confirm a session, so we must
+    // not claim one: zero cards + `loggedIn: true` renders as a cheerful "Done
+    // for today!". Reporting logged-out prompts for sign-in and re-probes —
+    // one dismissable prompt for a signed-in user, the truth for everyone else.
+    await ctx.fail(FAIL.TAB, 'Rewards page timed out — could not confirm the session');
+    return this.emptyResult(rewardsTabId, false);
+  }
 
-      ctx.signal.addEventListener('abort', onAbort, { once: true });
-      chrome.tabs.onUpdated.addListener(onTabUpdated);
-      chrome.runtime.onMessage.addListener(onMessage);
-    });
+  /** One REWARDS_STATUS round trip; null means the content script isn't reachable yet. */
+  private async probeStatus(rewardsTabId: number): Promise<RewardsStatusResponse | null> {
+    try {
+      const reply: unknown = await chrome.tabs.sendMessage(rewardsTabId, {
+        action: MSG_ACTION.REWARDS_STATUS,
+      });
+      return (reply as RewardsStatusResponse | undefined) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * DOM card extraction lands in the next phase — a confirmed session
+   * currently yields zero activities, which every downstream phase already
+   * handles by skipping.
+   */
+  private async extractActivities(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
+    await ctx.dbg(DBG.WARN, 'Session confirmed; DOM card extraction not yet implemented — 0 cards');
+    return { allActivities: [], loggedIn: true, rewardsTabId };
   }
 
   /**

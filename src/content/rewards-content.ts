@@ -1,11 +1,13 @@
 // Injected into rewards.bing.com. Message router for the rewards dashboard.
 //
-// Extraction reads the dashboard JSON API (util/rewards-api.ts) — never the DOM.
-// The DOM is touched only to *locate* a card so the background can click it, and
-// to expand the sections that render their tiles lazily.
+// The background confirms readiness and login state through the REWARDS_STATUS
+// probe (DOM heuristic — the dashboard API 401s even for live sessions, so it
+// is no longer consulted). The DOM is also touched to *locate* a card so the
+// background can click it, and to expand the sections that render their tiles
+// lazily. Counters and validation still read the API pending their DOM ports.
 
 import { CardState, sectionByKey, sectionForActivityType } from '../util/activity-types.js';
-import type { ActivityType, RawCard, SectionDescriptor } from '../util/activity-types.js';
+import type { ActivityType, SectionDescriptor } from '../util/activity-types.js';
 import { TIMEOUTS, sleep } from '../util/timing.js';
 import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from '../util/messaging.js';
 import type {
@@ -13,19 +15,15 @@ import type {
   ClickPoint,
   CountersResponse,
   LocateResponse,
+  RewardsStatusResponse,
 } from '../util/messaging.js';
 import {
   clean,
   fetchDashboard,
-  fetchDashboardResult,
-  mapDashboardToCards,
   mapDashboardToCounters,
   promoComplete,
 } from '../util/rewards-api.js';
 import { urlKey } from '../util/url.js';
-
-const MAX_WAIT_MS = TIMEOUTS.REWARDS_EXTRACT_MAX_WAIT;
-const POLL_INTERVAL_MS = TIMEOUTS.REWARDS_EXTRACT_POLL;
 
 // The header renders a bare "Sign in" control beside the account avatar when
 // there's no session (signed in, it shows the account name instead), and carries
@@ -57,11 +55,11 @@ function hasSignInControl(): boolean {
  * Which signed-out signal the DOM shows, or `null` if none.
  *
  * Only positive evidence counts — anything else (including a page that is still
- * loading) reads as `null`. This is a heuristic over someone else's markup, not
- * an authority: callers hold it against the API, which is the actual source of
- * truth. A successful `fetchDashboard()` proves a session and vetoes this
- * outright, so never report logged-out on this alone while the dashboard is still
- * readable.
+ * loading) reads as `null`. This heuristic is now the login authority (the
+ * dashboard API 401s even for live sessions, so there is nothing to hold it
+ * against): the background polls it via REWARDS_STATUS and re-probes a few
+ * times after the page completes before trusting a null, since the SPA can
+ * hydrate the header after readyState fires.
  *
  * Naming the matched signal (rather than a bare boolean) is what makes a
  * "not logged in" verdict diagnosable in the debug log. The two conservative
@@ -77,61 +75,6 @@ function loggedOutSignal(): string | null {
   const LOGOUT_SIGNALS = ['sign in to start earning', 'sign in to earn', 'start earning rewards'];
   const match = LOGOUT_SIGNALS.find((s) => bodyText.includes(s));
   return match ? `page text contains "${match}"` : null;
-}
-
-function sendActivities(cards: RawCard[], loggedIn: boolean, reason?: string): void {
-  chrome.runtime.sendMessage({
-    action: MSG_ACTION.ACTIVITIES_FOUND,
-    cards,
-    loggedIn,
-    reason,
-  });
-}
-
-/**
- * Read the dashboard JSON API, retrying until `deadline` (an absolute timestamp).
- *
- * There is nothing to wait for in the DOM first: the API answers as soon as the
- * document exists, independent of how much of the SPA has rendered.
- */
-async function extractLoop(deadline: number): Promise<void> {
-  const result = await fetchDashboardResult();
-  if (result.status === 'ok') {
-    sendActivities(mapDashboardToCards(result.dashboard), true);
-    return;
-  }
-
-  // Conclusive logged-out signals: the API said so, or the page is offering a
-  // sign-in control. Report immediately so the run prompts for sign-in.
-  const domSignal = loggedOutSignal();
-  if (result.status === 'logged-out' || domSignal) {
-    const reason =
-      result.status === 'logged-out'
-        ? 'dashboard API is unauthenticated — it 401/403d or redirected to the Microsoft sign-in host (session/token missing or expired)'
-        : `DOM signal: ${domSignal}`;
-    sendActivities([], false, reason);
-    return;
-  }
-
-  if (Date.now() < deadline) {
-    setTimeout(() => void extractLoop(deadline), POLL_INTERVAL_MS);
-    return;
-  }
-
-  // Out of time with the dashboard still unread. We cannot confirm a session, so
-  // we must not claim one: zero cards + `loggedIn: true` renders as a cheerful
-  // "Done for today!", which is the worst possible answer for someone who was
-  // never signed in (and a logged-out redirect to the sign-in host rejects on
-  // CORS, so this is exactly where that user lands). Reporting logged-out is the
-  // safe reading of an unreadable dashboard — it prompts for sign-in and
-  // re-extracts, which costs a signed-in user one dismissable prompt and tells
-  // the truth to everyone else.
-  // Only the `error` variant reaches here: `ok` and `logged-out` both returned above.
-  sendActivities(
-    [],
-    false,
-    `dashboard unreadable after ${MAX_WAIT_MS}ms (last fetch: ${result.detail}) and no DOM sign-in signal — treating as logged-out`,
-  );
 }
 
 // ── Card resolution ─────────────────────────────────────────────────────────
@@ -363,8 +306,15 @@ async function locateElement(el: HTMLElement): Promise<ClickPoint | null> {
 }
 
 chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {
-  if (msg.action === MSG_ACTION.START_EXTRACT) {
-    void extractLoop(Date.now() + MAX_WAIT_MS);
+  if (msg.action === MSG_ACTION.REWARDS_STATUS) {
+    // Readiness/login probe, answered synchronously. Merely being able to answer
+    // proves the content script is injected; the fields say whether the page has
+    // finished loading and whether it shows signed-out evidence.
+    const response: RewardsStatusResponse = {
+      domComplete: document.readyState === 'complete',
+      loggedOutSignal: loggedOutSignal(),
+    };
+    sendResponse(response);
     return undefined;
   }
 
