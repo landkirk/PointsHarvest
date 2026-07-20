@@ -1,6 +1,6 @@
 import { sleep, randMs, rawRandMs, TIMEOUTS, TIMING } from './timing.js';
 import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from './messaging.js';
-import type { AppMessage, ClickPoint, LocateResponse } from './messaging.js';
+import type { AppMessage, ClickPoint, LocateResponse, PageControlKind } from './messaging.js';
 import type { ActivityType, SectionDescriptor } from './activity-types.js';
 import type { Context } from './context.js';
 import { FAIL } from './failures.js';
@@ -305,6 +305,23 @@ export class TabManager {
         activityType: card.activityType,
       },
       `card "${card.title}"`,
+    );
+  }
+
+  /**
+   * Locate a standalone page control (points-flyout toggle / dialog Close) and
+   * click it via the trusted CDP path. `ok: true` also covers Satisfied — the
+   * control's desired state already holds (dialog already open / already gone).
+   */
+  async clickPageControl(
+    rewardsTabId: number,
+    control: PageControlKind,
+    label: string,
+  ): Promise<{ ok: boolean; error?: string }> {
+    return this._locateAndClick(
+      rewardsTabId,
+      { action: MSG_ACTION.LOCATE_CONTROL, control },
+      label,
     );
   }
 

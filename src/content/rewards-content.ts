@@ -3,11 +3,12 @@
 // Everything here reads the DOM (the dashboard API 401s even for live
 // sessions): REWARDS_STATUS answers readiness/login, EXTRACT_SECTIONS parses
 // tiles into RawCards (rewards-dom.ts), VALIDATE_ACTIVITY re-reads a card's
-// badge, and the locate handlers report where to aim the background's trusted
-// CDP clicks. GET_COUNTERS still reads the API pending its DOM port.
+// badge, READ_COUNTERS parses the open "Points breakdown" flyout, and the
+// locate handlers report where to aim the background's trusted CDP clicks.
 
 import { CardState, sectionByKey, sectionForActivityType } from '../util/activity-types.js';
 import type { ActivityType, SectionDescriptor } from '../util/activity-types.js';
+import { PC_SEARCH_TYPE } from '../util/config.js';
 import { TIMEOUTS, sleep } from '../util/timing.js';
 import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from '../util/messaging.js';
 import type {
@@ -21,6 +22,11 @@ import type {
 } from '../util/messaging.js';
 import {
   clean,
+  findBreakdownDialog,
+  findDialogClose,
+  findPointsToggle,
+  isVisible,
+  parsePointsBreakdown,
   parseSectionCards,
   sectionEl,
   tileCount,
@@ -28,7 +34,6 @@ import {
   tileStateLabel,
   TILE_SELECTOR,
 } from './rewards-dom.js';
-import { fetchDashboard, mapDashboardToCounters } from '../util/rewards-api.js';
 import { urlKey } from '../util/url.js';
 
 // The header renders a bare "Sign in" control beside the account avatar when
@@ -36,19 +41,6 @@ import { urlKey } from '../util/url.js';
 // no marketing copy that text sniffing could catch. Match on an element whose
 // *entire* text is "Sign in" so ordinary prose containing the words can't trip it.
 const SIGN_IN_LABEL = /^sign in$/i;
-
-/**
- * Only a control the user can actually see counts. Headers routinely render both
- * auth states and toggle between them with CSS, and the SPA can paint a signed-out
- * skeleton before the session hydrates — so a text match alone reports a signed-in
- * user as logged out, which ends their run with "Not logged in".
- */
-function isVisible(el: HTMLElement): boolean {
-  // checkVisibility covers display/visibility/content-visibility; the rect check
-  // is the floor (also catches detached and zero-size nodes).
-  if (el.getClientRects().length === 0) return false;
-  return el.checkVisibility?.({ visibilityProperty: true, opacityProperty: true }) ?? true;
-}
 
 function hasSignInControl(): boolean {
   const candidates = document.querySelectorAll<HTMLElement>('p, a, button, span');
@@ -361,13 +353,66 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     // the Ready branch may call locateElement, which scrolls. That keeps "already
     // expanded" a cheap, side-effect-free query, which is what lets the caller
     // poll it to confirm a click landed.
+
+    // Standalone page controls (the points flyout) — no section context.
+    if (msg.control === CONTROL_KIND.POINTS_TOGGLE) {
+      void (async () => {
+        const reply = (r: LocateResponse) => sendResponse(r);
+        if (findBreakdownDialog()) {
+          reply({ status: LOCATE_STATUS.Satisfied, tiles: 0, via: 'dialog-open' });
+          return;
+        }
+        const found = findPointsToggle();
+        if (!found) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'no "Today\'s points" toggle' });
+          return;
+        }
+        const point = await locateElement(found.el);
+        if (!point) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'points toggle not visible' });
+          return;
+        }
+        reply({ status: LOCATE_STATUS.Ready, point, tiles: 0, via: found.via });
+      })();
+      return true;
+    }
+    if (msg.control === CONTROL_KIND.DIALOG_CLOSE) {
+      void (async () => {
+        const reply = (r: LocateResponse) => sendResponse(r);
+        const dialog = findBreakdownDialog();
+        if (!dialog) {
+          // Nothing open — the desired state already holds.
+          reply({ status: LOCATE_STATUS.Satisfied, tiles: 0, via: 'no-dialog' });
+          return;
+        }
+        const closeBtn = findDialogClose(dialog);
+        if (!closeBtn) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'no Close button in dialog' });
+          return;
+        }
+        const point = await locateElement(closeBtn);
+        if (!point) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'Close button not visible' });
+          return;
+        }
+        reply({ status: LOCATE_STATUS.Ready, point, tiles: 0, via: 'aria-label' });
+      })();
+      return true;
+    }
+
+    if (msg.control !== CONTROL_KIND.SECTION_TOGGLE && msg.control !== CONTROL_KIND.SHOW_MORE) {
+      return undefined; // exhaustive: page controls handled above
+    }
+    // TS doesn't carry parameter narrowing into the closure — alias the
+    // section-scoped variant so `sectionKey` stays typed inside it.
+    const sectionMsg = msg;
     void (async () => {
-      const desc = sectionByKey(msg.sectionKey);
+      const desc = sectionByKey(sectionMsg.sectionKey);
       const section = sectionEl(desc.id);
       const tiles = tileCount(section);
       const reply = (r: LocateResponse) => sendResponse(r);
 
-      if (msg.control === CONTROL_KIND.SECTION_TOGGLE) {
+      if (sectionMsg.control === CONTROL_KIND.SECTION_TOGGLE) {
         const found = resolveSectionToggle(section, desc);
         if (!found) {
           reply({
@@ -407,17 +452,39 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     return true;
   }
 
-  if (msg.action === MSG_ACTION.GET_COUNTERS) {
+  if (msg.action === MSG_ACTION.READ_COUNTERS) {
     void (async () => {
-      // The API is the only counter source, and the DOM has none: the old counter
-      // markup lived solely on /pointsbreakdown, which is gone (it redirects to a
-      // page with no live counter). `read: false` means "couldn't read the
-      // dashboard — poll again"; `read: true` with no counters is a definitive
-      // "this account has no live counter" and callers must not keep polling.
-      const dashboard = await fetchDashboard();
-      const response: CountersResponse = dashboard
-        ? { read: true, searchCounters: mapDashboardToCounters(dashboard) }
-        : { read: false, searchCounters: [] };
+      // The background just dispatched a trusted click on the "Today's points"
+      // toggle; wait for the flyout to render, then parse its Bing-search row.
+      // `read: false` + `detail` means "couldn't read — worth polling again";
+      // the counter values are POINTS (fetch-counters divides into searches).
+      const deadline = Date.now() + TIMEOUTS.FLYOUT_RENDER;
+      let dialog = findBreakdownDialog();
+      while (!dialog && Date.now() < deadline) {
+        await sleep(TIMEOUTS.SECTION_CONFIRM_POLL);
+        dialog = findBreakdownDialog();
+      }
+
+      let response: CountersResponse;
+      if (!dialog) {
+        response = {
+          read: false,
+          searchCounters: [],
+          detail: '"Points breakdown" dialog did not open',
+        };
+      } else {
+        const parsed = parsePointsBreakdown(dialog);
+        response = parsed
+          ? {
+              read: true,
+              searchCounters: [{ type: PC_SEARCH_TYPE, current: parsed.current, max: parsed.max }],
+            }
+          : {
+              read: false,
+              searchCounters: [],
+              detail: 'no "Bing search" row in the points dialog',
+            };
+      }
       sendResponse(response);
     })();
     return true; // async sendResponse

@@ -33,6 +33,18 @@ export function clean(text: string | undefined | null): string {
   return (text ?? '').replace(ZERO_WIDTH_RE, '').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Only a control the user can actually see counts. Headers routinely render
+ * both auth states and toggle between them with CSS, and the SPA can paint
+ * hidden skeletons — a text match alone lands on invisible markup.
+ */
+export function isVisible(el: HTMLElement): boolean {
+  // checkVisibility covers display/visibility/content-visibility; the rect check
+  // is the floor (also catches detached and zero-size nodes).
+  if (el.getClientRects().length === 0) return false;
+  return el.checkVisibility?.({ visibilityProperty: true, opacityProperty: true }) ?? true;
+}
+
 /** Every card is an anchor; shared so the tile *count* and the tile *lookup* can't drift. */
 export const TILE_SELECTOR = 'a[href]';
 
@@ -190,4 +202,81 @@ export function parseSectionCards(key: SectionKey): SectionParseResult {
   }
 
   return { cards, tiles: anchors.length, warnings };
+}
+
+// ── "Points breakdown" flyout (PC search counter) ───────────────────────────
+//
+// The redesigned site renders no inline counter anywhere; the only DOM source
+// is the "Today's points" card on /earn, whose click opens a side flyout —
+// `section[role="dialog"]` titled "Points breakdown" — holding a
+// "Bing search" row like `35/100 50` (current / cap, then the struck-through
+// pre-2X cap, which the slash pattern never matches).
+
+const POINTS_TOGGLE_RE = /today'?s points/i;
+const BREAKDOWN_TITLE_RE = /points breakdown/i;
+const BING_SEARCH_ROW_RE = /^bing search$/i;
+
+/**
+ * The "Today's points" flyout toggle: a card-style `button[aria-expanded]`
+ * whose text/img[alt] carries the label. Falls back to a visible-clickable
+ * text scan if the button shape drifts.
+ */
+export function findPointsToggle(): { el: HTMLElement; via: string } | null {
+  const byButton = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'),
+  ).find(
+    (b) =>
+      isVisible(b) &&
+      (POINTS_TOGGLE_RE.test(clean(b.textContent)) ||
+        POINTS_TOGGLE_RE.test(clean(b.querySelector('img')?.alt))),
+  );
+  if (byButton) return { el: byButton, via: 'aria-expanded' };
+
+  const byText = Array.from(
+    document.querySelectorAll<HTMLElement>('button, a, [role="button"]'),
+  ).find((el) => POINTS_TOGGLE_RE.test(clean(el.textContent)) && isVisible(el));
+  return byText ? { el: byText, via: 'text-scan' } : null;
+}
+
+/**
+ * The open "Points breakdown" dialog, or null. Resolved by the dialog's own
+ * heading — never by a document-wide text search, because the *closed* toggle
+ * also contains the words "Points breakdown".
+ */
+export function findBreakdownDialog(): HTMLElement | null {
+  for (const dlg of Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))) {
+    const labelledBy = dlg.getAttribute('aria-labelledby');
+    const heading =
+      (labelledBy ? document.getElementById(labelledBy)?.textContent : null) ??
+      dlg.querySelector('h2')?.textContent;
+    if (BREAKDOWN_TITLE_RE.test(clean(heading))) return dlg;
+  }
+  return null;
+}
+
+/** The dialog's Close control (header `button[aria-label="Close"]`, else the footer Close). */
+export function findDialogClose(dialog: HTMLElement): HTMLElement | null {
+  return (
+    dialog.querySelector<HTMLElement>('button[aria-label="Close"]') ??
+    Array.from(dialog.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+      /^close$/i.test(clean(b.textContent)),
+    ) ??
+    null
+  );
+}
+
+/**
+ * The Bing-search row's points, in POINTS (fetch-counters divides into
+ * searches). The value cell is the next sibling of the label cell; commas are
+ * stripped so the pattern survives locale formatting.
+ */
+export function parsePointsBreakdown(dialog: HTMLElement): { current: number; max: number } | null {
+  const label = Array.from(dialog.querySelectorAll<HTMLElement>('p')).find((p) =>
+    BING_SEARCH_ROW_RE.test(clean(p.textContent)),
+  );
+  const cell = label?.closest('div')?.nextElementSibling;
+  const m = clean(cell?.textContent).match(/([\d,]+)\s*\/\s*([\d,]+)/);
+  if (!m) return null;
+  const num = (s: string) => Number(s.replace(/,/g, ''));
+  return { current: num(m[1]), max: num(m[2]) };
 }

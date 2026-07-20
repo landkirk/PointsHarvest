@@ -157,12 +157,12 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
    * for the SPA render, so the re-injected content script is answering by the
    * time the section is expanded.
    *
-   * Phase rollout: "Keep earning" (moreActivities) lands next and until then
-   * contributes zero cards, which its orchestrator already handles by skipping.
+   * "Keep earning" is the one paginated section — `expandSection` also walks
+   * its "Show more" pages so every tile is in the DOM before parsing.
    */
   private async extractActivities(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
     const cards: RawCard[] = [];
-    for (const section of [SECTION.dailySet, SECTION.exploreOnBing]) {
+    for (const section of [SECTION.dailySet, SECTION.exploreOnBing, SECTION.moreActivities]) {
       ctx.signal.throwIfAborted();
       if (!(await this.ensureSectionReady(ctx, rewardsTabId, section))) continue;
       const res = await this.extractSections(rewardsTabId, [section.key]);

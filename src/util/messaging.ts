@@ -40,8 +40,15 @@ export const CONTROL_KIND = {
   SECTION_TOGGLE: 'sectionToggle',
   /** A section's "Show more" pagination control. */
   SHOW_MORE: 'showMore',
+  /** The "Today's points" card on /earn that opens the "Points breakdown" flyout. */
+  POINTS_TOGGLE: 'pointsToggle',
+  /** The open "Points breakdown" flyout's Close button. */
+  DIALOG_CLOSE: 'dialogClose',
 } as const;
 export type ControlKind = (typeof CONTROL_KIND)[keyof typeof CONTROL_KIND];
+
+/** The controls that stand alone on the page rather than belonging to a section. */
+export type PageControlKind = typeof CONTROL_KIND.POINTS_TOGGLE | typeof CONTROL_KIND.DIALOG_CLOSE;
 
 export const LOCATE_STATUS = {
   /** Found, and it needs clicking — `point` is valid. */
@@ -71,14 +78,15 @@ export type LocateResponse =
   | { status: typeof LOCATE_STATUS.Absent; tiles: number; reason: string };
 
 /**
- * Reply to GET_COUNTERS. `read` separates "dashboard unreadable — worth polling
- * again" from "read fine; `searchCounters` is the definitive answer, empty
- * included". Without it an account with no live PC counter is indistinguishable
- * from a failed fetch and burns the caller's whole poll budget.
+ * Reply to READ_COUNTERS. `read` separates "flyout unreadable — worth polling
+ * again" from "read fine; `searchCounters` is the definitive answer". `detail`
+ * names why a read failed (dialog never opened, row missing) — without it,
+ * twenty silent polls are undiagnosable from the debug log.
  */
 export interface CountersResponse {
   read: boolean;
   searchCounters: { type: string; current: number; max: number }[];
+  detail?: string;
 }
 
 /**
@@ -148,7 +156,7 @@ export const MSG_ACTION = {
   RESET_STALE: 'resetStale',
   SET_PREFERENCE: 'setPreference',
   // Background → rewards content script (counter extraction)
-  GET_COUNTERS: 'getCounters',
+  READ_COUNTERS: 'readCounters',
   FAILURE_ENTRY: 'failureEntry',
 } as const;
 
@@ -186,8 +194,13 @@ export type AppMessage =
     }
   | {
       action: typeof MSG_ACTION.LOCATE_CONTROL;
-      control: ControlKind;
+      control: typeof CONTROL_KIND.SECTION_TOGGLE | typeof CONTROL_KIND.SHOW_MORE;
       sectionKey: SectionKey;
+    }
+  // Standalone page controls (the points flyout) carry no section.
+  | {
+      action: typeof MSG_ACTION.LOCATE_CONTROL;
+      control: PageControlKind;
     }
   | {
       action: typeof MSG_ACTION.VALIDATE_ACTIVITY;
@@ -195,7 +208,7 @@ export type AppMessage =
       destinationUrl: string;
       activityType: ActivityType;
     }
-  | { action: typeof MSG_ACTION.GET_COUNTERS }
+  | { action: typeof MSG_ACTION.READ_COUNTERS }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string }
   | { action: typeof MSG_ACTION.SCROLL_PAGE; y: number; behavior: 'smooth' | 'instant' }
