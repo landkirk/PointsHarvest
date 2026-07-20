@@ -1,7 +1,7 @@
 ---
 title: How Many Microsoft Rewards Points Can You Earn Per Day in 2026?
 date: 2026-07-21
-description: The direct answer for every tier after the 2026 overhaul — daily search caps, Daily Set, and realistic daily totals — plus how long it actually takes to reach 13,000 points for a $10 gift card.
+description: The direct answer for every tier after the 2026 overhaul — daily search caps, Daily Set, and realistic daily totals — plus how long it actually takes to reach 13,000 points for a Roblox card.
 ---
 
 ## The Short Answer
@@ -36,7 +36,9 @@ Two categories that used to matter and no longer do the same work: mobile search
 
 ## How Long Does It Take to Reach 13,000 Points?
 
-This question comes up constantly, and it's really a question about the **$10 Xbox / Microsoft gift card**, which sits around 13,000 points for many US users following the redemption price increases earlier in 2026. Prices vary by region and by which card you pick, and Gold's up-to-10% redemption discount can lower it — check your own redeem page before committing to a target.
+This one comes up constantly, and it's usually a Roblox question. **13,000 points is the Roblox digital card tier** in the US catalog (it's also what the Plasma Wings exclusive costs), which is why so many people target that specific number rather than a round one.
+
+Worth knowing before you start: **if you want a plain gift card, you need fewer points than that.** A $10 Xbox or Microsoft gift card runs about 10,000–10,500 points in the US, so a card is roughly three weeks closer than the Roblox tier. Prices move by region and by card, Gold's up-to-10% redemption discount lowers them, and Microsoft periodically runs Rewards sales — check your own redeem page before committing to a target.
 
 Here's the timeline at each tier, assuming you do the searches and the Daily Set every day:
 
@@ -48,7 +50,7 @@ Here's the timeline at each tier, assuming you do the searches and the Daily Set
 | Gold + tier bonus + typical STAR | ~110 | ~115 | ~4 months |
 | Gold + full Xbox/Game Pass grind | ~400 | ~33 | ~1 month |
 
-The honest read: **for a non-gamer at Gold, a $10 gift card is a four-to-five month project.** Under the old system the same routine got you there in about six weeks. The Xbox and Game Pass side is now the majority of the program's value for anyone who has Game Pass Ultimate — our [full points breakdown](/blog/maximum-rewards-points/) covers those categories in detail.
+The honest read: **for a non-gamer at Gold, a Roblox card is a four-to-five month project** — and a $10 gift card, at ~10,000 points, is about three to four. Under the old system the same routine got you to either one in roughly six weeks. The Xbox and Game Pass side is now the majority of the program's value for anyone who has Game Pass Ultimate — our [full points breakdown](/blog/maximum-rewards-points/) covers those categories in detail.
 
 Skipping days costs more than it used to, because a broken streak takes both the streak bonus and your STAR consistency with it.
 
@@ -90,7 +92,7 @@ If you want to see what the automation actually does before deciding, the [getti
 
 **How many Microsoft Rewards points per month?** About 1,350 at Member, 1,800 at Silver, and 3,400 at Gold from Bing-side activities. Xbox and Game Pass can add ~8,500 more if you have Game Pass Ultimate.
 
-**How long does it take to get 13,000 Microsoft points?** About four to five months at Gold doing the daily routine, seven months at Silver, and nine to ten at Member. Roughly one month if you're also doing the full Xbox and Game Pass grind.
+**How long does it take to get 13,000 Microsoft points?** About four to five months at Gold doing the daily routine, seven months at Silver, and nine to ten at Member. Roughly one month if you're also doing the full Xbox and Game Pass grind. 13,000 is the Roblox card tier — a $10 gift card needs only ~10,000, so it arrives a few weeks sooner.
 
 **Does searching on my phone add extra points?** No. PC and mobile share a single daily cap under the new system.
 
