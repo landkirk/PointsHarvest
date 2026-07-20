@@ -15,6 +15,7 @@ export const TIMING: Record<string, [number, number]> = {
   RESULT_CLICK_HOVER: [500, 1500], // pause after scrollIntoView before dispatching click events
   RESULT_CLICK_DWELL: [2000, 6000], // additional page dwell after clicking a result
   RETRY_CLICK_PAUSE: [1500, 3500], // pause before re-clicking a card that opened no tab
+  CLAIM_SETTLE: [2000, 4500], // pause after clicking "Claim points" before verifying the claim landed
 };
 
 export const TIMEOUTS = {
@@ -37,7 +38,9 @@ export const TIMEOUTS = {
   TAB_CAPTURE_RETRY: 3_000,
   EXPAND_SECTION_RENDER: 1_500, // how long a section gets to render its tiles after a click
   EXTRACT_SECTION_WAIT: 4_000, // how long extraction waits for an expanded section's tiles to enter the DOM
-  FLYOUT_RENDER: 3_000, // how long the "Points breakdown" flyout gets to open after its toggle is clicked
+  FLYOUT_RENDER: 3_000, // how long a flyout ("Points breakdown", "Claim points") gets to open after its toggle is clicked
+  CLAIM_READ_ATTEMPTS: 4, // "Ready to claim" card reads tried after navigating to the rewards home page
+  CLAIM_VERIFY_POLLS: 6, // flyout re-reads before an unconfirmed claim is reported
   SECTION_CONFIRM_POLL: 250, // re-read a toggle's aria-expanded this often while confirming
   SECTION_TOGGLE_CLICK_ROUNDS: 2, // clicks tried before a section is reported unexpandable
   SHOW_MORE_CLICKS: 10, // max "Show more" pages to walk in one section

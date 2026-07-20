@@ -42,12 +42,20 @@ export const CONTROL_KIND = {
   SHOW_MORE: 'showMore',
   /** The "Today's points" card on /earn that opens the "Points breakdown" flyout. */
   POINTS_TOGGLE: 'pointsToggle',
-  /** The open "Points breakdown" flyout's Close button. */
+  /** The open "Points breakdown" or "Claim points" flyout's Close button. */
   DIALOG_CLOSE: 'dialogClose',
+  /** The "Ready to claim" card on `/` that opens the "Claim points" flyout. */
+  CLAIM_TOGGLE: 'claimToggle',
+  /** The open "Claim points" flyout's confirm button. */
+  CLAIM_CONFIRM: 'claimConfirm',
 } as const;
 
 /** The controls that stand alone on the page rather than belonging to a section. */
-export type PageControlKind = typeof CONTROL_KIND.POINTS_TOGGLE | typeof CONTROL_KIND.DIALOG_CLOSE;
+export type PageControlKind =
+  | typeof CONTROL_KIND.POINTS_TOGGLE
+  | typeof CONTROL_KIND.DIALOG_CLOSE
+  | typeof CONTROL_KIND.CLAIM_TOGGLE
+  | typeof CONTROL_KIND.CLAIM_CONFIRM;
 
 export const LOCATE_STATUS = {
   /** Found, and it needs clicking — `point` is valid. */
@@ -86,6 +94,24 @@ export interface CountersResponse {
   searchCounters: { type: string; current: number; max: number }[];
   detail?: string;
 }
+
+/** One claimable activity row in the "Claim points" flyout (debug-log detail only). */
+export interface ClaimRow {
+  title: string;
+  points: number;
+}
+
+/**
+ * Reply to READ_CLAIM. `read: false` + `detail` = unreadable, worth polling.
+ * target 'card': `points` is the "Ready to claim" card's value on `/`.
+ * target 'flyout': `total` is the flyout's headline value (null if unparsed —
+ * only possible alongside `empty`), `empty` is the "No points to claim right
+ * now" state, `rows` is best-effort per-activity detail.
+ */
+export type ClaimReadResponse =
+  | { read: true; target: 'card'; points: number }
+  | { read: true; target: 'flyout'; total: number | null; rows: ClaimRow[]; empty: boolean }
+  | { read: false; detail: string };
 
 /**
  * Reply to EXTRACT_SECTIONS. `sectionTiles` is the raw anchor count per
@@ -155,6 +181,8 @@ export const MSG_ACTION = {
   SET_PREFERENCE: 'setPreference',
   // Background → rewards content script (counter extraction)
   READ_COUNTERS: 'readCounters',
+  // Background → rewards content script (claimable-points reads)
+  READ_CLAIM: 'readClaim',
   FAILURE_ENTRY: 'failureEntry',
 } as const;
 
@@ -205,6 +233,7 @@ export type AppMessage =
       activityType: ActivityType;
     }
   | { action: typeof MSG_ACTION.READ_COUNTERS }
+  | { action: typeof MSG_ACTION.READ_CLAIM; target: 'card' | 'flyout' }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string }
   | { action: typeof MSG_ACTION.SCROLL_PAGE; y: number; behavior: 'smooth' | 'instant' }

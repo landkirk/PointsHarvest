@@ -1,7 +1,7 @@
 import { ACTIVITY_TYPE } from './activity-types.js';
 import type { ActivityType } from './activity-types.js';
 
-export type PhaseKey = 'warmup' | 'explore' | 'daily' | 'more-activities' | 'farm';
+export type PhaseKey = 'warmup' | 'explore' | 'daily' | 'more-activities' | 'farm' | 'claim';
 
 export type Cadence = '' | 'daily' | 'weekly';
 
@@ -50,6 +50,15 @@ export const PHASE = {
     timeLabel: 'today',
     activityType: null,
   },
+  // Cadence '' on purpose: claimed points were already counted by the phase
+  // that earned them, so they must stay out of the daily/weekly headline sums.
+  CLAIM: {
+    key: 'claim',
+    label: 'Claim points',
+    cadence: '',
+    timeLabel: 'claimed',
+    activityType: null,
+  },
 } as const satisfies Record<string, PhaseDefinition>;
 
 // Must mirror the orchestrator chain in managers/start-run.ts — the popup and
@@ -60,6 +69,7 @@ export const PHASES: readonly PhaseDefinition[] = [
   PHASE.EXPLORE,
   PHASE.MORE_ACTIVITIES,
   PHASE.FARM,
+  PHASE.CLAIM,
 ];
 
 export const PHASES_BY_KEY: Readonly<Record<PhaseKey, PhaseDefinition>> = Object.fromEntries(

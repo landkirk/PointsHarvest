@@ -12,6 +12,7 @@ Not affiliated with or endorsed by Microsoft.
 - **Daily Set tiles** — Opens daily set activities and handles simple ones automatically; surfaces quizzes and polls so you can complete them
 - **More Activities** — Completes additional activity tiles automatically — opens each tile's search page, dwells, and validates; skips puzzles, quizzes, and install prompts
 - **PC Search farming** — After activities are done, farms remaining PC searches until the daily cap is reached. The cap depends on your Rewards level, and the extension reads yours rather than assuming a fixed number
+- **Auto-claim** — At the end of each run, claims any pending points from the rewards page's "Ready to claim" flyout, so earned points don't sit unclaimed and expire
 - **Hands-on when it matters** — Quizzes, polls, and puzzles are surfaced for you to complete manually; the extension handles everything else
 
 The extension uses randomized timing and realistic browsing patterns to avoid detection. When the run finishes, a summary card shows the duration, points earned per phase, and activity counts.

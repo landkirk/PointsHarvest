@@ -19,6 +19,7 @@ import { CompleteExploreOnBing } from '../orchestrators/complete-explore-on-bing
 import { CompleteDailySets } from '../orchestrators/complete-daily-sets.js';
 import { CompleteMoreActivities } from '../orchestrators/complete-more-activities.js';
 import { FarmPcSearches } from '../orchestrators/farm-pc-searches.js';
+import { ClaimPoints } from '../orchestrators/claim-points.js';
 import { WarmUpSearches } from '../orchestrators/warm-up-searches.js';
 import type { Context } from '../util/context.js';
 import { StoppedError } from '../interfaces/stoppable.js';
@@ -101,6 +102,7 @@ class StartRun {
       const dailySets = new CompleteDailySets(this.tabs);
       const moreActivities = new CompleteMoreActivities(this.tabs);
       const farmPcSearches = new FarmPcSearches(this.tabs);
+      const claimPoints = new ClaimPoints(this.tabs);
 
       await this._runOrchestrator(ctx, extraction, () => extraction.run(ctx));
 
@@ -115,12 +117,15 @@ class StartRun {
       // on `/`, so daily-first costs one navigation for the whole chain; explore
       // first would cost three (`/earn` → `/` → `/earn`), each a page load plus a
       // LINGER_ON_PAGE dwell. Nothing else depends on the order — warm-up never
-      // touches this tab and each orchestrator routes itself. PHASES in
-      // util/phase.ts mirrors this order for the popup's progress bars.
+      // touches this tab and each orchestrator routes itself. Claim runs last
+      // (navigating the tab back to `/`) so points earned during this run are
+      // included in the claim. PHASES in util/phase.ts mirrors this order for
+      // the popup's progress bars.
       await this._runOrchestrator(ctx, dailySets, () => dailySets.run(ctx));
       await this._runOrchestrator(ctx, exploreOnBing, () => exploreOnBing.run(ctx));
       await this._runOrchestrator(ctx, moreActivities, () => moreActivities.run(ctx));
       await this._runOrchestrator(ctx, farmPcSearches, () => farmPcSearches.run(ctx));
+      await this._runOrchestrator(ctx, claimPoints, () => claimPoints.run(ctx));
     } catch (err) {
       if (err instanceof NotLoggedInError) {
         await this._endRun(ctx, RUN_END.NOT_LOGGED_IN);

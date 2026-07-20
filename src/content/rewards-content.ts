@@ -13,6 +13,7 @@ import { TIMEOUTS, sleep } from '../util/timing.js';
 import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from '../util/messaging.js';
 import type {
   AppMessage,
+  ClaimReadResponse,
   ClickPoint,
   CountersResponse,
   ExtractResponse,
@@ -23,9 +24,14 @@ import type {
 import {
   clean,
   findBreakdownDialog,
+  findClaimCard,
+  findClaimConfirm,
+  findClaimDialog,
   findDialogClose,
   findPointsToggle,
   isVisible,
+  parseClaimCardPoints,
+  parseClaimFlyout,
   parsePointsBreakdown,
   parseSectionCards,
   sectionEl,
@@ -376,10 +382,66 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
       })();
       return true;
     }
+    if (msg.control === CONTROL_KIND.CLAIM_TOGGLE) {
+      void (async () => {
+        const reply = (r: LocateResponse) => sendResponse(r);
+        if (findClaimDialog()) {
+          reply({ status: LOCATE_STATUS.Satisfied, tiles: 0, via: 'dialog-open' });
+          return;
+        }
+        const found = findClaimCard();
+        if (!found) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'no "Ready to claim" card' });
+          return;
+        }
+        const point = await locateElement(found.el);
+        if (!point) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'claim card not visible' });
+          return;
+        }
+        reply({ status: LOCATE_STATUS.Ready, point, tiles: 0, via: found.via });
+      })();
+      return true;
+    }
+    if (msg.control === CONTROL_KIND.CLAIM_CONFIRM) {
+      void (async () => {
+        const reply = (r: LocateResponse) => sendResponse(r);
+        const dialog = findClaimDialog();
+        if (!dialog) {
+          // The orchestrator opens the flyout first — a missing dialog here is
+          // a failed toggle click, not a satisfied state.
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'claim dialog not open' });
+          return;
+        }
+        const confirm = findClaimConfirm(dialog);
+        if (!confirm) {
+          if (parseClaimFlyout(dialog).empty) {
+            // Nothing left to claim — the empty state replaces the confirm
+            // button, so a post-click re-poll lands here cheaply.
+            reply({ status: LOCATE_STATUS.Satisfied, tiles: 0, via: 'empty-state' });
+            return;
+          }
+          reply({
+            status: LOCATE_STATUS.Absent,
+            tiles: 0,
+            reason: 'no "Claim points" button in dialog',
+          });
+          return;
+        }
+        const point = await locateElement(confirm);
+        if (!point) {
+          reply({ status: LOCATE_STATUS.Absent, tiles: 0, reason: 'claim button not visible' });
+          return;
+        }
+        reply({ status: LOCATE_STATUS.Ready, point, tiles: 0, via: 'button-text' });
+      })();
+      return true;
+    }
     if (msg.control === CONTROL_KIND.DIALOG_CLOSE) {
       void (async () => {
         const reply = (r: LocateResponse) => sendResponse(r);
-        const dialog = findBreakdownDialog();
+        // Whichever flyout is open — they never coexist.
+        const dialog = findBreakdownDialog() ?? findClaimDialog();
         if (!dialog) {
           // Nothing open — the desired state already holds.
           reply({ status: LOCATE_STATUS.Satisfied, tiles: 0, via: 'no-dialog' });
@@ -484,6 +546,53 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
               searchCounters: [],
               detail: 'no "Bing search" row in the points dialog',
             };
+      }
+      sendResponse(response);
+    })();
+    return true; // async sendResponse
+  }
+
+  if (msg.action === MSG_ACTION.READ_CLAIM) {
+    void (async () => {
+      // target 'card': the "Ready to claim" card's value on `/` (polled — the
+      // SPA may still be hydrating after navigation). target 'flyout': the open
+      // "Claim points" dialog's total/rows/empty state (polled — the background
+      // just dispatched the trusted click that opens it).
+      const deadline = Date.now() + TIMEOUTS.FLYOUT_RENDER;
+      let response: ClaimReadResponse;
+
+      if (msg.target === 'card') {
+        let card = findClaimCard();
+        while (!card && Date.now() < deadline) {
+          await sleep(TIMEOUTS.SECTION_CONFIRM_POLL);
+          card = findClaimCard();
+        }
+        if (!card) {
+          response = { read: false, detail: 'no "Ready to claim" card on the page' };
+        } else {
+          const points = parseClaimCardPoints(card.el);
+          response =
+            points === null
+              ? { read: false, detail: 'claim card value unreadable' }
+              : { read: true, target: 'card', points };
+        }
+      } else {
+        let dialog = findClaimDialog();
+        while (!dialog && Date.now() < deadline) {
+          await sleep(TIMEOUTS.SECTION_CONFIRM_POLL);
+          dialog = findClaimDialog();
+        }
+        if (!dialog) {
+          response = { read: false, detail: '"Claim points" dialog did not open' };
+        } else {
+          const parsed = parseClaimFlyout(dialog);
+          // An unparsed total alongside a populated flyout is a failed read;
+          // the empty state legitimately has nothing to parse.
+          response =
+            parsed.total === null && !parsed.empty
+              ? { read: false, detail: 'claim flyout total unreadable' }
+              : { read: true, target: 'flyout', ...parsed };
+        }
       }
       sendResponse(response);
     })();

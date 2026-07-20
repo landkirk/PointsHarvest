@@ -50,6 +50,7 @@ All values are `[min, max]` in milliseconds at 1.0× multiplier. Multiply by `ti
 | `CLICK_SIMULATION_RELEASE_DELAY` | 10–40 | Delay after pointerup before final click event |
 | `RESULT_CLICK_HOVER` | 500–1,500 | Pause after scrolling result into view, before clicking |
 | `RESULT_CLICK_DWELL` | 2,000–6,000 | Additional dwell time after clicking an organic result |
+| `CLAIM_SETTLE` | 2,000–4,500 | Pause after clicking "Claim points" before verifying the claim landed |
 
 ### TIMEOUTS Constants
 
@@ -66,6 +67,8 @@ Fixed limits (not affected by speed multiplier):
 | `TAB_CAPTURE_RETRY` | 3,000 ms | Capture window for card re-clicks (a working re-click opens its tab almost at once) |
 | `CARD_CLICK_ATTEMPTS` | 3 | Clicks tried before a card is reported as a blocked pop-up |
 | `AUTH_REDIRECT_GRACE` | 5,000 ms | How long an off-rewards page gets to bounce back before it counts as a sign-in redirect |
+| `CLAIM_READ_ATTEMPTS` | 4 | "Ready to claim" card reads tried after navigating to the rewards home page |
+| `CLAIM_VERIFY_POLLS` | 6 | Flyout re-reads before an unconfirmed claim is reported |
 | `USER_ACTION_POLL` | 2 min | Timeout for user to complete a single-click activity (poll) |
 | `USER_ACTION_QUIZ` | 10 min | Timeout for user to complete a quiz/test/puzzle |
 | `PERMISSION_WAIT` | 10 min | Max wait for user to fix Chrome popup permissions |
@@ -121,6 +124,7 @@ src/                    Source files (edit these)
     complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
     complete-more-activities.ts  Opens More Activities tiles, dwells, and validates; skips interactive tile types
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
+    claim-points.ts              Claims pending points via the "Claim points" flyout on /
     warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
     fetch-counters.ts          Read the PC search counter from the "Points breakdown" flyout (CDP open → read → close)
@@ -191,9 +195,10 @@ The extension uses Chrome's `runtime.sendMessage` API for all cross-context comm
 | `REWARDS_STATUS` | BG → rewards content | (none) | Readiness/login probe — replies `{ domComplete, loggedOutSignal }`; answering at all proves the content script is injected |
 | `EXTRACT_SECTIONS` | BG → rewards content | `{ sections: SectionKey[] }` | Parse the named sections' tiles into `RawCard[]` — replies `ExtractResponse` (cards, per-section tile counts, warnings) |
 | `LOCATE_CARD` | BG → rewards content | `{ title, destinationUrl, activityType }` | Scroll a tile into view and return a `LocateResponse`, so BG can dispatch a trusted CDP click |
-| `LOCATE_CONTROL` | BG → rewards content | `{ control: 'sectionToggle' \| 'showMore', sectionKey }` or `{ control: 'pointsToggle' \| 'dialogClose' }` | Locate a section's disclosure toggle / "Show more" button, or the standalone points-flyout controls (returns a `LocateResponse`); BG does the clicking |
+| `LOCATE_CONTROL` | BG → rewards content | `{ control: 'sectionToggle' \| 'showMore', sectionKey }` or `{ control: 'pointsToggle' \| 'dialogClose' \| 'claimToggle' \| 'claimConfirm' }` | Locate a section's disclosure toggle / "Show more" button, or a standalone page control (points-flyout toggle, dialog Close, "Ready to claim" card, claim confirm button) — returns a `LocateResponse`; BG does the clicking |
 | `VALIDATE_ACTIVITY` | BG → rewards content | `{ title, destinationUrl, activityType }` | Re-read the card's DOM badge — replies `{ state, stateLabel }` |
 | `READ_COUNTERS` | BG → rewards content | (none) | Parse the open "Points breakdown" flyout's Bing-search row — replies `CountersResponse` in points |
+| `READ_CLAIM` | BG → rewards content | `{ target: 'card' \| 'flyout' }` | Read the "Ready to claim" card's value on `/`, or the open "Claim points" flyout's total/rows/empty state — replies `ClaimReadResponse` |
 | `PERFORM_SEARCH` | BG → search content | `{ query: string }` | Type query, submit search form |
 | `SCROLL_PAGE` | BG → search content | `{ y: number, behavior: 'smooth' \| 'instant' }` | Scroll the page during dwell |
 | `CLICK_RESULT` | BG → search content | (none) | Simulate click on top 3 organic result (35% CTR) |
@@ -341,6 +346,18 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - The query pool is exhausted, or the run is aborted or errors
 - Each search runs via `steps/perform-search` with dwell and optional CTR click
 
+### orchestrators/claim-points.ts
+- Runs **last** in the chain: claims pending points via the "Ready to claim" card, which only renders on the rewards **root page `/`** — points expire a month after they're earned, and running after every other phase includes anything earned during this run
+- `_ensureRewardsTab()` mirrors the farm phase's pattern: reuses the rewards tab if it's alive, navigates it back to `/` if it wandered, and **re-opens it if the user closed it** (re-tracking via `ctx.setState({ rewardsTabId })` so `_endRun` still closes it); a user Stop mid-reopen re-throws instead of being recorded as a failure
+- Flow (all clicks on the trusted CDP path via `TabManager.clickPageControl`):
+  1. Read the card's value (`READ_CLAIM` `target: 'card'`, up to `CLAIM_READ_ATTEMPTS` tries) — an unreadable card is a debug-log WARN, not a failure banner, since the card plausibly doesn't render when nothing is claimable; a value of 0 short-circuits the phase
+  2. Open the flyout (`clickPageControl(CLAIM_TOGGLE)`) and read it (`READ_CLAIM` `target: 'flyout'`) — the claim amount is the flyout total, falling back to the card value; claimable rows are logged
+  3. Press the confirm button (`clickPageControl(CLAIM_CONFIRM)`; Satisfied if the flyout already shows its empty state), then dwell `TIMING.CLAIM_SETTLE`
+  4. Verify up to `CLAIM_VERIFY_POLLS` times — the claim counts as landed when the flyout reads empty / total 0, or (if the flyout auto-closed) the card is gone or reads 0
+  5. Close the dialog best-effort (`clickPageControl(DIALOG_CLOSE)`; Satisfied if already gone)
+- **Only verified claims are credited**: success sets the `claim` phase to `points: total, progress 1/1`; an unconfirmed claim records a `validation` failure and credits 0 rather than inflating the summary
+- The `claim` phase has `cadence: ''` on purpose — claimed points were already counted by the phase that earned them, so they stay out of the daily/weekly headline sums (the popup row reads "+N pts claimed" via `timeLabel`)
+
 ### steps/fetch-counters.ts
 - Reads the PC search counter from the **"Points breakdown" flyout** on the rewards tab's `/earn` page (driven from the service worker, not the tab, to dodge background-tab timer throttling)
 - Each read is an open → read → close round trip, all on the trusted CDP path: `TabManager.clickPageControl(POINTS_TOGGLE)` locates the "Today's points" card and clicks it (Satisfied if the dialog is already open) → `READ_COUNTERS` has the content script wait up to 3s (`FLYOUT_RENDER`) for the `[role="dialog"]` titled "Points breakdown" and parse its "Bing search" row (`35/100 50` → 35/100 in points; the struck-through pre-2X cap never matches the slash pattern) → `clickPageControl(DIALOG_CLOSE)` clicks the dialog's Close button, best-effort
@@ -412,14 +429,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `loadPreferences()` / `setPreference(updates)` — load/save user preferences
 - `loadRunState()` / `setRunState(updates)` — load/save run state; all writes serialized through `enqueueWrite()` to prevent race conditions
 - `resetRunState(overrides)` — reset all run fields to `INITIAL_RUN_STATE` (preserves preference keys; storage.local.set is additive)
-- `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phases, phasePoints, `linger`)
+- `setHeaderState()` / `getHeaderState()` — deep-merge updates to header subobject (headerMessage, activePhase, phaseStates, `linger`)
 - `LingerInfo` (`{ label, totalMs, endsAt }`) — mirrors the active `lingerOnPage()` call into `header.linger` via `util/linger-reporter.ts`'s `registerLingerReporter()` (wired up in `background.ts`), so the popup can render a live "pausing" countdown badge; cleared (`linger: null`) when the linger ends or the run stops
 - `setDebugState()` / `getDebugLog()` / `getFailures()` — accessors for debug and failure sub-state
-- `PHASE` constants: `'warmup'`, `'explore'`, `'daily'`, `'more-activities'`, `'farm'` — used as keys in `PhaseProgressMap` and `PhasePointsMap`
-- `PHASE_KEYS: readonly PhaseKey[]` — exported tuple of all phase keys in order, used by the popup to iterate rows
-- `PHASE_LABELS: Record<PhaseKey, string>` — display names (`'Warm-up'`, `'Explore on Bing'`, `'Daily Sets'`, `'More Activities'`, `'PC Searches'`) used by the run summary card
+- Phase definitions live in `util/phase.ts`: the `PHASE` registry maps each key (`'warmup'`, `'explore'`, `'daily'`, `'more-activities'`, `'farm'`, `'claim'`) to a `PhaseDefinition` (`{ key, label, cadence, timeLabel, activityType }`); `PHASES` is the ordered array mirroring the orchestrator chain (the popup and run summary build their rows from it), with `PHASE_KEYS`/`PHASES_BY_KEY`/`INITIAL_PHASE_STATES` derived from it. `header.phaseStates` is a `Record<PhaseKey, { progress, points }>`
 - `RUN_END` constants and `RunEndReason` type: `'success' | 'stopped' | 'not-logged-in' | 'fatal' | 'setup-failed'` — passed into `_endRun` and stored on `RunSummary.endReason`
-- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phases, phasePoints, activityCounts: { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted, actionableLeftover }, failureCount }`
+- `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phaseStates, activityCounts: { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted, actionableLeftover }, failureCount }`
 
 ### util/runtime-state.ts
 - `activeOrchestrator` / `activeContext` — in-memory only (not persisted); reset on service worker restart
@@ -487,7 +502,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Real-time updates via `chrome.runtime.onMessage` listening for `PROGRESS`, `DEBUG_ENTRY`, `FAILURE_ENTRY` broadcasts
 - **Header**: includes a link to the Bing Rewards Dashboard (`rewards.bing.com`) for quick manual access
 - **Phase-based progress display**:
-  - Renders per-phase (Warmup, Explore, Daily, Farm) progress bars (`done / total`) and earned-points labels
+  - Renders per-phase (Warmup, Daily, Explore, More Activities, Farm, Claim) progress bars (`done / total`) and earned-points labels — rows are built from the `PHASES` array in `util/phase.ts`
   - Uses `PHASE` constants and `PHASE_TIME_LABEL` for display labels
   - **Animated earnings counter**: when a phase's earned points increase, `animatePhaseEarned(phase, from, to)` smoothly counts the number up over 650 ms with cubic ease-out and adds an `earning` CSS class to the phase row for the duration. `animHandles` / `animDisplayed` track the in-flight `requestAnimationFrame` handle and the currently-displayed value per phase so mid-animation updates continue from the current display value instead of jumping. `stopPhaseAnim(phase)` cancels any pending frame and removes the class (called on stop and on run start).
 - **Run summary card**: after a run ends, the popup reads `lastRunSummary` from run state and delegates to `renderRunSummaryCard()` in `ui/run-summary-card.ts` to display the recap
@@ -553,6 +568,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - **Control locate handler** (`LOCATE_CONTROL`) — locate-only, never clicks. Resolves a section's disclosure toggle (`control: 'sectionToggle'`; tiered: section-descendant → `aria-controls` panel → `aria-label` → nearby heading) or its "Show more"/"See more"/"View more" button (`control: 'showMore'`), replying with the same `LocateResponse` union — `satisfied` when the toggle is already expanded or no pagination remains. The clicking and pagination loop live in `TabManager.expandSection`
 - **Activity validation handler** (`VALIDATE_ACTIVITY`) — resolves the card with the **same matcher the click used** (so click and validate cannot disagree about which tile is meant) and replies `{ state: tileState(card), stateLabel }`; a card not in the DOM answers `CardState.NotFound`. (`steps/validate-activity` never sends an empty title — it skips validation and assumes completion, since the outcome would be unknowable on every attempt and the retry would double-activate the tile)
 - **Counter read handler** (`READ_COUNTERS`) — the background has just clicked the "Today's points" toggle; this waits up to `FLYOUT_RENDER` (3s) for the "Points breakdown" dialog, then parses its Bing-search row via `parsePointsBreakdown()`. Replies `CountersResponse` `{ read, searchCounters, detail? }` in **points** — `read: false` carries a `detail` naming exactly what failed (dialog never opened / row not found), which `fetch-counters` logs; the `LOCATE_CONTROL` kinds `pointsToggle`/`dialogClose` serve the open/close clicks
+- **Claim read handler** (`READ_CLAIM`) — two targets, both polled up to `FLYOUT_RENDER`: `target: 'card'` finds the "Ready to claim" card (`findClaimCard()`, root page only) and parses its value (`parseClaimCardPoints()`); `target: 'flyout'` finds the open "Claim points" dialog (`findClaimDialog()`, resolved by its heading) and parses total/rows/empty state (`parseClaimFlyout()`). Replies `ClaimReadResponse` — `read: false` carries a `detail`. The `LOCATE_CONTROL` kinds `claimToggle`/`claimConfirm` serve the open/confirm clicks; `dialogClose` closes whichever flyout is open. The dialog's heading and its confirm button share the exact text "Claim points", so `findClaimConfirm()` matches only `<button>` elements, excluding `[aria-label="Close"]` and the `[aria-expanded]` "How it works" disclosure trigger
 - **DOM anchors** — the site's Tailwind/design-token class names (`text-globalBody2Strong`, `text-statusInformativeTintFg`, …) are not stable contracts, and react-aria element ids (`#react-aria-_R_…`) are **random per render — never use them**. The only durable anchors are the semantic section ids:
   - `section#dailyset` — the 3 daily set cards (home page; only today's set is rendered)
   - `section#exploreonbing` — Explore on Bing tiles (`/earn`)
@@ -854,9 +870,8 @@ Split into two independent persistent objects in `chrome.storage.local` (via `ut
 - `failures` — list of soft failures (max 50)
 - `header` — run progress state:
   - `headerMessage` — current status message
-  - `activePhase` — currently executing phase (`'warmup'` | `'explore'` | `'daily'` | `'more-activities'` | `'farm'` | null)
-  - `phases` — per-phase progress (`{ warmup: null, explore: { done, total }, ... }`)
-  - `phasePoints` — per-phase earned points (`{ warmup: 0, explore: 50, ... }`)
+  - `activePhase` — currently executing phase (`'warmup'` | `'explore'` | `'daily'` | `'more-activities'` | `'farm'` | `'claim'` | null)
+  - `phaseStates` — per-phase progress and points (`{ warmup: { progress: null, points: 0 }, explore: { progress: { done, total }, points: 50 }, ... }`)
 - `debug` — debug log entries
 - `lastRunSummary` — `RunSummary` from the most recent run (or `null` if none). Written by `_endRun` and consumed by the popup to render the end-of-run summary card.
 
@@ -882,7 +897,7 @@ All cross-context communication via `chrome.runtime.sendMessage()`. See **All Me
 Key flows:
 - **Popup ↔ Background**: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
 - **Background → Popup (broadcasts)**: `PROGRESS` (per-phase state), `DEBUG_ENTRY`, `FAILURE_ENTRY`
-- **Background ↔ Rewards content**: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`
+- **Background ↔ Rewards content**: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`, `READ_CLAIM`
 - **Background → Search content**: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
 
 Note that not every cross-context action is a message: every trusted click (card, section toggle, "Show more") is dispatched by the **background** straight into the page over the Chrome DevTools Protocol (`Input.dispatchMouseEvent`), bypassing the content script entirely. The content script's role there is limited to `LOCATE_CARD`/`LOCATE_CONTROL`, which report where to aim.

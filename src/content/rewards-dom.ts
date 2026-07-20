@@ -239,19 +239,25 @@ export function findPointsToggle(): { el: HTMLElement; via: string } | null {
 }
 
 /**
- * The open "Points breakdown" dialog, or null. Resolved by the dialog's own
- * heading — never by a document-wide text search, because the *closed* toggle
- * also contains the words "Points breakdown".
+ * The open dialog whose heading matches, or null. Resolved by the dialog's own
+ * heading (`aria-labelledby`, else its `h2`) — never by a document-wide text
+ * search, because the *closed* toggle that opens a flyout also contains the
+ * flyout's title words.
  */
-export function findBreakdownDialog(): HTMLElement | null {
+function findDialogByTitle(titleRe: RegExp): HTMLElement | null {
   for (const dlg of Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'))) {
     const labelledBy = dlg.getAttribute('aria-labelledby');
     const heading =
       (labelledBy ? document.getElementById(labelledBy)?.textContent : null) ??
       dlg.querySelector('h2')?.textContent;
-    if (BREAKDOWN_TITLE_RE.test(clean(heading))) return dlg;
+    if (titleRe.test(clean(heading))) return dlg;
   }
   return null;
+}
+
+/** The open "Points breakdown" dialog, or null. */
+export function findBreakdownDialog(): HTMLElement | null {
+  return findDialogByTitle(BREAKDOWN_TITLE_RE);
 }
 
 /** The dialog's Close control (header `button[aria-label="Close"]`, else the footer Close). */
@@ -279,4 +285,135 @@ export function parsePointsBreakdown(dialog: HTMLElement): { current: number; ma
   if (!m) return null;
   const num = (s: string) => Number(s.replace(/,/g, ''));
   return { current: num(m[1]), max: num(m[2]) };
+}
+
+// ── "Claim points" flyout (pending claimable points) ────────────────────────
+//
+// Earned points sit unclaimed (and expire after a month) until claimed. The
+// "Ready to claim" card — on the rewards root page `/` only — shows the
+// claimable total and opens a `[role="dialog"]` flyout titled "Claim points":
+// a headline total, an Activity/Points grid, and a footer confirm button whose
+// text is ALSO exactly "Claim points" (hence the anchored regex and the
+// button-only matching below). When nothing is claimable the confirm is
+// replaced by an "Earn more points" link and the grid reads
+// "No points to claim right now".
+
+const CLAIM_CARD_RE = /ready to claim/i;
+const CLAIM_DIALOG_TITLE_RE = /^claim points$/i;
+const CLAIM_EMPTY_RE = /no points to claim right now/i;
+
+/** Comma-stripped integer from a bare-number text, or null. */
+function bareNumber(text: string | undefined | null): number | null {
+  const m = clean(text).match(/^([\d,]+)$/);
+  return m ? Number(m[1].replace(/,/g, '')) : null;
+}
+
+/**
+ * The "Ready to claim" card on `/`: a card-style `button[aria-expanded]`
+ * carrying the label in its text/img[alt]. Same two-tier shape as
+ * findPointsToggle, falling back to a visible-clickable text scan.
+ */
+export function findClaimCard(): { el: HTMLElement; via: string } | null {
+  const byButton = Array.from(
+    document.querySelectorAll<HTMLButtonElement>('button[aria-expanded]'),
+  ).find(
+    (b) =>
+      isVisible(b) &&
+      (CLAIM_CARD_RE.test(clean(b.textContent)) ||
+        CLAIM_CARD_RE.test(clean(b.querySelector('img')?.alt))),
+  );
+  if (byButton) return { el: byButton, via: 'aria-expanded' };
+
+  const byText = Array.from(
+    document.querySelectorAll<HTMLElement>('button, a, [role="button"]'),
+  ).find((el) => CLAIM_CARD_RE.test(clean(el.textContent)) && isVisible(el));
+  return byText ? { el: byText, via: 'text-scan' } : null;
+}
+
+/**
+ * The card's claimable value from its `p.text-pageHeader` (design token);
+ * falls back to the first bare-number `<p>` in the card if the token drifts.
+ * The trailing "Claim" metadata label is non-numeric, so it can't match.
+ */
+export function parseClaimCardPoints(card: HTMLElement): number | null {
+  const byToken = bareNumber(card.querySelector('p.text-pageHeader')?.textContent);
+  if (byToken !== null) return byToken;
+
+  for (const p of Array.from(card.querySelectorAll<HTMLElement>('p'))) {
+    const n = bareNumber(p.textContent);
+    if (n !== null) return n;
+  }
+  return null;
+}
+
+/** The open "Claim points" dialog, or null. */
+export function findClaimDialog(): HTMLElement | null {
+  return findDialogByTitle(CLAIM_DIALOG_TITLE_RE);
+}
+
+/**
+ * The flyout's footer confirm button. The dialog HEADING is also "Claim
+ * points", so this matches only `<button>` elements by their own exact cleaned
+ * text, and excludes the header Close (aria-label) and the "How it works"
+ * disclosure trigger (aria-expanded).
+ */
+export function findClaimConfirm(dialog: HTMLElement): HTMLElement | null {
+  return (
+    Array.from(dialog.querySelectorAll<HTMLButtonElement>('button')).find(
+      (b) =>
+        isVisible(b) &&
+        CLAIM_DIALOG_TITLE_RE.test(clean(b.textContent)) &&
+        !b.hasAttribute('aria-expanded') &&
+        b.getAttribute('aria-label') !== 'Close',
+    ) ?? null
+  );
+}
+
+export interface ClaimFlyoutParse {
+  total: number | null;
+  rows: { title: string; points: number }[];
+  empty: boolean;
+}
+
+/**
+ * The flyout's claim state. `empty` and `total` drive orchestrator behavior;
+ * `rows` are best-effort debug detail (empty array on any markup drift). The
+ * total is the `p.text-pageHeader` sharing a row with `img[alt="Points"]`,
+ * falling back to the first bare-number page-header in the dialog.
+ */
+export function parseClaimFlyout(dialog: HTMLElement): ClaimFlyoutParse {
+  const empty = Array.from(dialog.querySelectorAll<HTMLElement>('p')).some((p) =>
+    CLAIM_EMPTY_RE.test(clean(p.textContent)),
+  );
+
+  let total: number | null = null;
+  const coinImg = dialog.querySelector<HTMLImageElement>('img[alt="Points"]');
+  if (coinImg) {
+    total = bareNumber(coinImg.closest('div')?.querySelector('p.text-pageHeader')?.textContent);
+  }
+  if (total === null) {
+    for (const p of Array.from(dialog.querySelectorAll<HTMLElement>('p.text-pageHeader'))) {
+      const n = bareNumber(p.textContent);
+      if (n !== null) {
+        total = n;
+        break;
+      }
+    }
+  }
+
+  // Rows: the Activity/Points grid renders each activity as a title `<p>` with
+  // an expiry metadata sibling, then a sibling points cell. Structure-based and
+  // deliberately forgiving — a miss yields [] without affecting behavior.
+  const rows: { title: string; points: number }[] = [];
+  for (const p of Array.from(dialog.querySelectorAll<HTMLElement>('div > p:first-child'))) {
+    const cell = p.closest('div');
+    if (!cell || !dialog.contains(cell)) continue;
+    const points = bareNumber(cell.nextElementSibling?.textContent);
+    const title = clean(p.textContent);
+    if (points !== null && title && !CLAIM_EMPTY_RE.test(title)) {
+      rows.push({ title, points });
+    }
+  }
+
+  return { total, rows, empty };
 }

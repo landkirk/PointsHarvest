@@ -32,6 +32,7 @@ Popup (Start button)
       → complete-explore-on-bing (navigates to /earn, clicks "Search on Bing" cards, runs search queries)
       → complete-more-activities (still on /earn; opens "Keep earning" tiles, dwells, validates)
       → farm-pc-searches (runs searches until the PC counter cap is reached)
+      → claim-points (navigates back to /, claims pending points via the "Claim points" flyout)
 ```
 
 Content scripts are bundled by esbuild as IIFEs, so they **can** use `import`/`export` at source level (esbuild inlines the modules) — `rewards-content.ts` imports from `../util/`. What MV3 forbids is loading the *emitted* script as an ES module. Do not add content scripts to `tsconfig.build.json`.
@@ -44,6 +45,7 @@ rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind). The dash
 - **Cards** are `a[href]` tiles: title in `img[alt]`/the strong `<p>`; actionable = `+N` badge; completed = success pill + trailing "Completed" label. Explore tiles read "Activated" (armed, uncredited) between click and credit — that is NOT complete. Badge-less tiles are 0-point promos and are skipped. The join key is **cleaned title within section**, tie-broken by the anchor's resolved href (captured at extraction, so exact).
 - **Login detection** is the `REWARDS_STATUS` probe: a visible "Sign in" control convicts; a fully-loaded page showing none, confirmed across several probes (SPA hydration), reads as signed in.
 - **Counters** come from the "Points breakdown" flyout on `/earn` (opened via the "Today's points" toggle) — the site renders no inline counter anywhere else.
+- **Claimable points** live behind the "Ready to claim" card on `/` (root only), which opens the "Claim points" flyout. The flyout's heading and its footer confirm button share the exact text "Claim points", so the confirm finder matches `<button>` elements only, excluding the Close button and the "How it works" disclosure. Claiming rides the same trusted-CDP click path.
 - **Clicks stay trusted.** Tiles only credit on a *trusted* click, so the background dispatches a real one over the Chrome DevTools Protocol (`debugger` permission) rather than synthesizing pointer events; the flyout toggle rides the same path so nothing the extension dispatches is synthetic (`isTrusted: false` is page-detectable).
 
 ### Key Layers
@@ -63,7 +65,7 @@ rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind). The dash
 **State** — Split into two files:
 - `src/util/persistent-state.ts` — `chrome.storage.local` backed; survives service worker restarts. `RunState` (progress, warm-up queries, counters, `activityState`, failures, debug log) is wiped by `resetRunState()` at every run start — there is no run-date gate and no mid-run resumption. `UserPreferences` (`skipWarmUp`, `timingMultiplier`, `debugMode`, …) persists across runs. All writes serialized through `enqueueWrite()`.
 - `src/util/runtime-state.ts` — In-memory only (`activeOrchestrator`) — resets on SW restart.
-- Phase progress and points tracked in `header.phases` / `header.phasePoints` using `PHASE` constants (`warmup`, `explore`, `daily`, `farm`) and read by the popup for per-phase progress bars.
+- Phase progress and points tracked in `header.phaseStates` using the `PHASE` registry in `src/util/phase.ts` (`warmup`, `daily`, `explore`, `more-activities`, `farm`, `claim`) and read by the popup for per-phase progress bars.
 - `lastRunSummary` stores the most recent `RunSummary` (start/end times, per-phase points, activity counts, end reason) so the popup can render the end-of-run summary card after a run finishes.
 
 **Timing** (`src/util/timing.ts`) — All delays use `randMs(min, max)` with triangular distribution. `TIMING.LINGER_ON_PAGE` (5–7s) is the standard dwell preset used between actions.
@@ -106,7 +108,7 @@ CSS selectors in this project must be verified against actual DOM structure. Whe
 
 Most cross-context communication uses `chrome.runtime.sendMessage`. Constants live in `src/util/messaging.ts` (`MSG_ACTION`), and `AppMessage` is a discriminated union — add new fields/actions there so payloads stay typed. Key flows:
 - Popup ↔ Background: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
-- Background ↔ Rewards content: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`
+- Background ↔ Rewards content: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`, `READ_CLAIM`
 - Background → Search content: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
 - Background → Popup (push): `PROGRESS`, `DEBUG_ENTRY`, `FAILURE_ENTRY`
 
