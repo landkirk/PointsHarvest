@@ -20,11 +20,11 @@ export const TIMING: Record<string, [number, number]> = {
 export const TIMEOUTS = {
   FETCH_ACTIVITIES: 20_000, // rewards page extraction timeout
   FETCH_COUNTERS_MAX_POLLS: 20, // max polls before giving up
-  // How long the content script keeps retrying the dashboard API before it
-  // reports the session unreadable. Stays under FETCH_ACTIVITIES so the
-  // background hears an answer rather than timing out on its own.
+  // Extra readiness budget granted once the rewards content script first
+  // answers a REWARDS_STATUS probe — so a slow page load doesn't eat the
+  // window the login confirmation needs.
   REWARDS_EXTRACT_MAX_WAIT: 15_000,
-  REWARDS_EXTRACT_POLL: 500, // API retry interval
+  REWARDS_EXTRACT_POLL: 500, // REWARDS_STATUS probe interval
   TAB_LOAD: 30_000, // default waitForTabLoad timeout
   // How long an off-rewards page gets to redirect back before it counts as a
   // sign-in redirect. Auth interstitials (login.live.com silent auth) finish

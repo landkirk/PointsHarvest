@@ -26,7 +26,7 @@ This is a **Chrome Extension (Manifest V3)** that automates Bing Rewards daily p
 Popup (Start button)
   → background.ts (service worker, message router)
     → start-run (StartRun class, owns TabManager)
-      → activity-extraction (opens rewards tab, reads dashboard API, classifies activity cards)
+      → activity-extraction (opens rewards tab, confirms login via DOM probe, parses activity cards from the DOM)
       → warm-up-searches (optional warm-up phase)
       → complete-daily-sets (on /, opens daily set tiles; waits for user on quizzes/polls)
       → complete-explore-on-bing (navigates to /earn, clicks "Search on Bing" cards, runs search queries)
@@ -38,12 +38,13 @@ Content scripts are bundled by esbuild as IIFEs, so they **can** use `import`/`e
 
 ### Reading the rewards site
 
-rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind), which killed every selector the extension had. Two things matter most:
+rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind). The dashboard JSON API (`/api/getuserinfo?type=1`) was the source of truth for a while after that, until it started returning 401 even for live sessions — so now **everything reads the DOM**, via `src/content/rewards-dom.ts`:
 
-- **The dashboard JSON API (`/api/getuserinfo?type=1`) is the source of truth** for extraction, validation, and counters — not the DOM. It predates the rewrite and survived it, which is the whole point of depending on it. It must be fetched from a rewards.bing.com content script (same-origin + cookies). See `src/util/rewards-api.ts`.
-- **The DOM is touched only to locate and click cards.** Tiles only credit on a *trusted* click, so the background dispatches a real one over the Chrome DevTools Protocol (`debugger` permission) rather than synthesizing pointer events.
-
-`REWARDS-REDESIGN-PLAN.md` has the underlying research: the live site structure, the API response shape, and the defects still open against this path.
+- **Anchors**: semantic section ids (`section#dailyset` on `/`; `section#exploreonbing`, `section#moreactivities` on `/earn`) are the only durable hooks — react-aria ids are random per render. Tailwind design-token classes (`text-globalBody2Strong`, `bg-statusSuccessRewardsBg`, …) are semi-stable and every read has a structural fallback.
+- **Cards** are `a[href]` tiles: title in `img[alt]`/the strong `<p>`; actionable = `+N` badge; completed = success pill + trailing "Completed" label. Explore tiles read "Activated" (armed, uncredited) between click and credit — that is NOT complete. Badge-less tiles are 0-point promos and are skipped. The join key is **cleaned title within section**, tie-broken by the anchor's resolved href (captured at extraction, so exact).
+- **Login detection** is the `REWARDS_STATUS` probe: a visible "Sign in" control convicts; a fully-loaded page showing none, confirmed across several probes (SPA hydration), reads as signed in.
+- **Counters** come from the "Points breakdown" flyout on `/earn` (opened via the "Today's points" toggle) — the site renders no inline counter anywhere else.
+- **Clicks stay trusted.** Tiles only credit on a *trusted* click, so the background dispatches a real one over the Chrome DevTools Protocol (`debugger` permission) rather than synthesizing pointer events; the flyout toggle rides the same path so nothing the extension dispatches is synthetic (`isTrusted: false` is page-detectable).
 
 ### Key Layers
 
@@ -56,7 +57,7 @@ rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind), which ki
 **Shared helpers** — `run-activity-loop.ts` (per-activity iteration, progress, points) and `execute-with-retry.ts` (attempt/linger/retry + failure recording) are used by all three activity orchestrators; prefer them over hand-rolling a loop.
 
 **Content Scripts** (`src/content/`) — Injected into Bing pages. Bundled as IIFEs by esbuild and excluded from `tsconfig.build.json`.
-- `rewards-content.ts` — Runs on `rewards.bing.com`; extracts activities from the dashboard API, and handles `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `GET_COUNTERS`.
+- `rewards-content.ts` — Runs on `rewards.bing.com`; message router handling `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`. DOM parsing itself lives in `rewards-dom.ts` (inlined by esbuild).
 - `search-content.ts` — Runs on `www.bing.com`; handles `PERFORM_SEARCH` message, fills and submits the search box.
 
 **State** — Split into two files:
@@ -105,7 +106,7 @@ CSS selectors in this project must be verified against actual DOM structure. Whe
 
 Most cross-context communication uses `chrome.runtime.sendMessage`. Constants live in `src/util/messaging.ts` (`MSG_ACTION`), and `AppMessage` is a discriminated union — add new fields/actions there so payloads stay typed. Key flows:
 - Popup ↔ Background: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
-- Background ↔ Rewards content: `START_EXTRACT`, `ACTIVITIES_FOUND`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `GET_COUNTERS`
+- Background ↔ Rewards content: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`
 - Background → Search content: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
 - Background → Popup (push): `PROGRESS`, `DEBUG_ENTRY`, `FAILURE_ENTRY`
 

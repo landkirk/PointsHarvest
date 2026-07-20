@@ -59,8 +59,8 @@ Fixed limits (not affected by speed multiplier):
 |----------|-------|---------|
 | `FETCH_ACTIVITIES` | 20,000 ms | Max wait for activity extraction on rewards page |
 | `FETCH_COUNTERS_MAX_POLLS` | 20 | Max poll attempts for counter fetch (×700–1800 ms each = up to 36s) |
-| `REWARDS_EXTRACT_MAX_WAIT` | 15,000 ms | How long the content script retries the dashboard API before reporting the session unreadable |
-| `REWARDS_EXTRACT_POLL` | 500 ms | API retry interval during extraction |
+| `REWARDS_EXTRACT_MAX_WAIT` | 15,000 ms | Extra readiness budget granted once the content script first answers a `REWARDS_STATUS` probe |
+| `REWARDS_EXTRACT_POLL` | 500 ms | `REWARDS_STATUS` probe interval while waiting for the rewards page |
 | `TAB_LOAD` | 30,000 ms | Default timeout for a tab to finish loading |
 | `TAB_CAPTURE` | 10,000 ms | Max wait for a new tab to be created (first card click) |
 | `TAB_CAPTURE_RETRY` | 3,000 ms | Capture window for card re-clicks (a working re-click opens its tab almost at once) |
@@ -123,17 +123,16 @@ src/                    Source files (edit these)
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
     warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
-    fetch-counters.ts          Poll the rewards tab's dashboard API for search point counters
+    fetch-counters.ts          Read the PC search counter from the "Points breakdown" flyout (CDP open → read → close)
     perform-search.ts          Dwell and execute a single search in a tab
     linger-on-tab.ts           Pause automation and wait for user to complete a tile
-    validate-activity.ts       Confirm an activity is marked complete (via the dashboard API)
+    validate-activity.ts       Confirm an activity is marked complete (re-reads its card badge in the DOM)
     wait-for-user-action.ts    Generic step for pausing until the user completes a required action
   util/
     activity.ts         classifyCard(), enrichSearchQueries(), enrichUserActions(), markActivityCompleted()
     activity-types.ts   Activity/RawCard/ActivityState types, CardState + CARD_SOURCE enums
-    rewards-api.ts      Dashboard JSON API client + mappers (fetchDashboard, mapDashboardToCards, promoComplete)
     array.ts            Array utility helpers
-    config.ts           URL constants (REWARDS_URL, REWARDS_EARN_URL, REWARDS_API_PATH) and KEEPALIVE_PORT
+    config.ts           URL constants (REWARDS_URL, REWARDS_EARN_URL) and KEEPALIVE_PORT
     context.ts          createContext() — bundles setState/dbg/setPhase for orchestrators
     debug.ts            Logging helpers (dbg, resetLog) and debug type definitions
     errors.ts           NotLoggedInError and friends
@@ -166,7 +165,8 @@ src/                    Source files (edit these)
     run-summary-card.ts End-of-run summary card rendering
     screens/            HTML fragments for onboarding screens (ToS, Bing warning, changelog)
   content/
-    rewards-content.ts  Content script injected into rewards.bing.com (bundled by esbuild)
+    rewards-content.ts  Content script injected into rewards.bing.com — message router (bundled by esbuild)
+    rewards-dom.ts      DOM parsing for the redesigned rewards site (cards, badges, points flyout) — inlined into rewards-content
     search-content.ts   Content script injected into www.bing.com (bundled by esbuild)
 dist/                   Compiled extension output (generated — do not edit)
 site/                   Eleventy source for the marketing site (pointsharvest.com)
@@ -188,12 +188,12 @@ The extension uses Chrome's `runtime.sendMessage` API for all cross-context comm
 
 | Action | Direction | Payload | Purpose |
 |--------|-----------|---------|---------|
-| `START_EXTRACT` | BG → rewards content | (none) | Trigger activity extraction on rewards.bing.com |
-| `ACTIVITIES_FOUND` | rewards content → BG | `{ cards: RawCard[], loggedIn: boolean }` | Return extracted card data to background |
-| `LOCATE_CARD` | BG → rewards content | `{ title, destinationUrl, promoName, activityType }` | Scroll a tile into view and return a `LocateResponse`, so BG can dispatch a trusted CDP click |
-| `LOCATE_CONTROL` | BG → rewards content | `{ control: 'sectionToggle' \| 'showMore', sectionKey: SectionKey }` | Locate a section's disclosure toggle or "Show more" button (returns a `LocateResponse`); BG does the clicking |
-| `VALIDATE_ACTIVITY` | BG → rewards content | `{ promoName: string }` | Check if activity is marked complete (dashboard API, by `promoName`) |
-| `GET_COUNTERS` | BG → rewards content | (none) | Read search point counters from the dashboard API |
+| `REWARDS_STATUS` | BG → rewards content | (none) | Readiness/login probe — replies `{ domComplete, loggedOutSignal }`; answering at all proves the content script is injected |
+| `EXTRACT_SECTIONS` | BG → rewards content | `{ sections: SectionKey[] }` | Parse the named sections' tiles into `RawCard[]` — replies `ExtractResponse` (cards, per-section tile counts, warnings) |
+| `LOCATE_CARD` | BG → rewards content | `{ title, destinationUrl, activityType }` | Scroll a tile into view and return a `LocateResponse`, so BG can dispatch a trusted CDP click |
+| `LOCATE_CONTROL` | BG → rewards content | `{ control: 'sectionToggle' \| 'showMore', sectionKey }` or `{ control: 'pointsToggle' \| 'dialogClose' }` | Locate a section's disclosure toggle / "Show more" button, or the standalone points-flyout controls (returns a `LocateResponse`); BG does the clicking |
+| `VALIDATE_ACTIVITY` | BG → rewards content | `{ title, destinationUrl, activityType }` | Re-read the card's DOM badge — replies `{ state, stateLabel }` |
+| `READ_COUNTERS` | BG → rewards content | (none) | Parse the open "Points breakdown" flyout's Bing-search row — replies `CountersResponse` in points |
 | `PERFORM_SEARCH` | BG → search content | `{ query: string }` | Type query, submit search form |
 | `SCROLL_PAGE` | BG → search content | `{ y: number, behavior: 'smooth' \| 'instant' }` | Scroll the page during dwell |
 | `CLICK_RESULT` | BG → search content | (none) | Simulate click on top 3 organic result (35% CTR) |
@@ -280,12 +280,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 
 ### orchestrators/activity-extraction.ts
 - Runs once at the start of every run to extract and classify activities from rewards.bing.com
-- Sends `START_EXTRACT` to the content script and waits up to 20s (`TIMEOUTS.FETCH_ACTIVITIES`) for an `ACTIVITIES_FOUND` response containing `{ cards: RawCard[], loggedIn: boolean }`
-- That 20s budget is **armed when `START_EXTRACT` is sent** (on the tab's `complete` event), not when `waitForExtraction()` is entered — the rewards tab is opened without waiting for load, and the content script's own budget (`REWARDS_EXTRACT_MAX_WAIT`, 15s) also starts at page load. Timing from tab creation would spend the page's load time out of that window and settle empty while extraction was still working. An initial arm covers a page that never loads at all
-- **On timeout it reports `loggedIn: false`**, not true: an unreadable dashboard is not evidence of a session, and zero cards + `loggedIn: true` renders as a cheerful "Done for today!" to someone who earned nothing. Logged-out prompts for sign-in and re-extracts instead. The abort path is the deliberate exception — a stopped run must not prompt — so `emptyResult(tabId, loggedIn)` takes the session claim as a required parameter and the abort path passes `true`
-- If `loggedIn` is false, prompts the user to sign in (`notLoggedInAction`), reloads the rewards tab, and re-extracts once; a second failure throws `NotLoggedInError`
-- If the rewards tab finishes loading off `rewards.bing.com`, that is *provisionally* a sign-in redirect: a `TIMEOUTS.AUTH_REDIRECT_GRACE` (5s) timer starts, and only if the tab is still off-rewards when it fires does it record `FAIL.AUTH` and settle as logged-out — auth interstitials (login.live.com silent auth) reach `complete` and then bounce back via JS, and convicting on the first event would end the run for a signed-in user
-- Classifies each raw card via `classifyCard()` into `EXPLORE_ON_BING`, `DAILY_SET`, `MORE_ACTIVITIES`, or `IGNORED` based on promo name, source, and title/description patterns
+- `waitForRewardsReady()` polls the content script's `REWARDS_STATUS` probe every 500 ms (`REWARDS_EXTRACT_POLL`) with an initial 20s budget (`TIMEOUTS.FETCH_ACTIVITIES`); the first successful probe extends the deadline once by `REWARDS_EXTRACT_MAX_WAIT` (15s), so a slow page load doesn't eat the confirmation window. Login is decided by DOM evidence: a non-null `loggedOutSignal` convicts immediately, while a fully-loaded page showing none must hold that answer across **3 consecutive probes** before it counts (the React header can hydrate the Sign-in control after `readyState` fires)
+- **On timeout it reports `loggedIn: false`**, not true: an unconfirmable session is not evidence of one, and zero cards + `loggedIn: true` renders as a cheerful "Done for today!" to someone who earned nothing. Logged-out prompts for sign-in and re-probes instead. The abort path is the deliberate exception — a stopped run must not prompt — so `emptyResult(tabId, loggedIn)` takes the session claim as a required parameter and the abort path passes `true`
+- If `loggedIn` is false, prompts the user to sign in (`notLoggedInAction`), reloads the rewards tab, and re-probes once; a second failure throws `NotLoggedInError`
+- If the tab sits off `rewards.bing.com`, that is *provisionally* a sign-in redirect: only after `TIMEOUTS.AUTH_REDIRECT_GRACE` (5s) continuously off-rewards does it record `FAIL.AUTH` and settle as logged-out — auth interstitials (login.live.com silent auth) load and then bounce back via JS, and convicting on the first sighting would end the run for a signed-in user
+- `extractActivities()` then reads the DOM section by section — `ensureSectionReady()` navigates to each section's page (`/` for the daily set, `/earn` for explore + "Keep earning") and expands it (collapsed sections unmount their tiles; "Keep earning" also needs its "Show more" pages walked), then `EXTRACT_SECTIONS` has the content script parse the tiles into `RawCard[]` via `content/rewards-dom.ts`. Extraction warnings (skipped badge-less tiles, duplicate titles, missing sections) land in the debug log. Note this is where the CDP debugger banner first appears — section expansion uses trusted clicks
+- Classifies each raw card via `classifyCard()` into `EXPLORE_ON_BING`, `DAILY_SET`, `MORE_ACTIVITIES`, or `IGNORED` based on source (section membership) and title/description patterns
 - Enriches explore cards with `searchQuery` and `fallbackQuery` via `enrichSearchQueries()`
 - Enriches daily cards with `requiresUserAction`, `userActionKind`, and `userActionTimeoutMs` via `enrichUserActions()`; `userActionKind` is one of `'quiz' | 'poll' | 'puzzle' | null` (cards matching `test` are folded into `quiz`). Timeout is 2 min for polls, 10 min for quizzes/puzzles.
 - Stores the full `ActivityState` (all cards, `rewardsTabId`, `loggedIn`) to persistent storage for downstream orchestrators
@@ -305,7 +305,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 
 ### orchestrators/complete-daily-sets.ts
 - Runs first of the three activity phases, to complete daily set activities (quizzes, polls, surveys, offers, etc.)
-- **Page routing**: daily sets live on the home page (`/`), so `ensureSectionReady(ctx, tabId, SECTION.dailySet)`'s navigation step is a no-op in practice, since extraction already leaves the tab on `/`. That is why this phase runs first (see the chain order in `managers/start-run.ts`)
+- **Page routing**: daily sets live on the home page (`/`), so it calls `ensureSectionReady(ctx, tabId, SECTION.dailySet)` — extraction now ends on `/earn`, so this navigates back to `/` (one extra hop, accepted)
 - Filters for actionable daily set cards (`activityType === DAILY_SET`, `cardState === Actionable`)
 - Iterates each activity:
   - Uses `TabManager.clickCardAndCaptureTab()` to click the card on rewards page and capture the activity's page (trusted CDP click)
@@ -330,11 +330,11 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 
 ### orchestrators/farm-pc-searches.ts
 - Runs after all activity cards to maximize PC search points by farming until the daily cap is reached
-- **Reuses the already-open rewards tab** to read counters. There is no dedicated breakdown tab: `rewards.bing.com/pointsbreakdown` no longer exists (it redirects to `/dashboard?modal=membership`, which has no live counter), so counters come from the dashboard API instead
-- `_ensureRewardsTab()` checks that the tab is still alive **and still on rewards.bing.com** — navigating it back if the user wandered it elsewhere, and **re-opening it if the user closed it** during an earlier phase (re-tracking it via `ctx.setState({ rewardsTabId })` so `_endRun` still closes it). Without this the phase is silently lost: `GET_COUNTERS` to a closed or navigated-away tab is swallowed by `fetch-counters`, which burns all 20 polls before failing. A user Stop during the reopen re-throws rather than being recorded as a failure
+- **Reuses the already-open rewards tab, parked on `/earn`** — the "Points breakdown" flyout that carries the counter only exists there (there is no inline counter anywhere on the redesigned site; the old `/pointsbreakdown` page is gone)
+- `_ensureRewardsTab()` checks that the tab is still alive **and on `/earn` specifically** — navigating it there if the user wandered it elsewhere (origin alone is not enough), and **re-opening it if the user closed it** during an earlier phase (re-tracking it via `ctx.setState({ rewardsTabId })` so `_endRun` still closes it). Without this the phase is silently lost: a counter read against a closed or navigated-away tab is swallowed by `fetch-counters`, which burns all 20 polls before failing. A user Stop during the reopen re-throws rather than being recorded as a failure
 - Reads the counter once up front; skips the phase if already at cap
 - Runs searches in a loop with random queries from the shuffled `PC_SEARCH_QUERIES` pool, re-polling counters after each search
-- The cap is **not hardcoded** — `max` is re-read from the API every poll. It is level-dependent (e.g. 25 points/day at Member level, higher at Gold), so it can change between runs and even mid-run on level-up
+- The cap is **not hardcoded** — `max` is re-read from the flyout every poll. It is level- and offer-dependent (e.g. 2X days double it mid-campaign), so it can change between runs and even mid-run
 - Stops when:
   - Counter reaches max (cap achieved)
   - No progress detected for 3 consecutive searches (`MAX_NO_PROGRESS`; records a failure and continues to the next orchestrator)
@@ -342,23 +342,23 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Each search runs via `steps/perform-search` with dwell and optional CTR click
 
 ### steps/fetch-counters.ts
-- Polls the **rewards tab** for current search point counters (polling runs in the service worker, not the tab, to dodge background-tab timer throttling)
-- Sends `GET_COUNTERS` to the rewards content script, which answers from the dashboard API (`userStatus.counters.pcSearch` → `pointProgress` / `pointProgressMax`)
-- Polls up to 20 times with jittered intervals (700–1800 ms) using `randMs(TIMING.FETCH_COUNTERS_POLL)`. Only `read: false` replies (dashboard unreadable) are retried — a `read: true` reply with no counters is a definitive "no live counter on this account" and returns `[]` immediately
+- Reads the PC search counter from the **"Points breakdown" flyout** on the rewards tab's `/earn` page (driven from the service worker, not the tab, to dodge background-tab timer throttling)
+- Each read is an open → read → close round trip, all on the trusted CDP path: `TabManager.clickPageControl(POINTS_TOGGLE)` locates the "Today's points" card and clicks it (Satisfied if the dialog is already open) → `READ_COUNTERS` has the content script wait up to 3s (`FLYOUT_RENDER`) for the `[role="dialog"]` titled "Points breakdown" and parse its "Bing search" row (`35/100 50` → 35/100 in points; the struck-through pre-2X cap never matches the slash pattern) → `clickPageControl(DIALOG_CLOSE)` clicks the dialog's Close button, best-effort
+- Polls up to 20 times with jittered intervals (700–1800 ms) using `randMs(TIMING.FETCH_COUNTERS_POLL)`. Failed reads carry a `detail` string (toggle missing, dialog never opened, row not found) that is logged at WARN — selector drift is diagnosable from the run log rather than manifesting as 20 silent polls
 - Normalizes counter values by dividing by `PC_SEARCH_POINTS_PER_SEARCH` (5 points per search) to convert from point values to search counts, keeping the raw point values in `currentPoints`/`maxPoints`
 - Returns `SearchCounter[]` with structure: `{ type, current, max, currentPoints, maxPoints }`; drops any entry with `NaN` values and logs how many were dropped
 - Logs counter state after successful extraction
 - On timeout (20 polls without valid response), records a `FAIL.SEARCH` failure
 
 ### steps/validate-activity.ts
-- Validates that an activity is marked complete after its dwell period
-- An activity with no `promoName` skips validation entirely and reports `Completed` with a WARN: the dashboard can only answer by name, so the outcome would be unknowable on every attempt, and a retryable failure would just re-click (double-activate) the tile
-- Activates the rewards tab, waits 1.4–3.8s jitter (`randMs(TIMING.VALIDATE_ACTIVITY)`), then sends `VALIDATE_ACTIVITY` with `{ promoName }` to the rewards content script
-- Validation reads the **API**: the content script re-fetches the dashboard and reads the promo's `complete` flag by `promoName`. This works from any rewards page (`/` or `/earn`) and needs no card element on screen. There is no DOM fallback — a promo the dashboard doesn't know about answers `NotFound`
+- Validates that an activity is marked complete after its dwell period, by **re-reading its card's badge in the DOM** — resolved by the same title/href matcher the click used, so click and validate cannot disagree about which tile is meant
+- An activity with no `title` skips validation entirely and reports `Completed` with a WARN: the DOM can only answer by title/href, so the outcome would be unknowable on every attempt, and a retryable failure would just re-click (double-activate) the tile
+- Activates the rewards tab (which doubles as the SPA's refetch-on-focus trigger), waits 1.4–3.8s jitter (`randMs(TIMING.VALIDATE_ACTIVITY)`), then sends `VALIDATE_ACTIVITY` with `{ title, destinationUrl, activityType }`
+- If the first read isn't `Completed`, one **recovery pass** runs: reload the rewards tab (`TabManager.reloadTab`), re-expand the activity's section (collapsed sections unmount their tiles), re-read. This is what picks up an explore card's "Activated" → Completed flip when the credit lags the click. The reply's `stateLabel` ("Activated"/"Completed") is logged so armed-but-uncredited is distinguishable from untouched
 - Returns `ActivityValidationResult` (`Completed`, `Incomplete`, or `Error`):
-  - `Completed`: the API reports `complete: true`
-  - `Incomplete`: activity not yet credited
-  - `Error`: no response, or the promo was `NotFound` (empty `promoName`, or unknown to the dashboard)
+  - `Completed`: the card shows the success badge / "Completed" label
+  - `Incomplete`: card still reads actionable after the recovery pass (lets `executeWithRetry` re-click)
+  - `Error`: no response, or the card was `NotFound` in the DOM
 - Logs validation result with activity ID and title for debugging
 
 ### steps/linger-on-tab.ts
@@ -464,19 +464,16 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Callbacks: `statusLine(activity)` for the header, optional `skip(activity)` returning a reason string (logged as a warning) or `null`, and `attempt(activity, index, progress)` returning whether it credited
 - Sets `ctx.activeActivity` around each attempt (cleared in a `finally`) so logs and the popup can attribute work
 
-### util/rewards-api.ts
-- Client + mappers for the dashboard JSON API (`GET /api/getuserinfo?type=1`), the source of truth for extraction, validation, and counters
-- `fetchDashboard()` — must run in a rewards.bing.com context (i.e. from the content script) so the request is same-origin and carries cookies. Returns `null` on non-OK responses, on an HTML body (logged-out requests redirect to a login page rather than returning 401), or on a parse failure. Note the endpoint responds with `Content-Type: text/plain` despite returning JSON, so the body is read as text and `JSON.parse`d
-- `mapDashboardToCards(dashboard)` — flattens the response into `RawCard[]`, with `D`/`E`/`M` section-prefixed ids (a readable handle for logs, not a join key — `promoName` is the join key):
-  - Daily sets from `dailySetPromotions[<today>]` — the map is keyed `MM/DD/YYYY` and contains **both today and tomorrow**, so `todayDateKey()` builds the key from **local** time (not UTC) and `selectTodayDailySet()` falls back to the earliest key present
-  - Explore from `morePromotions[]` where the promo `name` (or `attributes.offerid`) contains `exploreonbing`; everything else in `morePromotions[]` becomes More Activities
-  - `title`/`description` from `attributes`, `points` from `pointProgressMax`, `destinationUrl` from `destinationUrl` ?? `attributes.destination`
-- `promoComplete(dashboard, promoName)` — completion lookup by promo `name` across all promo collections; returns `null` (not `false`) when no such promo exists, so callers can distinguish "not complete" from "unknown"
-- `mapDashboardToCounters(dashboard)` — maps `userStatus.counters.pcSearch` to `{ type: PC_SEARCH_TYPE, current, max }` in **points** (`PC_SEARCH_TYPE` = `'pc search'`, one constant in `util/config.ts` shared with farm-pc-searches' lookup). `selectPcSearchEntry()` picks the entry whose `attributes.type === 'search'` (the array can also carry bonus/mobile entries). Returns `[]` rather than a zero-max counter when there's no live counter; the `GET_COUNTERS` reply's `read` flag tells `fetch-counters` whether that empty is a definitive answer or a failed read worth re-polling
-- `clean(text)` — strips zero-width characters (U+200B–U+200D, U+FEFF) that appear in some promo titles, plus surrounding whitespace. Built from code points so this source file stays pure ASCII
+### content/rewards-dom.ts
+- All DOM parsing for the redesigned rewards site, in one module inlined into the rewards-content bundle. Selector ground rules: semantic `section#<id>` ids are the only durable anchors; react-aria element ids are random per render; Tailwind design-token classes (`text-globalBody2Strong`, `bg-statusSuccessRewardsBg`, …) are semi-stable, and every token-class read has a structural fallback
+- `parseSectionCards(key)` — parses one section's `a[href]` tiles into `RawCard[]` (`D`/`E`/`M` prefixed ids — log handles, not join keys). Title from `img[alt]` → strong `<p>` → first `<p>`; description from the secondary `<p>`; `destinationUrl` is the anchor's **resolved absolute href** (quest tiles use relative attributes); `source` is section membership. Tiles with no points badge at all are 0-point quest/informational promos — skipped, with a warning naming them. Duplicate titles within a section also warn (matching tie-breaks on href)
+- `tileState(tile)` / `tileStateLabel(tile)` — Completed = success pill (`bg-statusSuccessRewardsBg`, primary) or trailing "Completed" metadata label (fallback); everything else is Actionable, including an explore tile's "Activated" label (armed, points not yet credited). Image-overlay icons change per state while the tile stays actionable — never read for state. `Locked` no longer occurs: future tiles simply aren't rendered
+- `tilePoints(tile)` — `+N` badge while actionable, bare number in the success pill once completed (read via `textContent`; the pill's text node can carry an HTML comment); `null` = no badge = skip
+- Points-flyout helpers: `findPointsToggle()` (the "Today's points" `button[aria-expanded]` card), `findBreakdownDialog()` (the `[role="dialog"]` resolved by its own heading — never a document-wide text search, since the *closed* toggle also contains "Points breakdown"), `findDialogClose()`, and `parsePointsBreakdown()` (the "Bing search" row's next-sibling value cell, `35/100 50` → `{current: 35, max: 100}` in points; commas stripped; the struck-through pre-2X cap never matches the slash pattern)
+- `clean(text)` — strips zero-width characters (U+200B–U+200D, U+FEFF) and collapses whitespace runs (NBSP included); both sides of every title comparison go through it
 
 ### util/config.ts
-- URL constants (`REWARDS_URL`, `REWARDS_EARN_URL`, `REWARDS_API_PATH`), `PC_SEARCH_POINTS_PER_SEARCH`, and the `KEEPALIVE_PORT` name shared across modules
+- URL constants (`REWARDS_URL`, `REWARDS_EARN_URL`), `PC_SEARCH_POINTS_PER_SEARCH`, `PC_SEARCH_TYPE`, and the `KEEPALIVE_PORT` name shared across modules
 
 ### util/search-queries.ts
 - `PC_SEARCH_QUERIES` — pool of queries used by `farm-pc-searches.ts`
@@ -545,19 +542,17 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 
 ### content/rewards-content.ts
 - Bundled by esbuild as an IIFE. It **can** use `import` at source level (esbuild inlines the modules) — what MV3 forbids is loading the *emitted* script as an ES module, which is why the bundle is an IIFE and these files are excluded from `tsconfig.build.json`
-- Message router. Extraction reads the dashboard API (`util/rewards-api.ts`); the DOM is touched only to locate a card for the background to click, and to expand the sections that render their tiles lazily
-- **Extraction** (`START_EXTRACT` handler) — `extractLoop()`: `fetchDashboardResult()` + `mapDashboardToCards()`. No DOM scraping, no scrolling, no dependence on which tiles the page has rendered, and nothing to wait for in the DOM first — the API answers as soon as the document exists, however little of the SPA has painted. Retries every 500 ms (`TIMEOUTS.REWARDS_EXTRACT_POLL`) until an absolute deadline 15s out (`TIMEOUTS.REWARDS_EXTRACT_MAX_WAIT`), so one transient error is never treated as final
-  - **Logged-out detection is API-first.** `fetchDashboardResult()` is the authority: `logged-out` is proof of no session, `error` is inconclusive and says nothing either way. `looksLoggedOut()` is only a heuristic over Bing's markup — a visible control whose entire text is "Sign in" (`hasSignInControl()`), then body-text signals. It is consulted only after a fetch has already failed, so a successful fetch vetoes it outright, and it is gated on `document.readyState === 'complete'` and on the control being visible, because a still-loading SPA can paint a signed-out skeleton before the session hydrates. All it buys is latency — a logged-out user is reported logged-out at the deadline regardless — which is why both gates lean conservative
-  - An *unreadable* dashboard at the deadline reports `loggedIn: false`. Zero cards + `loggedIn: true` would render as "Done for today!" to someone who was never signed in, and a logged-out redirect to the sign-in host rejects on CORS — which is exactly where that user lands
-  - Returns `ACTIVITIES_FOUND` with `{ cards, loggedIn }`
+- Message router; DOM parsing itself lives in `content/rewards-dom.ts`
+- **Readiness/login probe** (`REWARDS_STATUS`) — answers synchronously with `{ domComplete, loggedOutSignal }`. Answering at all proves the content script is injected. `loggedOutSignal()` is the login authority (the dashboard API 401s even for live sessions, so there is nothing to hold it against): a visible control whose entire text is "Sign in" (`hasSignInControl()`), then body-text signals — gated on `document.readyState === 'complete'` and on visibility, because a still-loading SPA can paint a signed-out skeleton before the session hydrates. The background re-probes a fully-loaded, signal-free page several times before trusting it (see activity-extraction)
+- **Extraction** (`EXTRACT_SECTIONS` handler) — for each requested section key, polls `tileCount()` up to `EXTRACT_SECTION_WAIT` (4s — the orchestrator expands the section first, so the poll only rides out the React commit), parses via `parseSectionCards()`, and replies `ExtractResponse` `{ cards, sectionTiles, warnings }`
 - **Card resolution** (`resolveCard(msg)`) — how an activity becomes a DOM element, tried in order:
-  1. `findCardByTitle(title, anchors)` — the primary matcher. Matches `img[alt]`, then the title `<p>`, then an anchor-text prefix, all compared via `cleanText()` (zero-width-stripped, whitespace-collapsed, lowercased — an NBSP or wrapped-markup newline in the DOM title still matches the API title). Title is used rather than URL because **every explore tile shares one `destinationUrl`** (the Bing homepage with `rwAutoFlyout=exb`), so the URL cannot tell them apart
-  2. `findCardByDestination(destinationUrl, promoName, anchors)` — fallback: first the promo `name` embedded in the decoded href (daily-set `BTDSUOID` / filter params), then exact match on `normalizeHref()` (`urlKey` with origin+path+query, lowercased) — and only when exactly **one** anchor matches, since the shared explore `destinationUrl` cannot say which tile is meant; reporting the card absent beats clicking the wrong one. Daily-set card hrefs do equal their API `destinationUrl`, which is what the URL tier is for
+  1. `findCardByTitle(title, destinationUrl, anchors)` — the primary matcher. Matches `img[alt]`, then the title `<p>`, then an anchor-text prefix, all compared via `cleanText()` (zero-width-stripped, whitespace-collapsed, lowercased). Title is used rather than URL because **every explore tile shares one `destinationUrl`** (the Bing homepage with `rwAutoFlyout=exb`); conversely, when a title matches **multiple** tiles (stale daily quizzes recycle titles in "Keep earning"), the exact href tie-breaks — extraction captured the anchor's own resolved href, so equality is exact by construction
+  2. `findCardByDestination(destinationUrl, anchors)` — fallback: exact match on `normalizeHref()` (`urlKey` with origin+path+query, lowercased), and only when exactly **one** anchor matches — on a shared href, reporting the card absent beats clicking (and crediting) the wrong tile
 - **Search scope** (`cardAnchors(activityType)`) — the candidate anchors are narrowed to the activity's own section via `sectionForActivityType()` (`util/activity-types.ts`): `dailyset`, `exploreonbing`, or `moreactivities`. Titles are only unique *within* a section — `/earn` also renders `section#quests` and `section#levelup`, whose tiles can share a title (or a text prefix) with an activity. Falls back to a document-wide scan when the section isn't in the DOM (a drifted id)
 - **Card locate handler** (`LOCATE_CARD`) — resolves the card, `scrollIntoView({ block: 'center' })`, waits `TIMEOUTS.SCROLL_SETTLE` (350 ms), then replies with a `LocateResponse`: `{ status: 'ready', point, tiles, via }` for the background's trusted CDP click, or `{ status: 'absent', tiles, reason }` if the card is missing or has zero size. There is no click handler here: a content script cannot forge the trusted event the tiles require, so the background does the clicking
 - **Control locate handler** (`LOCATE_CONTROL`) — locate-only, never clicks. Resolves a section's disclosure toggle (`control: 'sectionToggle'`; tiered: section-descendant → `aria-controls` panel → `aria-label` → nearby heading) or its "Show more"/"See more"/"View more" button (`control: 'showMore'`), replying with the same `LocateResponse` union — `satisfied` when the toggle is already expanded or no pagination remains. The clicking and pagination loop live in `TabManager.expandSection`
-- **Activity validation handler** (`VALIDATE_ACTIVITY`) — `fetchDashboard()` + `promoComplete(dashboard, promoName)`. Answers `CardState.NotFound` when `promoName` is empty or unknown to the dashboard; there is no DOM fallback. Returns `{ state: CardState }`. (`steps/validate-activity` never sends an empty `promoName` — it skips validation and assumes completion, since the outcome would be unknowable on every attempt and the retry would double-activate the tile)
-- **Counter extraction handler** (`GET_COUNTERS`) — the dashboard API (`mapDashboardToCounters`) is the **only** counter source. There is no DOM fallback and can't be: the old counter markup existed solely on `/pointsbreakdown`, which is gone. Replies `CountersResponse` `{ read, searchCounters: [{ type, current, max }, ...] }` in **points** — `read: false` means the dashboard couldn't be read and `fetch-counters` keeps polling; `read: true` with an empty array is a definitive "no live counter" and callers stop immediately
+- **Activity validation handler** (`VALIDATE_ACTIVITY`) — resolves the card with the **same matcher the click used** (so click and validate cannot disagree about which tile is meant) and replies `{ state: tileState(card), stateLabel }`; a card not in the DOM answers `CardState.NotFound`. (`steps/validate-activity` never sends an empty title — it skips validation and assumes completion, since the outcome would be unknowable on every attempt and the retry would double-activate the tile)
+- **Counter read handler** (`READ_COUNTERS`) — the background has just clicked the "Today's points" toggle; this waits up to `FLYOUT_RENDER` (3s) for the "Points breakdown" dialog, then parses its Bing-search row via `parsePointsBreakdown()`. Replies `CountersResponse` `{ read, searchCounters, detail? }` in **points** — `read: false` carries a `detail` naming exactly what failed (dialog never opened / row not found), which `fetch-counters` logs; the `LOCATE_CONTROL` kinds `pointsToggle`/`dialogClose` serve the open/close clicks
 - **DOM anchors** — the site's Tailwind/design-token class names (`text-globalBody2Strong`, `text-statusInformativeTintFg`, …) are not stable contracts, and react-aria element ids (`#react-aria-_R_…`) are **random per render — never use them**. The only durable anchors are the semantic section ids:
   - `section#dailyset` — the 3 daily set cards (home page; only today's set is rendered)
   - `section#exploreonbing` — Explore on Bing tiles (`/earn`)
@@ -593,7 +588,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 
 ## Reading the rewards site
 
-In 2026 rewards.bing.com shipped a front-end rewrite (React + react-aria + Tailwind) that broke **every CSS selector the extension had**. The response was to stop reading the DOM: `/api/getuserinfo?type=1` predates the rewrite, survived it untouched, and returns everything extraction, validation, and counters need. Support for the pre-2026 dashboard was removed once the rollout completed; full research notes are in `REWARDS-REDESIGN-PLAN.md`.
+In 2026 rewards.bing.com shipped a front-end rewrite (React + react-aria + Tailwind) that broke **every CSS selector the extension had**. The first response was to read the dashboard JSON API (`/api/getuserinfo?type=1`) instead of the DOM — until that endpoint started returning 401 even for live, signed-in sessions. Everything (login detection, extraction, validation, counters) now reads the redesigned DOM via `content/rewards-dom.ts`, keyed off the semantic section ids and design-token badge classes documented there, with all clicks dispatched over the trusted CDP path.
 
 Facts worth not re-deriving:
 
@@ -625,12 +620,13 @@ All timing constants are defined in `src/util/timing.ts`:
 
 ### Modifying Extraction
 
-Extraction is **API-driven**, so a Bing re-skin should not break it — that's the point of reading `/api/getuserinfo?type=1` instead of the DOM. Start by asking whether the change is in the data or in the page.
+Extraction is **DOM-driven** (`src/content/rewards-dom.ts`), so a site re-skin is the thing that breaks it. Start by capturing the live markup (a card's outerHTML in DevTools) and comparing it against the selector notes in that file's header.
 
-- **API shape changed** (`src/util/rewards-api.ts`): update the `Dashboard*` interfaces and the mappers. Only the fields we actually consume are typed; the real response is much larger, so inspect it live before adding a field — `fetch('/api/getuserinfo?type=1', {credentials:'include'}).then(r=>r.json())` in the rewards tab console.
-- **Classification wrong** (`src/util/activity.ts` → `classifyCard()`): it switches purely on `card.source`, which whoever built the card already decided — for API cards that's `isExplorePromo()` in `rewards-api.ts` (matching `exploreonbing` in the promo `name` **or** `attributes.offerid`), so fix explore detection *there*, not here. Ignore lists are `CARD_IGNORE_STRINGS` and `MORE_ACTIVITIES_IGNORE_STRINGS`.
-- **Page/DOM changed** (`src/content/rewards-content.ts`): only *locating* touches the DOM. Update the `SECTION` table in `util/activity-types.ts` (ids, host pages, label patterns), the `findCardByTitle`/`findCardByDestination` matchers, or the `LOCATE_CONTROL` toggle/"Show more" resolution tiers.
-- **Timing** (`TIMEOUTS.REWARDS_EXTRACT_MAX_WAIT` / `REWARDS_EXTRACT_POLL`): how long the content script keeps retrying the API before reporting the session unreadable.
+- **Card markup changed** (`src/content/rewards-dom.ts`): update the parse helpers — `parseSectionCards()`, `tileState()`, `tilePoints()` and their token-class constants; each has a structural fallback tier that may already be absorbing the drift (extraction `warnings` in the debug log tell you).
+- **Classification wrong** (`src/util/activity.ts` → `classifyCard()`): it switches purely on `card.source`, which the parser derives from section membership — fix section attribution in `rewards-dom.ts`, not here. Ignore lists are `CARD_IGNORE_STRINGS` and `MORE_ACTIVITIES_IGNORE_STRINGS`.
+- **Sections moved/renamed**: update the `SECTION` table in `util/activity-types.ts` (ids, host pages, label patterns), the `findCardByTitle`/`findCardByDestination` matchers in `rewards-content.ts`, or the `LOCATE_CONTROL` toggle/"Show more" resolution tiers.
+- **Counter flyout changed**: `findPointsToggle()`/`findBreakdownDialog()`/`parsePointsBreakdown()` in `rewards-dom.ts`; failed reads log a `detail` naming which piece stopped resolving.
+- **Timing**: `TIMEOUTS.FETCH_ACTIVITIES`/`REWARDS_EXTRACT_MAX_WAIT`/`REWARDS_EXTRACT_POLL` pace the readiness probe; `EXTRACT_SECTION_WAIT` is the per-section tile wait; `FLYOUT_RENDER` the dialog wait.
 
 Per CLAUDE.md: verify CSS selectors against the **actual** DOM before assuming the logic is wrong — log what elements were found first.
 
@@ -794,8 +790,8 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 **No activities extracted**
 - Check if logged into Bing Rewards (failure: "Not logged in — redirected to: ...")
 - Enable debug mode; check the "Activities found" section and the extraction stats log line
-- Extraction reads the dashboard API, so a re-skin shouldn't break it. Test the endpoint directly in the rewards tab console: `fetch('/api/getuserinfo?type=1', {credentials:'include'}).then(r=>r.text()).then(console.log)`. An HTML response means logged out; a JSON body means the API is fine and the bug is downstream (classification, filtering)
-- Increase `TIMEOUTS.REWARDS_EXTRACT_MAX_WAIT` (15s) if the API is slow to answer
+- Extraction parses the DOM, so a site re-skin is the first suspect. Check the debug log's extraction lines: per-section tile counts and warnings (skipped tiles, "section#… not in the DOM") point at the failing selector — then compare live markup in DevTools against the notes in `src/content/rewards-dom.ts`
+- Check that the sections actually expanded ("Section … open — N tiles" lines); a section reported unexpandable never gets parsed
 
 **Cards click but never get credited**
 - Tiles gate activation on a **trusted** click, dispatched over CDP from the background — a synthetic DOM click navigates but Bing never credits it
@@ -886,7 +882,7 @@ All cross-context communication via `chrome.runtime.sendMessage()`. See **All Me
 Key flows:
 - **Popup ↔ Background**: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
 - **Background → Popup (broadcasts)**: `PROGRESS` (per-phase state), `DEBUG_ENTRY`, `FAILURE_ENTRY`
-- **Background ↔ Rewards content**: `START_EXTRACT`, `ACTIVITIES_FOUND`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `GET_COUNTERS`
+- **Background ↔ Rewards content**: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`
 - **Background → Search content**: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
 
 Note that not every cross-context action is a message: every trusted click (card, section toggle, "Show more") is dispatched by the **background** straight into the page over the Chrome DevTools Protocol (`Input.dispatchMouseEvent`), bypassing the content script entirely. The content script's role there is limited to `LOCATE_CARD`/`LOCATE_CONTROL`, which report where to aim.
@@ -914,6 +910,6 @@ The extension handles service worker restarts by:
 1. Storing all critical state in `chrome.storage.local` (see **State Management**)
 2. Checking the `isActivelyRunning` flag on popup open (`ui/popup.ts`), and offering `RESET_STALE` to clear a run flag left behind by a terminated worker
 
-Note there is **no** mid-run resumption: `resetRunState()` wipes `RunState` (including `activityState`) at the start of every run, and no run date is persisted. A run that dies mid-way is restarted from scratch — already-credited activities are simply reported `complete` by the dashboard API on the next extraction and filtered out, which is what makes restarting cheap.
+Note there is **no** mid-run resumption: `resetRunState()` wipes `RunState` (including `activityState`) at the start of every run, and no run date is persisted. A run that dies mid-way is restarted from scratch — already-credited activities simply show their Completed badge on the next extraction and are filtered out, which is what makes restarting cheap.
 
 **Permissions** (`manifest.json`): `tabs`, `storage`, `sidePanel`, `notifications`, and `debugger` — the last is required for the trusted card clicks (see `util/tab-manager.ts`) and is why Chrome shows a debugging banner during runs. Host permissions cover `https://*.bing.com/*` and the update-check host `https://r2.pointsharvest.com/*`.
