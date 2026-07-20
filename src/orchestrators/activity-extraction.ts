@@ -1,12 +1,13 @@
 import { REWARDS_URL } from '../util/config.js';
 import { MSG_ACTION } from '../util/messaging.js';
-import type { RewardsStatusResponse } from '../util/messaging.js';
+import type { ExtractResponse, RewardsStatusResponse } from '../util/messaging.js';
 import { DBG } from '../util/debug.js';
 import { TIMEOUTS, sleep } from '../util/timing.js';
 import { setRunState, loadRunState } from '../util/persistent-state.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
-import { ACTIVITY_TYPE } from '../util/activity-types.js';
-import type { ActivityState } from '../util/activity-types.js';
+import { classifyCard, enrichSearchQueries, enrichUserActions } from '../util/activity.js';
+import { ACTIVITY_TYPE, SECTION } from '../util/activity-types.js';
+import type { Activity, ActivityState, RawCard, SectionKey } from '../util/activity-types.js';
 import type { Context } from '../util/context.js';
 import { FAIL } from '../util/failures.js';
 import { NotLoggedInError } from '../util/errors.js';
@@ -149,13 +150,76 @@ class ActivityExtractionOrchestrator extends OrchestratorBase {
   }
 
   /**
-   * DOM card extraction lands in the next phase — a confirmed session
-   * currently yields zero activities, which every downstream phase already
-   * handles by skipping.
+   * Extract cards by reading the live DOM, section by section: navigate to the
+   * section's page, expand it (tiles unmount while collapsed), then have the
+   * content script parse its tiles into RawCards.
+   *
+   * Phase rollout: only the daily set is wired so far — explore and "Keep
+   * earning" land next and until then contribute zero cards, which their
+   * orchestrators already handle by skipping.
    */
   private async extractActivities(ctx: Context, rewardsTabId: number): Promise<ActivityState> {
-    await ctx.dbg(DBG.WARN, 'Session confirmed; DOM card extraction not yet implemented — 0 cards');
-    return { allActivities: [], loggedIn: true, rewardsTabId };
+    const cards: RawCard[] = [];
+    for (const section of [SECTION.dailySet]) {
+      ctx.signal.throwIfAborted();
+      if (!(await this.ensureSectionReady(ctx, rewardsTabId, section))) continue;
+      const res = await this.extractSections(rewardsTabId, [section.key]);
+      if (!res) {
+        await ctx.fail(FAIL.TAB, `No extraction response for "${section.label}"`);
+        continue;
+      }
+      for (const w of res.warnings) await ctx.dbg(DBG.WARN, `Extraction: ${w}`);
+      await ctx.dbg(
+        DBG.INFO,
+        `Extracted ${res.cards.length} cards from "${section.label}" (${res.sectionTiles[section.key] ?? 0} tiles)`,
+      );
+      cards.push(...res.cards);
+    }
+
+    const allActivities: Activity[] = [];
+    const exploreActivities: Activity[] = [];
+    const dailyActivities: Activity[] = [];
+    for (const card of cards) {
+      const activity: Activity = {
+        id: card.id,
+        title: card.title,
+        description: card.description,
+        points: card.points,
+        cardState: card.cardState,
+        destinationUrl: card.destinationUrl,
+        activityType: classifyCard(card),
+        requiresUserAction: false,
+        userActionKind: null,
+        userActionTimeoutMs: 0,
+      };
+      allActivities.push(activity);
+      if (activity.activityType === ACTIVITY_TYPE.EXPLORE_ON_BING) {
+        exploreActivities.push(activity);
+      } else if (activity.activityType === ACTIVITY_TYPE.DAILY_SET) {
+        dailyActivities.push(activity);
+      }
+    }
+
+    enrichSearchQueries(exploreActivities);
+    enrichUserActions(dailyActivities);
+
+    return { allActivities, loggedIn: true, rewardsTabId };
+  }
+
+  /** One EXTRACT_SECTIONS round trip; null when the content script is unreachable. */
+  private async extractSections(
+    rewardsTabId: number,
+    sections: SectionKey[],
+  ): Promise<ExtractResponse | null> {
+    try {
+      const reply: unknown = await chrome.tabs.sendMessage(rewardsTabId, {
+        action: MSG_ACTION.EXTRACT_SECTIONS,
+        sections,
+      });
+      return (reply as ExtractResponse | undefined) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   /**

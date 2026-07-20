@@ -1,10 +1,10 @@
 // Injected into rewards.bing.com. Message router for the rewards dashboard.
 //
-// The background confirms readiness and login state through the REWARDS_STATUS
-// probe (DOM heuristic — the dashboard API 401s even for live sessions, so it
-// is no longer consulted). The DOM is also touched to *locate* a card so the
-// background can click it, and to expand the sections that render their tiles
-// lazily. Counters and validation still read the API pending their DOM ports.
+// Everything here reads the DOM (the dashboard API 401s even for live
+// sessions): REWARDS_STATUS answers readiness/login, EXTRACT_SECTIONS parses
+// tiles into RawCards (rewards-dom.ts), VALIDATE_ACTIVITY re-reads a card's
+// badge, and the locate handlers report where to aim the background's trusted
+// CDP clicks. GET_COUNTERS still reads the API pending its DOM port.
 
 import { CardState, sectionByKey, sectionForActivityType } from '../util/activity-types.js';
 import type { ActivityType, SectionDescriptor } from '../util/activity-types.js';
@@ -14,15 +14,21 @@ import type {
   AppMessage,
   ClickPoint,
   CountersResponse,
+  ExtractResponse,
   LocateResponse,
   RewardsStatusResponse,
+  ValidateActivityResponse,
 } from '../util/messaging.js';
 import {
   clean,
-  fetchDashboard,
-  mapDashboardToCounters,
-  promoComplete,
-} from '../util/rewards-api.js';
+  parseSectionCards,
+  sectionEl,
+  tileCount,
+  tileState,
+  tileStateLabel,
+  TILE_SELECTOR,
+} from './rewards-dom.js';
+import { fetchDashboard, mapDashboardToCounters } from '../util/rewards-api.js';
 import { urlKey } from '../util/url.js';
 
 // The header renders a bare "Sign in" control beside the account avatar when
@@ -80,26 +86,9 @@ function loggedOutSignal(): string | null {
 // ── Card resolution ─────────────────────────────────────────────────────────
 
 // clean() (zero-width strip + whitespace collapse, NBSP included) plus
-// lowercasing, so DOM titles compare equal to the cleaned API titles.
+// lowercasing, so DOM titles compare equal to the cleaned extraction titles.
 function cleanText(s: string): string {
   return clean(s).toLowerCase();
-}
-
-/** Every card is an anchor; shared so the tile *count* and the tile *lookup* can't drift. */
-const TILE_SELECTOR = 'a[href]';
-
-function sectionEl(id: string): HTMLElement | null {
-  return document.querySelector<HTMLElement>(`section#${CSS.escape(id)}`);
-}
-
-/**
- * Cards currently rendered in a section — the measure of whether its phase can
- * run at all. Deliberately does NOT fall back to the document like `cardAnchors`
- * does: a document-wide count would report tiles for a section that isn't even
- * on the page, which is exactly the state callers use this to detect.
- */
-function tileCount(section: HTMLElement | null): number {
-  return section ? section.querySelectorAll(TILE_SELECTOR).length : 0;
 }
 
 /**
@@ -117,77 +106,71 @@ function cardAnchors(activityType: ActivityType): HTMLAnchorElement[] {
   return Array.from((el ?? document).querySelectorAll<HTMLAnchorElement>(TILE_SELECTOR));
 }
 
-// Primary matcher: locate the card anchor by its title. Explore tiles all share
-// ONE destinationUrl, so the title (unique per tile) is the only reliable key.
-// Matches the img[alt], then the title <p>, then the anchor text.
+// Primary matcher: locate the card anchor by its title, tie-breaking duplicate
+// titles by exact href. Explore tiles all share ONE destinationUrl, so the
+// title is the primary key there; conversely, stale daily quizzes recycle
+// titles in "Keep earning" while their date-stamped hrefs stay unique — each
+// key covers the other's blind spot. Matches the img[alt], then the title <p>,
+// then the anchor text.
 function findCardByTitle(
   title: string,
+  destinationUrl: string,
   anchors: HTMLAnchorElement[],
 ): HTMLAnchorElement | undefined {
   const want = cleanText(title);
   if (!want) return undefined;
-  return (
-    anchors.find((a) => cleanText(a.querySelector('img')?.alt ?? '') === want) ??
-    anchors.find((a) => cleanText(a.querySelector('p')?.textContent ?? '') === want) ??
-    anchors.find((a) => cleanText(a.textContent ?? '').startsWith(want))
-  );
+  const tiers: ((a: HTMLAnchorElement) => boolean)[] = [
+    (a) => cleanText(a.querySelector('img')?.alt ?? '') === want,
+    (a) => cleanText(a.querySelector('p')?.textContent ?? '') === want,
+    (a) => cleanText(a.textContent ?? '').startsWith(want),
+  ];
+  for (const matches of tiers) {
+    const hits = anchors.filter(matches);
+    if (hits.length === 0) continue;
+    if (hits.length > 1 && destinationUrl) {
+      const target = normalizeHref(destinationUrl);
+      const byHref = hits.find((a) => normalizeHref(a.href) === target);
+      if (byHref) return byHref;
+    }
+    return hits[0];
+  }
+  return undefined;
 }
 
 // Origin + path + query, lowercased — a stable key for comparing a card's live
-// href against the API's destinationUrl regardless of fragment or casing.
+// href against the extraction-time destinationUrl regardless of fragment or
+// casing. Extraction captures the anchor's own resolved href, so equality is
+// exact by construction.
 function normalizeHref(u: string): string {
   return urlKey(u, { withQuery: true, base: location.href });
 }
 
 /**
- * Fallback matcher, used when title matching misses.
- *
- * The promo name is tried FIRST because it is the only discriminating key here:
- * every explore tile shares one destinationUrl (the Bing homepage), so a URL
- * match against an explore card cannot say WHICH tile is meant. The name is
- * embedded in the href for the cards that carry it (daily-set BTDSUOID / filter
- * params); destinationUrl is the last resort, and only counts when it matches
- * exactly one anchor — on a shared href, reporting the card absent beats
- * silently clicking (and crediting) the wrong tile.
- *
- * Returns undefined when the card isn't in the DOM.
+ * Fallback matcher, used when title matching misses. Counts only when the href
+ * matches exactly one anchor: every explore tile shares one destinationUrl, so
+ * on a shared href reporting the card absent beats silently clicking (and
+ * crediting) the wrong tile.
  */
 function findCardByDestination(
   destinationUrl: string,
-  promoName: string,
   anchors: HTMLAnchorElement[],
 ): HTMLAnchorElement | undefined {
-  if (!destinationUrl && !promoName) return undefined;
-
-  if (promoName) {
-    const byName = anchors.find((a) => {
-      try {
-        return decodeURIComponent(a.href).includes(promoName);
-      } catch {
-        return a.href.includes(promoName);
-      }
-    });
-    if (byName) return byName;
-  }
-  if (destinationUrl) {
-    const target = normalizeHref(destinationUrl);
-    const matches = anchors.filter((a) => normalizeHref(a.href) === target);
-    if (matches.length === 1) return matches[0];
-  }
-  return undefined;
+  if (!destinationUrl) return undefined;
+  const target = normalizeHref(destinationUrl);
+  const matches = anchors.filter((a) => normalizeHref(a.href) === target);
+  return matches.length === 1 ? matches[0] : undefined;
 }
 
-/** Resolve an activity to its anchor: by title, then by promo name / destination. */
+/** Resolve an activity to its anchor: by title (href tie-break), then by destination. */
 function resolveCard(msg: {
   title: string;
   destinationUrl: string;
-  promoName: string;
   activityType: ActivityType;
 }): HTMLAnchorElement | undefined {
   const anchors = cardAnchors(msg.activityType);
   return (
-    findCardByTitle(msg.title, anchors) ??
-    findCardByDestination(msg.destinationUrl, msg.promoName, anchors)
+    findCardByTitle(msg.title, msg.destinationUrl, anchors) ??
+    findCardByDestination(msg.destinationUrl, anchors)
   );
 }
 
@@ -318,6 +301,28 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
     return undefined;
   }
 
+  if (msg.action === MSG_ACTION.EXTRACT_SECTIONS) {
+    void (async () => {
+      // The orchestrator navigates/expands each section before asking, so
+      // tiles are normally already in the DOM — the poll only rides out the
+      // React commit after an expansion.
+      const response: ExtractResponse = { cards: [], sectionTiles: {}, warnings: [] };
+      for (const key of msg.sections) {
+        const deadline = Date.now() + TIMEOUTS.EXTRACT_SECTION_WAIT;
+        let result = parseSectionCards(key);
+        while (result.tiles === 0 && Date.now() < deadline) {
+          await sleep(TIMEOUTS.SECTION_CONFIRM_POLL);
+          result = parseSectionCards(key);
+        }
+        response.cards.push(...result.cards);
+        response.sectionTiles[key] = result.tiles;
+        response.warnings.push(...result.warnings);
+      }
+      sendResponse(response);
+    })();
+    return true; // async sendResponse
+  }
+
   if (msg.action === MSG_ACTION.LOCATE_CARD) {
     // Tiles gate their activation beacon on a trusted click, which a content
     // script can't forge. Instead we return the tile's on-screen center so the
@@ -332,7 +337,7 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
         reply({
           status: LOCATE_STATUS.Absent,
           tiles,
-          reason: `no card element for ${msg.title || msg.promoName}`,
+          reason: `no card element for ${msg.title}`,
         });
         return;
       }
@@ -419,22 +424,16 @@ chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) =>
   }
 
   if (msg.action === MSG_ACTION.VALIDATE_ACTIVITY) {
-    void (async () => {
-      // Read the promo's `complete` flag by name. Works from any rewards page and
-      // needs no card on screen. A promo the dashboard doesn't know about is
-      // NotFound, which validate-activity reports as an error rather than as an
-      // incomplete activity worth retrying.
-      if (msg.promoName) {
-        const dashboard = await fetchDashboard();
-        const complete = dashboard ? promoComplete(dashboard, msg.promoName) : null;
-        if (complete !== null) {
-          sendResponse({ state: complete ? CardState.Completed : CardState.Actionable });
-          return;
-        }
-      }
-      sendResponse({ state: CardState.NotFound });
-    })();
-    return true;
+    // Re-read the card's own badge in the DOM — resolved by the same matcher
+    // the click used, so click and validate can't disagree about which tile is
+    // meant. A card that isn't in the DOM is NotFound, which validate-activity
+    // reports as an error rather than as an incomplete activity worth retrying.
+    const card = resolveCard(msg);
+    const response: ValidateActivityResponse = card
+      ? { state: tileState(card), stateLabel: tileStateLabel(card) }
+      : { state: CardState.NotFound };
+    sendResponse(response);
+    return undefined;
   }
   return undefined;
 });

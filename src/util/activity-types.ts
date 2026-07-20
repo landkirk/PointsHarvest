@@ -120,9 +120,11 @@ export interface Activity {
   activityType: ActivityType;
   cardState: CardState;
   points: number;
-  /** Promotion `name` from the dashboard API; stable join key for click/validate. */
-  promoName: string;
-  /** Target URL of the activity; matches the card's `<a href>` in the DOM. */
+  /**
+   * The card anchor's resolved absolute href, captured from the DOM at
+   * extraction — the exact key locate/validate use to tie-break duplicate
+   * titles (title-within-section is the primary key).
+   */
   destinationUrl: string;
   searchQuery?: string | null;
   fallbackQuery?: string | null;
@@ -139,8 +141,6 @@ export interface RawCard {
   points: number;
   cardState: CardState;
   source: CardSource;
-  /** Promotion `name` from the dashboard API; stable join key for click/validate. */
-  promoName: string;
-  /** Target URL of the activity; matches the card's `<a href>` in the DOM. */
+  /** The card anchor's resolved absolute href — see Activity.destinationUrl. */
   destinationUrl: string;
 }

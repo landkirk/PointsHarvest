@@ -19,7 +19,7 @@ export interface ProgressBroadcast {
   linger: LingerInfo | null;
 }
 
-import type { ActivityType, RawCard, SectionKey } from './activity-types.js';
+import type { ActivityType, CardState, RawCard, SectionKey } from './activity-types.js';
 import type { LingerInfo, UserPreferences } from './persistent-state.js';
 
 // ── Locating clickable elements ────────────────────────────────────────────
@@ -82,6 +82,30 @@ export interface CountersResponse {
 }
 
 /**
+ * Reply to EXTRACT_SECTIONS. `sectionTiles` is the raw anchor count per
+ * requested section key (0 = section missing or collapsed — the orchestrator
+ * expands before extracting, so 0 here is a warning sign). `warnings` name
+ * skipped badge-less tiles, duplicate titles, and missing sections so they
+ * surface in the debug panel instead of vanishing silently.
+ */
+export interface ExtractResponse {
+  cards: RawCard[];
+  sectionTiles: Record<string, number>;
+  warnings: string[];
+}
+
+/**
+ * Reply to VALIDATE_ACTIVITY — the card's live DOM state. `stateLabel` is the
+ * tile's raw trailing label ("Activated", "Completed", '' when none), for the
+ * debug log: an explore card reading "Activated" is armed-but-uncredited,
+ * which is worth distinguishing from an untouched card.
+ */
+export interface ValidateActivityResponse {
+  state: CardState;
+  stateLabel?: string;
+}
+
+/**
  * Reply to REWARDS_STATUS — the readiness/login probe the background polls
  * while waiting for the rewards page. A rejected sendMessage means the content
  * script isn't injected yet; that (not a field here) is the "keep waiting"
@@ -101,8 +125,7 @@ export interface RewardsStatusResponse {
 export const MSG_ACTION = {
   // Background ↔ rewards content script
   REWARDS_STATUS: 'rewardsStatus',
-  START_EXTRACT: 'startExtract',
-  ACTIVITIES_FOUND: 'activitiesFound',
+  EXTRACT_SECTIONS: 'extractSections',
   LOCATE_CARD: 'locateCard',
   LOCATE_CONTROL: 'locateControl',
   VALIDATE_ACTIVITY: 'validateActivity',
@@ -153,20 +176,11 @@ export type AppMessage =
   | { action: typeof MSG_ACTION.FAILURE_ENTRY; failure: FailureEntry }
   // Background ↔ Rewards content script
   | { action: typeof MSG_ACTION.REWARDS_STATUS }
-  | { action: typeof MSG_ACTION.START_EXTRACT }
-  | {
-      action: typeof MSG_ACTION.ACTIVITIES_FOUND;
-      cards: RawCard[];
-      loggedIn: boolean;
-      // When `loggedIn` is false, why the content script concluded that — surfaced
-      // in the debug log so a signed-in user misreported as logged-out is diagnosable.
-      reason?: string;
-    }
+  | { action: typeof MSG_ACTION.EXTRACT_SECTIONS; sections: SectionKey[] }
   | {
       action: typeof MSG_ACTION.LOCATE_CARD;
       title: string;
       destinationUrl: string;
-      promoName: string;
       /** Scopes card lookup to this activity's section — see sectionForActivityType. */
       activityType: ActivityType;
     }
@@ -175,7 +189,12 @@ export type AppMessage =
       control: ControlKind;
       sectionKey: SectionKey;
     }
-  | { action: typeof MSG_ACTION.VALIDATE_ACTIVITY; promoName: string }
+  | {
+      action: typeof MSG_ACTION.VALIDATE_ACTIVITY;
+      title: string;
+      destinationUrl: string;
+      activityType: ActivityType;
+    }
   | { action: typeof MSG_ACTION.GET_COUNTERS }
   // Background → Search content script
   | { action: typeof MSG_ACTION.PERFORM_SEARCH; query: string }

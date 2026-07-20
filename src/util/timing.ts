@@ -36,6 +36,7 @@ export const TIMEOUTS = {
   // waiting the full first-attempt window only slows the blocked-pop-up verdict.
   TAB_CAPTURE_RETRY: 3_000,
   EXPAND_SECTION_RENDER: 1_500, // how long a section gets to render its tiles after a click
+  EXTRACT_SECTION_WAIT: 4_000, // how long extraction waits for an expanded section's tiles to enter the DOM
   SECTION_CONFIRM_POLL: 250, // re-read a toggle's aria-expanded this often while confirming
   SECTION_TOGGLE_CLICK_ROUNDS: 2, // clicks tried before a section is reported unexpandable
   SHOW_MORE_CLICKS: 10, // max "Show more" pages to walk in one section

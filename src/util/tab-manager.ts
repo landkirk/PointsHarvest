@@ -13,7 +13,6 @@ export type CapturedTab = chrome.tabs.Tab & { id: number };
 export interface CardClickTarget {
   title: string;
   destinationUrl: string;
-  promoName: string;
   /** Lets the content script scope its card lookup to this activity's section. */
   activityType: ActivityType;
 }
@@ -303,7 +302,6 @@ export class TabManager {
         action: MSG_ACTION.LOCATE_CARD,
         title: card.title,
         destinationUrl: card.destinationUrl,
-        promoName: card.promoName,
         activityType: card.activityType,
       },
       `card "${card.title}"`,
@@ -313,6 +311,12 @@ export class TabManager {
   /** Navigate an already-tracked tab to a new URL and wait for it to finish loading. */
   async navigateTab(tabId: number, url: string, signal?: AbortSignal): Promise<void> {
     await chrome.tabs.update(tabId, { url });
+    await this._waitForTabLoad(tabId, TIMEOUTS.TAB_LOAD, signal);
+  }
+
+  /** Reload an already-tracked tab and wait for it to finish loading. */
+  async reloadTab(tabId: number, signal?: AbortSignal): Promise<void> {
+    await chrome.tabs.reload(tabId);
     await this._waitForTabLoad(tabId, TIMEOUTS.TAB_LOAD, signal);
   }
 

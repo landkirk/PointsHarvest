@@ -103,7 +103,7 @@ class CompleteDailySets extends OrchestratorBase {
       await this.tabs.closeTabWithChildren(t.id);
     }
     ctx.signal.throwIfAborted();
-    const validated = await validateActivity._run(ctx, activity, rewardsTabId);
+    const validated = await validateActivity._run(ctx, activity, rewardsTabId, this.tabs);
     return validated.status === ValidationStatus.Completed;
   }
 

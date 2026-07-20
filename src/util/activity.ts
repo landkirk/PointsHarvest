@@ -21,11 +21,11 @@ const MORE_ACTIVITIES_IGNORE_STRINGS = [
 /**
  * Classify a raw card into an ActivityType from its source.
  *
- * `source` is decided by whoever built the card and is trusted here. The API
- * mapper (`rewards-api.ts`) already resolves explore via `isExplorePromo()`,
- * which reads both the promo `name` and `attributes.offerid` — re-deriving that
- * here from `promoName` alone silently dropped any promo marked only by its
- * offer id, because `RawCard` never carried the offer id to re-check.
+ * `source` is decided by whoever built the card and is trusted here: the DOM
+ * parser (content/rewards-dom.ts) derives it from section membership
+ * (section#dailyset / #exploreonbing / #moreactivities), which is the only
+ * explore-vs-more signal the redesigned site offers — do not re-derive it from
+ * card text.
  */
 export function classifyCard(card: RawCard): ActivityType {
   const combined = `${card.title} ${card.description}`.toLowerCase();

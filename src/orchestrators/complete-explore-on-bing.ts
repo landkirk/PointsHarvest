@@ -120,7 +120,7 @@ class CompleteExploreOnBing extends OrchestratorBase<[]> {
     await this.tabs.closeTabWithChildren(searchTab.id);
     ctx.signal.throwIfAborted();
 
-    const r = await validateActivity._run(ctx, activity, rewardsTabId);
+    const r = await validateActivity._run(ctx, activity, rewardsTabId, this.tabs);
     return r.status === ValidationStatus.Completed;
   }
 }
