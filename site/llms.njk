@@ -1,0 +1,18 @@
+---
+permalink: /llms.txt
+eleventyExcludeFromCollections: true
+---
+# Points Harvest
+
+> Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles.
+
+## Docs
+
+- [Homepage]({{ site.baseUrl }}/): What Points Harvest does and how to install it.
+- [GitHub repository]({{ site.githubUrl }}): Source code, issues, and releases.
+
+## Blog
+
+{%- for post in collections.posts %}
+- [{{ post.data.title | safe }}]({{ site.baseUrl }}{{ post.data.markdownUrl }}): {{ post.data.description | safe }}
+{%- endfor %}

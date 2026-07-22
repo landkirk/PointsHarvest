@@ -1,5 +1,6 @@
 module.exports = function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy({ 'site/static': '.' });
+  eleventyConfig.addPassthroughCopy({ 'site/blog/*.md': 'blog' });
 
   eleventyConfig.addCollection('posts', (api) =>
     api.getFilteredByTag('post').sort((a, b) => b.date - a.date),

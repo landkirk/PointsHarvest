@@ -20,6 +20,9 @@
   <meta name="twitter:image" content="{{ site.baseUrl }}/icon1024.png" />
 
   <link rel="icon" type="image/png" href="/icon1024.png" />
+  {%- if markdownUrl %}
+  <link rel="alternate" type="text/markdown" href="{{ markdownUrl }}" />
+  {%- endif %}
   <link rel="stylesheet" href="/site.css" />
   {%- for href in extraStyles %}
   <link rel="stylesheet" href="{{ href }}" />
