@@ -81,7 +81,8 @@ rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind). The dash
 - Eleventy (`eleventy.config.js`) reads from `site/` and writes to `docs/`. `docs/` is pure generated output, gitignored, and built/deployed by the `Deploy Site` GitHub Actions workflow (`.github/workflows/pages.yml`).
 - Layouts and partials live in `site/_includes/` (`base.njk`, `post.njk`, `partials/nav.njk`, `partials/footer.njk`) — nav, footer, and meta tags exist in exactly one place each.
 - Global template data (base URL, version, download URL) is in `site/_data/site.js`, which reads `package.json` so the download button stays in sync with the extension version automatically.
-- Hand-written pages: `site/index.njk`, `site/contact.njk`. Blog listing: `site/blog.njk`. Blog posts: markdown in `site/blog/*.md` + directory data `site/blog/blog.json`. Sitemap: `site/sitemap.njk`. Static assets: `site/static/*` (passthrough-copied).
+- Hand-written pages: `site/index.njk`, `site/contact.njk`. Blog listing: `site/blog.njk`. Blog posts: markdown in `site/blog/*.md` + directory data `site/blog/blog.11tydata.js` (layout, tag, permalink, and the computed `markdownUrl`). Sitemap: `site/sitemap.njk`. Static assets: `site/static/*` (passthrough-copied).
+- **Markdown for LLMs**: `site/llms.njk` emits `/llms.txt` (site summary + links to every markdown page, blog list generated from `collections.posts`). Each HTML page has a markdown twin — `site/index.md.njk` → `/index.md`, `site/contact.md.njk` → `/contact.md`, and blog posts' own `.md` sources are passthrough-copied to `/blog/*.md` by `eleventy.config.js`. A page that sets `markdownUrl` gets a `<link rel="alternate" type="text/markdown">` from `base.njk`; `showLlmsLink` adds the footer link. When adding a page, add its markdown twin too.
 - Do not hand-edit files under `docs/` — they are overwritten on every `npm run website:build` and `npm run build`.
 
 ## Documentation

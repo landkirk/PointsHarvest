@@ -175,12 +175,14 @@ src/                    Source files (edit these)
 dist/                   Compiled extension output (generated — do not edit)
 site/                   Eleventy source for the marketing site (pointsharvest.com)
   _includes/              Layouts (base.njk, post.njk) and partials (nav, footer)
-  _data/site.js           Global template data — baseUrl, version, download URL
+  _data/site.js           Global template data — baseUrl, version, download URL, githubUrl
   index.njk, contact.njk  Hand-written pages
+  index.md.njk, contact.md.njk  Markdown mirrors of those pages (/index.md, /contact.md) for LLMs
   blog.njk                Blog listing page (iterates collections.posts)
-  blog/                   Blog post markdown + directory data (blog.json)
+  blog/                   Blog post markdown + directory data (blog.11tydata.js)
+  llms.njk                Generates /llms.txt — site summary + links to every markdown page
   sitemap.njk             Generates sitemap.xml from the posts collection
-  static/                 Passthrough-copied assets (site.css, CNAME, icons, JS)
+  static/                 Passthrough-copied assets (site.css, CNAME, icons, ads.txt, JS)
 eleventy.config.js      Eleventy config (input=site, output=docs, passthrough, filters)
 docs/                   Generated marketing site output (gitignored; built and deployed by the Deploy Site workflow)
 .github/workflows/      GitHub Actions for automated releases
@@ -613,8 +615,8 @@ Facts worth not re-deriving:
 | Daily sets | `/` — only today's set is rendered; there are no locked/future cards |
 | Explore on Bing | **`/earn`** (`section#exploreonbing`); not paginated — all tiles render |
 | More activities | **`/earn`** (`section#moreactivities`, "Keep earning"); the only paginated section — "Show more" reveals the rest |
-| Search counters | **API only.** `/pointsbreakdown` is gone — it redirects to `/dashboard?modal=membership`, which has no live counter anywhere in the UI |
-| PC search cap | **Level-based** (25 points/day at Member, higher at Gold) — read `pointProgressMax` from the API, never hardcode it |
+| Search counters | **"Points breakdown" flyout on `/earn`** — opened via the "Today's points" toggle. `/pointsbreakdown` is gone and there is no inline counter anywhere in the UI, so every read is an open → parse → close round trip (`steps/fetch-counters.ts`) |
+| PC search cap | **Tier-based** (Member/Silver/Gold, and doubled on 2X offers) — re-read from the flyout's Bing-search row on every poll, never hardcode it |
 | Card click | requires a **trusted** event, so it goes over CDP from the background (see `util/tab-manager.ts`) |
 
 The site also has `section#levelup` ("Level up activities") and `section#quests` — both untapped point sources, out of scope for now. They matter anyway: their tiles can share a title with a real activity, which is why card lookup is scoped per section (`cardAnchors()`).
