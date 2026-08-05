@@ -25,7 +25,7 @@ extraStyles:
     <p>The extension also accesses two domains:</p>
     <ul>
       <li><strong>*.bing.com</strong> — interact with Bing search and the Rewards dashboard on your behalf.</li>
-      <li><strong>r2.pointsharvest.com</strong> — check for extension updates (version manifest only).</li>
+      <li><strong>r2.pointsharvest.com</strong> — check for extension updates (version number only).</li>
     </ul>
 
     <h2>What data is stored</h2>
@@ -40,7 +40,7 @@ extraStyles:
     <p>This data never leaves your device. There is no server, no database, and no cloud sync.</p>
 
     <h2>What data is transmitted</h2>
-    <p>The extension makes exactly one type of outbound request: a version check to <code>r2.pointsharvest.com</code> to fetch a small JSON manifest. This request contains no cookies, no user identifiers, and no personal information.</p>
+    <p>The extension makes exactly one type of outbound request: a version check to <code>r2.pointsharvest.com</code> to fetch a small text file containing the latest version number. This request contains no cookies, no user identifiers, and no personal information.</p>
     <p>All interactions with Bing happen directly between your browser and Microsoft's servers — the same as if you performed the actions manually. Points Harvest does not proxy, intercept, or relay any of this traffic.</p>
 
     <h2>Third-party services</h2>

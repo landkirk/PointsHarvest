@@ -16,7 +16,7 @@ extraScripts:
   <section class="hero">
     <h1>Earn Bing Rewards<br /><span>on autopilot</span></h1>
     <p>Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.</p>
-    <p>Following Microsoft's 2026 Rewards overhaul, a Silver-tier user in the United States can earn around <strong>3,000 points per month</strong> (~$36/year) through the extension alone. <a href="/blog/maximum-rewards-points/">See the full breakdown.</a></p>
+    <p>Following Microsoft's 2026 Rewards overhaul, a Gold-tier user in the United States can earn around <strong>4,900 points per month</strong> (~$59/year) through the extension alone. <a href="/blog/maximum-rewards-points/">See the full breakdown.</a></p>
     <div class="cta-group">
       <a class="btn btn-primary" href="{{ site.downloadUrl }}" download>Download Latest ({{ site.extensionVersion }})</a>
       <a class="btn btn-secondary" href="{{ site.githubUrl }}" target="_blank" rel="noopener">View on GitHub</a>
@@ -49,6 +49,11 @@ extraScripts:
         <p>Completes "More Activities" tiles automatically — opens each tile's search page, dwells, and validates. Skips puzzles, quizzes, and install prompts.</p>
       </div>
       <div class="feature-card">
+        <div class="icon">💰</div>
+        <h3>Auto-Claim</h3>
+        <p>At the end of each run, claims any pending points from the rewards page's "Ready to claim" flyout, so earned points don't sit unclaimed and expire.</p>
+      </div>
+      <div class="feature-card">
         <div class="icon">🧩</div>
         <h3>Hands-on When It Matters</h3>
         <p>Quizzes, polls, and puzzles are surfaced for you to complete manually — the extension handles everything else automatically.</p>
@@ -62,8 +67,8 @@ extraScripts:
     <div class="preview-layout">
       <div class="preview-description">
         <div class="section-label">See it in action</div>
-        <h2>One click, five phases, fully automated</h2>
-        <p>Hit Start and walk away. Points Harvest works through warm-up searches, Explore on Bing activities, Daily Sets, More Activities, and PC search farming — all in sequence, all on its own. Quizzes and polls are surfaced for you to complete; everything else is hands-free.</p>
+        <h2>One click, one run, fully automated</h2>
+        <p>Hit Start and walk away. Points Harvest works through warm-up searches, Daily Sets, Explore on Bing activities, More Activities, and PC search farming, then claims any pending points — all in sequence, all on its own. Quizzes and polls are surfaced for you to complete; everything else is hands-free.</p>
         <p>Every phase shows live progress, point earnings, and activity counts so you always know exactly where a run stands.</p>
       </div>
       <!-- Simulated run data, not real figures — hidden from a11y tree and content extraction so it isn't read as a factual claim. -->
@@ -79,9 +84,9 @@ extraScripts:
             <div class="pp-header">
               <span class="pp-dot pp-dot--running" id="pp-dot-el"></span>
               PointsHarvest
-              <span class="pp-pts" id="pp-total-pts">+130 explore (wk) · +110 today</span>
+              <span class="pp-pts" id="pp-total-pts">+130 explore (wk) · +70 today</span>
             </div>
-            <div class="pp-status" id="pp-status">Farming PC searches (12 / 30)</div>
+            <div class="pp-status" id="pp-status">Farming PC searches (8 / 20)</div>
             <div class="pp-bar-wrap">
               <div class="pp-bar" id="pp-main-bar"></div>
             </div>
@@ -93,16 +98,16 @@ extraScripts:
                 <span class="pp-phase-earned"></span>
               </div>
               <div class="pp-phase pp-phase--done">
+                <span class="pp-phase-label">Daily Sets</span>
+                <span class="pp-phase-count">3/3</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" data-w="100"></div></div>
+                <span class="pp-phase-earned">+30 pts today</span>
+              </div>
+              <div class="pp-phase pp-phase--done">
                 <span class="pp-phase-label">Explore on Bing</span>
                 <span class="pp-phase-count">13/13</span>
                 <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" data-w="100"></div></div>
                 <span class="pp-phase-earned">+130 pts this week</span>
-              </div>
-              <div class="pp-phase pp-phase--done">
-                <span class="pp-phase-label">Daily Sets</span>
-                <span class="pp-phase-count">3/3</span>
-                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" data-w="100"></div></div>
-                <span class="pp-phase-earned">+50 pts today</span>
               </div>
               <div class="pp-phase pp-phase--done">
                 <span class="pp-phase-label">More Activities</span>
@@ -112,9 +117,15 @@ extraScripts:
               </div>
               <div class="pp-phase pp-phase--active">
                 <span class="pp-phase-label">PC Searches</span>
-                <span class="pp-phase-count" id="pp-pc-count">12/30</span>
-                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar pp-phase-bar--searching" data-w="77"></div></div>
-                <span class="pp-phase-earned" id="pp-pc-pts">+60 pts today</span>
+                <span class="pp-phase-count" id="pp-pc-count">8/20</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar pp-phase-bar--searching" data-w="40"></div></div>
+                <span class="pp-phase-earned" id="pp-pc-pts">+40 pts today</span>
+              </div>
+              <div class="pp-phase" id="pp-claim-phase">
+                <span class="pp-phase-label">Claim points</span>
+                <span class="pp-phase-count" id="pp-claim-count">0/1</span>
+                <div class="pp-phase-bar-wrap"><div class="pp-phase-bar" id="pp-claim-bar"></div></div>
+                <span class="pp-phase-earned"></span>
               </div>
             </div>
             <div class="pp-btn-stop" id="pp-btn">Stop</div>
@@ -187,7 +198,7 @@ extraScripts:
       <details>
         <summary>How many points can I earn per day?</summary>
         <div class="faq-body">
-          Points Harvest automates four phases each run: Explore on Bing activity cards, Daily Set tiles, More Activities tiles, and PC search farming up to your daily cap. Following Microsoft's 2026 Rewards overhaul, a Silver-tier user in the United States can earn around 3,000 points per month through the extension alone. For a full breakdown of every earning category and what the extension automates, see <a href="/blog/maximum-rewards-points/">How Many Microsoft Rewards Points Can You Actually Earn?</a>
+          Points Harvest automates the daily earning loop each run: Daily Set tiles, Explore on Bing activity cards, More Activities tiles, PC search farming up to your daily cap, and claiming any pending points. Following Microsoft's 2026 Rewards overhaul, a Gold-tier user in the United States can earn around 4,900 points per month through the extension alone (a Silver-tier user around 3,000). For a full breakdown of every earning category and what the extension automates, see <a href="/blog/maximum-rewards-points/">How Many Microsoft Rewards Points Can You Actually Earn?</a>
         </div>
       </details>
 

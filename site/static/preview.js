@@ -14,8 +14,8 @@
     var countEl = document.getElementById('pp-pc-count');
     var ptsEl = document.getElementById('pp-pc-pts');
     var totalEl = document.getElementById('pp-total-pts');
-    var TOTAL = 30, START = 12;
-    var PTS_PER = 5, EXPLORE_PTS = 130, DAILY_PTS = 50;
+    var TOTAL = 20, START = 8;
+    var PTS_PER = 5, EXPLORE_PTS = 130, DAILY_PTS = 30;
     var idx = 0;
     var dotEl = document.getElementById('pp-dot-el');
     var btnEl = document.getElementById('pp-btn');
@@ -76,14 +76,23 @@
       if (ptsEl) ptsEl.textContent = '+' + (n * PTS_PER) + ' pts today';
       if (totalEl) totalEl.textContent = '+' + EXPLORE_PTS + ' explore (wk) · +' + (DAILY_PTS + n * PTS_PER) + ' today';
     }
+    var claimPhaseEl = document.getElementById('pp-claim-phase');
+    var claimCountEl = document.getElementById('pp-claim-count');
+    var claimBarEl = document.getElementById('pp-claim-bar');
     function showDone() {
       if (dotEl) { dotEl.className = 'pp-dot pp-dot--done'; }
       if (statusEl) statusEl.textContent = 'Done for today!';
       if (btnEl) { btnEl.className = 'pp-btn-run'; btnEl.textContent = 'Run today\'s searches'; }
+      if (claimPhaseEl) claimPhaseEl.className = 'pp-phase pp-phase--done';
+      if (claimCountEl) claimCountEl.textContent = '1/1';
+      if (claimBarEl) claimBarEl.style.width = '100%';
     }
     function showRunning() {
       if (dotEl) { dotEl.className = 'pp-dot pp-dot--running'; }
       if (btnEl) { btnEl.className = 'pp-btn-stop'; btnEl.textContent = 'Stop'; }
+      if (claimPhaseEl) claimPhaseEl.className = 'pp-phase';
+      if (claimCountEl) claimCountEl.textContent = '0/1';
+      if (claimBarEl) { claimBarEl.style.transition = 'none'; claimBarEl.style.width = '0'; claimBarEl.getBoundingClientRect(); claimBarEl.style.transition = ''; }
     }
     function tick() {
       idx++;

@@ -11,10 +11,11 @@ Points Harvest is a free, open-source Chrome extension that automates your daily
 It handles:
 
 - **Warm-up searches** — a few quick searches to prime your session before the real work begins
-- **Explore on Bing** activities — the "Search on Bing" cards on your rewards dashboard
 - **Daily Set tiles** — the trivia, polls, and quizzes (it waits for you on interactive ones)
+- **Explore on Bing** activities — the "Search on Bing" cards on your rewards dashboard
 - **More Activities tiles** — additional activity cards below the daily set (opens each tile's search page, dwells, and validates; skips puzzles and quizzes)
-- **PC search farming** — runs web searches until your daily PC search cap is reached
+- **PC search farming** — runs web searches until your daily search cap is reached
+- **Claiming points** — at the end of the run, claims any pending points from the rewards page so they don't sit unclaimed
 
 ## Before You Install
 
@@ -58,7 +59,7 @@ Go to **Chrome Settings → Privacy and security → Site settings → Pop-ups a
 2. Click the Points Harvest icon in your toolbar to open the side panel.
 3. Click **Run today's searches**.
 
-The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. The side panel shows five phases — **Warm-up**, **Explore on Bing**, **Daily Sets**, **More Activities**, and **PC Searches** — each with its own progress bar and points earned.
+The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. The side panel shows each phase — **Warm-up**, **Daily Sets**, **Explore on Bing**, **More Activities**, **PC Searches**, and **Claim points** — with its own progress bar and points earned.
 
 > **Note:** For quiz and poll tiles in the Daily Set, Points Harvest will pause and activate the tab so you can complete it. A **"Done — I completed the action"** button appears in the side panel — click it when you're finished, or just close the tab, and the extension will continue.
 

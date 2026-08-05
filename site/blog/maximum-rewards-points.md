@@ -63,7 +63,7 @@ These are the categories the extension works through on each run. It needs a Mic
 
   *Effort: zero — fully automated.*
 
-> **Subtotal: roughly 2,700–3,000 points/month automated at Silver tier** — searches (~1,500), the Daily Set (up to ~900, minus the quiz/poll tiles you answer), your Monthly Level Bonus, and a typical STAR payout — plus whatever Explore and "Keep earning" cards your dashboard serves up. It does *not* cover the Default Search Engine Bonus, which needs Bing set as your browser default. A full run takes about 2–5 minutes.
+> **Subtotal: roughly 2,700–3,000 points/month automated at Silver tier, or ~4,900 at Gold** (whose search cap doubles to 100/day and whose level bonus is 700) — searches, the Daily Set (up to ~900, minus the quiz/poll tiles you answer), your Monthly Level Bonus, and a typical STAR payout — plus whatever Explore and "Keep earning" cards your dashboard serves up. It does *not* cover the Default Search Engine Bonus, which needs Bing set as your browser default. A full run takes about 2–5 minutes.
 
 ### The STAR Bonus: 0–1,500 Points
 

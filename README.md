@@ -2,7 +2,7 @@
 
 Earn Bing Rewards on autopilot. Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.
 
-Following Microsoft's 2026 Rewards overhaul, a Silver-tier user in the United States can earn roughly **3,000 points per month** (~$36/year) — searches, Daily Set, streak, the monthly level bonus, and a typical STAR payout combined. [See the full breakdown.](https://pointsharvest.com/blog/maximum-rewards-points/)
+Following Microsoft's 2026 Rewards overhaul, a Gold-tier user in the United States can earn roughly **4,900 points per month** (~$59/year) — searches, Daily Set, the monthly level bonus, and a typical STAR payout combined (a Silver-tier user lands near 3,000). [See the full breakdown.](https://pointsharvest.com/blog/maximum-rewards-points/)
 
 Not affiliated with or endorsed by Microsoft. Automating Microsoft Rewards is against the [Microsoft Rewards Terms of Service](https://www.microsoft.com/en-us/servicesagreement/) — the extension warns you about this on first launch. Use it at your own discretion.
 
@@ -45,7 +45,7 @@ Want to build from source? See the [Developer Guide](DEVELOP.md).
 
 Click the extension icon to open the side panel, then click **Run today's searches**.
 
-- The side panel shows real-time progress with per-phase progress bars (Warm-up, Explore, Daily Sets, More Activities, PC Searches, Claim points), and earned points count up as each phase credits them
+- The side panel shows real-time progress with per-phase progress bars (Warm-up, Daily Sets, Explore on Bing, More Activities, PC Searches, Claim points), and earned points count up as each phase credits them
 - A pulsing ⏳ badge appears next to the status line whenever the extension is deliberately pausing between actions; hover it for a live countdown
 - When the run finishes, it shows "Done for today!" and a summary card with the duration, points earned per phase, and activity counts
 - Runs are safe to repeat. The extension reads what Bing has already credited at the start of every run and skips it, so if a run is interrupted you can simply start another one — it will pick up only what's still outstanding
@@ -56,10 +56,10 @@ Click the extension icon to open the side panel, then click **Run today's search
 Open the extension side panel to access these settings:
 
 - **Speed** — Normal (default), Fast, Slow, or Stealth. Scales how long the extension lingers between actions.
-- **Skip warm-up searches** — Jump straight to Explore cards instead of running warm-up queries first
+- **Skip warm-up searches** — Jump straight to the Daily Set instead of running warm-up queries first
 - **Disable notifications** — Suppress the desktop notification when a run completes
 - **Debug mode** — Show a detailed event log and activity breakdown in the popup (useful for troubleshooting)
-- **Purge all state** — Clear all stored data (progress, last run date, search queue, preferences) and reset to a fresh state
+- **Purge all state** — Clear all stored data (progress, last run date, search queue, preferences) and reset to a fresh state. Lives in the debug panel, so enable Debug mode to see it
 
 ## Tips
 
