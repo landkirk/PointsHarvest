@@ -38,7 +38,7 @@ Gold tier gives **up to 10% off redemptions**, and Microsoft has been surfacing 
 
 That takes a $5 card from ~5,250 points to roughly ~4,725 — about **945 points per dollar**. It's a ~10% raise on the entire program, and it's the single largest redemption-side lever available to a normal user.
 
-Since [Gold requires only around 750 lifetime points and tier status is now permanent](/blog/points-per-day/), most long-time users already qualify. If you're redeeming without Gold, check your tier first — you may already have the discount and not be using it.
+Since [Gold requires 750 points plus two level-up activities each month](/blog/rewards-2026-overhaul/) — tier status is re-earned monthly, not held for life — you need to keep clearing that bar to hold the discount. If you're redeeming without Gold, check your tier first; you may already have the discount and not be using it.
 
 Microsoft also periodically runs Rewards sales that discount catalog items outright. These aren't scheduled or announced far ahead, so they're not something to plan around, but if you happen to be sitting on a redeemable balance when one lands, that's the moment to use it.
 
@@ -86,7 +86,7 @@ Redemption is the easy half. The tedious half is the daily routine: run the sear
 
 It reads your live points counter off the Rewards dashboard rather than assuming a fixed cap, so it stops when your tier's ceiling is actually reached instead of burning searches that earn nothing. Delays between actions are drawn from a human-shaped distribution rather than a fixed interval, which avoids the throttle that costs manual searchers points. It works through the Explore on Bing cards, the Daily Set, and the More Activities tiles, and pauses on quizzes and polls so you can answer those yourself. A full run takes about 2–5 minutes.
 
-Worth stating plainly, as we do everywhere on this site: **automating Microsoft Rewards is against the Microsoft Rewards Terms of Service.** Microsoft suspends accounts for automation, and a suspended account loses its unredeemed balance — which is a redemption risk, not just an earning one. Weigh that against a payout that now sits near $3.40/month at Gold.
+Worth stating plainly, as we do everywhere on this site: **automating Microsoft Rewards is against the Microsoft Rewards Terms of Service.** Microsoft suspends accounts for automation, and a suspended account loses its unredeemed balance — which is a redemption risk, not just an earning one. Weigh that against a payout that now sits near $3/month at Silver (about $5 at Gold).
 
 If you want to see what it does before deciding, the [getting started guide](/blog/getting-started/) walks through installation and a first run.
 

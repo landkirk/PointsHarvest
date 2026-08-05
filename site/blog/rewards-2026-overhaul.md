@@ -10,11 +10,11 @@ Microsoft has rebuilt the Rewards program from the ground up, and as of **mid-Ju
 
 Here's what changed, in one breath:
 
-- **Level 1 and Level 2 are gone.** They've been replaced by three lifetime tiers: **Member, Silver, and Gold**.
-- **Daily search points are capped much lower** — roughly **15 / 30 / 60 points per day** by tier, versus the 150/day a Level 2 user could pull from PC search alone.
+- **Level 1 and Level 2 are gone.** They've been replaced by three tiers — **Member, Silver, and Gold** — re-earned each month, not held for life.
+- **Daily search points are capped by tier at 25 / 50 / 100 points per day** (Member / Silver / Gold), at 5 points per search. Under the old system a Level 2 user pulled 150/day from PC search alone.
 - **PC and mobile now share one cap.** Searching on your phone no longer adds a separate bucket of points.
-- **Daily Set tiles were cut from 10 points to 5**, halving the set from 30 points/day to 15.
-- **A new "Bing STAR Bonus"** dangles up to 2,100 points/month — but it's algorithmic, opaque, and by Microsoft's own numbers most people will see a small fraction of it.
+- **A new "Bing STAR Bonus"** dangles up to **500 / 1,500 / 3,500 points/month** by tier — but it's algorithmic, opaque, and by Microsoft's own numbers most people will see a small fraction of it.
+- **A denser web of streaks and stamps** now sits on top: keep a 7-day streak on any activity to earn a stamp, and 12 stamps pays a 1,000-point bonus.
 
 The honest summary: **almost everyone will earn less than they did six months ago.** If that's frustrating, you're in extremely good company — the [Microsoft Q&A thread announcing the US switch](https://learn.microsoft.com/en-us/answers/questions/5948384/microsoft-rewards-has-switched-to-the-new-dashboar) filled up with complaints within days, and the reaction on r/MicrosoftRewards has been overwhelmingly negative.
 
@@ -22,43 +22,45 @@ The honest summary: **almost everyone will earn less than they did six months ag
 
 ## The New Tiers
 
-The old system asked you to re-earn Level 2 every month by hitting a points threshold. The new system doesn't work that way.
+The old system asked you to re-earn Level 2 every month by hitting a points threshold. The new system works the same way — the thresholds and the names just changed.
 
-**Tier status is now based on lifetime points, and it's permanent.** Once you reach Gold, you stay Gold — no monthly renewal, no falling back to a lower tier because you took a vacation. Reporting from migrated regions puts the Gold threshold at roughly 750 lifetime points, which is a genuinely low bar; most existing users cleared it years ago.
+**Tier status is earned monthly, not for life.** Your dashboard spells it out: you become a **Silver** member by earning **500 points in the month**, and a **Gold** member by earning **750 points in the month *and* completing two level-up activities**. Benefits are granted "through" the end of the month — a Silver account reads "Silver benefits through August 31" — so if you stop hitting the threshold, you fall back. There's no permanent, once-and-done Gold status; it's a monthly chore, which is one more reason a daily routine matters under the new system.
 
-That's the good news, and it's real. The trade-off is what each tier actually gets you.
+### What each tier gets you
 
-### Daily search caps by tier
+The dashboard's own comparison table lays the tiers out side by side. These are the confirmed US values:
 
-| Tier | Daily search points |
-| --- | --- |
-| Member | ~15 |
-| Silver | ~30 |
-| Gold | ~60 |
+| Benefit | Member | Silver | Gold |
+| --- | --- | --- | --- |
+| Level requirement (points/month) | — | 500 | 750 |
+| Level-up activities (per month) | — | — | 2 |
+| **Bing search — daily points limit** (5 pts/search) | **25** | **50** | **100** |
+| Monthly Level Bonus | 100 | 300 | 700 |
+| Default Search Engine Bonus (per month) | 50 | 150 | 350 |
+| **Bing STAR Bonus — up to** | 500 | 1,500 | 3,500 |
+| Redemption discount coupon (points) | — | 100 | 200 |
+| Microsoft Store points per $1 | 1x | 10x | 10x |
+| Xbox points per $1 | 4x | 4x | 4x |
 
-Under the old system, a Level 2 user in the US could earn 150 points/day from PC searches **plus** another 100/day from mobile. The new Gold cap of ~60 points/day is a shared ceiling across every device.
+Under the old system, a Level 2 user in the US could earn 150 points/day from PC searches **plus** another 100/day from mobile. The new caps are a shared ceiling across every device — even Gold's 100/day is below what old PC search alone paid, and Silver's 50/day is a third of it.
 
-That's the single biggest change in the whole overhaul, and it's worth sitting with: **the top tier of the new system earns less than half of what the top tier of the old system did from searching** — and that's before accounting for the mobile bucket disappearing into the same cap.
+That's the single biggest change in the whole overhaul, and it's worth sitting with: **the new search caps earn far less than the old top tier did** — and that's before accounting for the mobile bucket disappearing into the same cap.
 
 ### What else Gold unlocks
 
-Gold isn't only a bigger search cap. It also comes with:
+As the table shows, Gold roughly doubles Silver across the board: a **700-point Monthly Level Bonus** (vs. 300), a **350-point Default Search Engine Bonus** for keeping Bing as your default for 14 days (vs. 150), a **3,500-point STAR ceiling** (vs. 1,500), and a **200-point redemption coupon** (vs. 100). The catch is the requirement — Gold takes 750 points *and* two level-up activities every month, where Silver just needs 500 points.
 
-- A **420-point monthly tier bonus**, credited for maintaining Gold status.
-- **Up to 10% off redemptions**, plus some targeted discounts on select Xbox and Roblox digital cards.
-- **Eligibility for the STAR Bonus** (more on that below).
-
-There's also a **streak bonus of roughly 210 points across 14 days**, available across tiers, which rewards showing up consistently rather than searching hard on any one day.
+On top of the tier benefits, the new system layers a **streak-and-stamp economy** that rewards showing up daily: a Bing Search streak, a Daily Set streak, an Edge browsing streak, a Bing app check-in streak, and more. Hold any of them for 7 days in a row and you earn a **stamp**; collect **12 stamps and you get a 1,000-point Stamp Bonus**. There's even "streak protection" to cover the odd missed day. None of it rewards searching *hard* — it rewards searching *every day*.
 
 ## The STAR Bonus
 
 This is the piece generating the most confusion, so it's worth being precise.
 
-The **Bing STAR Bonus** is a monthly allocation — advertised as **up to 2,100 points** — that gets credited at the end of the month. It isn't earned by completing a specific list of tasks. Instead, Microsoft's algorithm evaluates whether your search behavior across the month looks *consistent, authentic, and natural*, and pays out accordingly.
+The **Bing STAR Bonus** is a monthly allocation — with a ceiling that depends on your tier (**500 at Member, 1,500 at Silver, 3,500 at Gold**) — credited at the end of the month. It isn't earned by completing a specific list of tasks. Instead, Microsoft's algorithm evaluates whether your search behavior across the month looks *consistent, authentic, and natural*, and pays out accordingly.
 
 Three things you should know about it:
 
-**1. Most people will not get anywhere near the maximum.** Per figures Microsoft itself provided, roughly **80% of users will receive under 300 points**, with only about a fifth landing anywhere in the 300–2,100 range. The headline number is a ceiling that almost nobody touches.
+**1. Most people will not get anywhere near the maximum.** Per figures Microsoft itself provided, roughly **80% of users will receive under 300 points**, with only about a fifth landing above that. The tier ceiling — 1,500 at Silver, 3,500 at Gold — is a number almost nobody touches.
 
 **2. There is no transparency on how it's calculated.** There's no progress bar telling you what "authentic" means, no breakdown of what moved the number, and no way to audit the result. You find out what you earned when the month ends. For a program that previously ran on countable, predictable daily tasks, this is a substantial shift in how much certainty you get.
 
@@ -72,17 +74,17 @@ Three things you should know about it:
 
 ## What This Does to Your Monthly Total
 
-Let's do the math for a Gold-tier user in the US, counting only the categories that are confirmed:
+Here's the math for a **Silver** user in the US, counting only the reliably countable categories:
 
-- **Daily searches:** ~60/day → **~1,800/month**
-- **Daily Set:** 15/day (3 tiles × 5 points) → **~450/month**
-- **Streak bonus:** ~210 per 14 days → **~450/month**
-- **Gold tier bonus:** **420/month**
-- **STAR Bonus:** **~300/month** for a typical user — the ceiling is 2,100, but four in five land under 300
+- **Daily searches:** 50/day → **~1,500/month**
+- **Daily Set:** 30/day (3 tiles × 10 points) → **~900/month**
+- **Monthly Level Bonus:** **300/month**
+- **Default Search Engine Bonus:** **150/month**
+- **STAR Bonus:** **~300/month** for a typical user — the ceiling is 1,500, but four in five land under 300
 
-That's roughly **3,400 points/month**, plus whatever bonus and "Keep earning" tiles happen to be on your dashboard that week.
+That's roughly **3,100 points/month**, plus whatever streak stamps, "Keep earning" tiles, and Explore cards land that month. Run the same math for the other tiers and you get roughly **~2,000/month at Member** and **~5,200/month at Gold** — Gold pulls ahead mostly on its 100/day search cap and its 700-point level bonus.
 
-For comparison, the same categories under the old Level 2 system came to well over 7,000 points/month. **The overhaul cut reliable Bing-side earnings by more than half.**
+For comparison, the same categories under the old Level 2 system came to well over 7,000 points/month. **The overhaul cut reliable Bing-side earnings for a typical user by roughly half.**
 
 We've rewritten our [full points breakdown](/blog/maximum-rewards-points/) around the new system if you want the category-by-category detail, including which parts Points Harvest handles and which parts are still unconfirmed post-rollout.
 
@@ -92,7 +94,7 @@ The strategy that made sense under the old system — grind out your full search
 
 **Consistency now beats volume.** Both the streak bonus and the STAR Bonus reward showing up regularly across the month. A short daily session is worth more than an occasional marathon, which is close to the opposite of how the old caps incentivized behavior.
 
-**Hit Gold once and forget about it.** Because tier status is lifetime now, there's no reason to stress about monthly thresholds. Get over the line and the 420-point bonus and higher cap are permanent.
+**Keep your tier alive month to month.** Tier status resets monthly — Silver needs 500 points in the month, Gold needs 750 plus two level-up activities — so the level bonus and higher cap only last as long as you keep clearing the threshold. A daily routine clears it comfortably; a month off drops you back down.
 
 **Recheck your own dashboard rather than trusting any guide — including this one.** Microsoft has been quietly adjusting values throughout the rollout, and the US only migrated days ago. Your dashboard is the source of truth.
 
@@ -100,7 +102,7 @@ The strategy that made sense under the old system — grind out your full search
 
 ### Where Points Harvest fits now
 
-Points Harvest reads your search cap directly from the Rewards dashboard API rather than assuming a fixed number, so it already stops at whatever your tier actually allows — it adapted to the new caps without needing a change. It still handles the Explore on Bing cards, Daily Set tiles, More Activities tiles, and search farming up to your cap, and it still pauses on quizzes and polls so you can answer them yourself.
+Points Harvest reads your live points counter directly off the Rewards dashboard rather than assuming a fixed number, so it already stops at whatever your tier actually allows — it adapted to the new caps without needing a change. It still handles the Explore on Bing cards, Daily Set tiles, More Activities tiles, and search farming up to your cap, and it still pauses on quizzes and polls so you can answer them yourself.
 
 What it can't do is manufacture points that no longer exist. A daily run under the new system produces meaningfully less than it did in April, because the program pays less. We've updated our own claims on this site to match — we'd rather give you a number that survives contact with your dashboard.
 

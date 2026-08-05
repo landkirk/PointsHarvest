@@ -2,7 +2,7 @@
 
 Earn Bing Rewards on autopilot. Points Harvest is a free, open-source Chrome extension that automatically completes your daily Bing Rewards searches, Explore activities, Daily Set tiles, and More Activities tiles — minimal interaction required.
 
-Following Microsoft's 2026 Rewards overhaul, Gold-tier users in the United States can potentially earn around **3,000 points per month** (~$36/year) through the extension alone. [See the full breakdown.](https://pointsharvest.com/blog/maximum-rewards-points/)
+Following Microsoft's 2026 Rewards overhaul, a Silver-tier user in the United States can earn roughly **3,000 points per month** (~$36/year) — searches, Daily Set, streak, the monthly level bonus, and a typical STAR payout combined. [See the full breakdown.](https://pointsharvest.com/blog/maximum-rewards-points/)
 
 Not affiliated with or endorsed by Microsoft. Automating Microsoft Rewards is against the [Microsoft Rewards Terms of Service](https://www.microsoft.com/en-us/servicesagreement/) — the extension warns you about this on first launch. Use it at your own discretion.
 
@@ -10,11 +10,11 @@ Not affiliated with or endorsed by Microsoft. Automating Microsoft Rewards is ag
 
 Microsoft rebuilt Rewards in 2026 and the new dashboard [reached the United States in mid-July 2026](https://pointsharvest.com/blog/rewards-2026-overhaul/). If you're comparing against an older guide, these are the changes that matter:
 
-- **Level 1 / Level 2 are gone**, replaced by lifetime **Member / Silver / Gold** tiers. Tier status is permanent once earned.
-- **Daily search points are capped by tier** — roughly 15 (Member) / 30 (Silver) / 60 (Gold) per day, down from 150/day at Level 2.
-- **PC and mobile share one cap.** Searching on your phone no longer opens a second bucket.
-- **Daily Set tiles pay 5 points each** (15/day for the set), down from 10.
-- **A new STAR Bonus** pays up to 2,100 points/month, awarded by an opaque algorithm that judges whether your search behavior looks natural. By Microsoft's own figures ~80% of users receive under 300, and Microsoft states that bot-like search patterns reset STAR progress — so treat yours as at risk rather than as guaranteed income.
+- **Level 1 / Level 2 are gone**, replaced by **Member / Silver / Gold** tiers. Tier status is re-earned monthly: **Silver** requires 500 points in the month, **Gold** requires 750 points *plus* completing two level-up activities, and benefits carry to the end of the month.
+- **Daily search points are capped by tier** at **25 / 50 / 100 points per day** (Member / Silver / Gold), at 5 points per search — far below the old 150/day at Level 2 — and **PC and mobile now share one cap**, so searching on your phone no longer opens a second bucket.
+- **The Daily Set is 30 points/day** — three tiles worth 10 points each.
+- **A new STAR Bonus** pays up to **500 / 1,500 / 3,500 points/month** by tier, awarded by an opaque algorithm that judges whether your search behavior looks natural. By Microsoft's own figures ~80% of users receive under 300, and Microsoft states that bot-like search patterns reset STAR progress — so treat yours as at risk rather than as guaranteed income.
+- **Streaks and stamps** now reward daily consistency: hold a 7-day streak on any activity for a stamp, and 12 stamps pays a 1,000-point bonus.
 
 Points Harvest reads your live counters off the rewards dashboard rather than assuming a fixed cap, so it stops at whatever your tier actually allows. It can't manufacture points that no longer exist: a daily run under the new system earns meaningfully less than it did before the rollout, because the program pays less.
 
@@ -66,7 +66,7 @@ Open the extension side panel to access these settings:
 - If you notice missed points, try the **Slow** or **Stealth** speed setting to give Bing more time to credit each search
 - Quizzes, polls, and puzzles are surfaced for you automatically — complete them in the Bing tab, then click **Done** in the popup (or just close the tab) to continue
 - If Chrome's popup blocker prevents an activity tab from opening, the extension pauses and shows exact fix instructions — allow pop-ups for `rewards.bing.com` in Chrome settings, then click **Done** to continue
-- Run it every day. Under the new system the streak bonus (~210 points per 14 days) and STAR Bonus both reward consistency, so a short daily session is worth more than an occasional long one
+- Run it every day. Under the new system the streak bonus (~210 points per 14 days) and STAR Bonus both reward consistency, so a short daily session is worth more than an occasional long one. Daily runs also keep you above the monthly points threshold that maintains your Silver/Gold tier
 - The extension only runs when you manually trigger it — there is no auto-schedule
 - If you aren't signed into Bing Rewards, the extension pauses and prompts you to sign in rather than failing outright — sign in, then click **Done** to continue. It only aborts if you're still signed out afterwards
 - Leave the Bing Rewards tab alone while a run is in progress. Opening Chrome DevTools on it will stop activity tiles from being credited
