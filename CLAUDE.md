@@ -62,19 +62,19 @@ rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind). The dash
 - `rewards-content.ts` — Runs on `rewards.bing.com`; message router handling `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`. DOM parsing itself lives in `rewards-dom.ts` (inlined by esbuild).
 - `search-content.ts` — Runs on `www.bing.com`; handles `PERFORM_SEARCH` message, fills and submits the search box.
 
-**State** — Split into two files:
+**State**
 - `src/util/persistent-state.ts` — `chrome.storage.local` backed; survives service worker restarts. `RunState` (progress, warm-up queries, counters, `activityState`, failures, debug log) is wiped by `resetRunState()` at every run start — there is no run-date gate and no mid-run resumption. `UserPreferences` (`skipWarmUp`, `timingMultiplier`, `debugMode`, …) persists across runs. All writes serialized through `enqueueWrite()`.
-- `src/util/runtime-state.ts` — In-memory only (`activeOrchestrator`) — resets on SW restart.
+- In-memory runtime state (resets on SW restart): `ctx.activeOrchestrator`/`activeStep`/`activeActivity` are fields on the `Context` object (`src/util/context.ts`); `activeController`/`activeContext` are module-level in `src/managers/start-run.ts`.
 - Phase progress and points tracked in `header.phaseStates` using the `PHASE` registry in `src/util/phase.ts` (`warmup`, `daily`, `explore`, `more-activities`, `farm`, `claim`) and read by the popup for per-phase progress bars.
 - `lastRunSummary` stores the most recent `RunSummary` (start/end times, per-phase points, activity counts, end reason) so the popup can render the end-of-run summary card after a run finishes.
 
-**Timing** (`src/util/timing.ts`) — All delays use `randMs(min, max)` with triangular distribution. `TIMING.LINGER_ON_PAGE` (5–7s) is the standard dwell preset used between actions.
+**Timing** (`src/util/timing.ts`) — All delays use `randMs(min, max)` with a long-tail human distribution (80% triangular, 15% quick burst, 5% distracted pause). `TIMING.LINGER_ON_PAGE` (6–10s) is the standard dwell preset used between actions.
 
 ### Build System Details
 
 - `tsconfig.json` — IDE/type-check config; includes all `src/**/*` including content scripts.
-- `tsconfig.build.json` — Emit config; excludes content scripts (they're handled by esbuild separately to avoid conflicts).
-- Full `npm run build` first runs `tsc --noEmit` (type-checks everything), then emits non-content files, bundles content scripts with esbuild, and finally builds the marketing site with Eleventy (`site/` → `docs/`).
+- `tsconfig.build.json` — excludes content scripts; not currently referenced by any npm script (tsc never emits — esbuild does all emission).
+- Full `npm run build` runs lint, then `tsc --noEmit` (type-checks everything), then bundles the main entry points (`background.ts`, `ui/popup.ts`, `ui/onboarding.ts`) and content scripts with esbuild, copies assets (manifest, icons, screens), and finally builds the marketing site with Eleventy (`site/` → `docs/`).
 
 ### Marketing site (`site/` → `docs/`)
 

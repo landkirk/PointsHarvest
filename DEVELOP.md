@@ -3,13 +3,13 @@
 ## Development Setup
 
 1. Clone the repository
-2. Run `npm install` to install dev dependencies (TypeScript, esbuild, concurrently, @types/chrome)
+2. Run `npm install` to install dev dependencies (TypeScript, esbuild, concurrently, chrome-types)
 3. Run `npm run build` to do a full build, or `npm run extension:watch` for incremental compilation during development
 4. Open Chrome and navigate to `chrome://extensions`
 5. Enable **Developer mode** (toggle in top right)
-6. Click **Load unpacked** and select the project folder (point at the repo root, not `src/`)
+6. Click **Load unpacked** and select the **`dist/` folder** (not the repo root — the root has no built files until you build, and its `manifest.json` references paths that only exist inside `dist/`)
 7. Make your changes to files in `src/`
-8. Rebuild with `npm run build` (or let `watch` pick up the change), then click the refresh icon on the extension card
+8. Rebuild with `npm run build` (or let `watch` pick up the change — note watch only re-emits content scripts and HTML/manifest copies; changes to `background.ts` or the popup need `npm run extension:main` or a full build), then click the refresh icon on the extension card
 
 ## Timing System
 
@@ -42,14 +42,14 @@ All values are `[min, max]` in milliseconds at 1.0× multiplier. Multiply by `ti
 | `LINGER_ON_SEARCH` | 3,000–6,000 | Dwell on Bing search results **not scaled by multiplier** |
 | `DELAY_BETWEEN_FARMING_SEARCHES` | 4,000–8,000 | Pause between consecutive PC farm searches |
 | `FETCH_COUNTERS_POLL` | 700–1,800 | Jittered interval between counter extraction polls |
-| `REWARDS_PRE_EXTRACT_SCROLL_PAUSE` | 700–1,800 | Pause between scroll events before card extraction |
 | `VALIDATE_ACTIVITY` | 1,400–3,800 | Delay after completing an activity before validating |
-| `SCROLL_RANGE_PX` | 200–500 | Pixels to scroll per action during page dwell |
 | `CLICK_SIMULATION_MOVE_DELAY` | 8–25 | Delay between pointer move events during card click |
 | `CLICK_SIMULATION_HOLD_DOWN_DELAY` | 60–180 | Hold time between pointerdown and pointerup |
 | `CLICK_SIMULATION_RELEASE_DELAY` | 10–40 | Delay after pointerup before final click event |
+| `CLICK_SIMULATION_SETTLE_DELAY` | 30–90 | Pause on target before pressing (trusted CDP click only) |
 | `RESULT_CLICK_HOVER` | 500–1,500 | Pause after scrolling result into view, before clicking |
 | `RESULT_CLICK_DWELL` | 2,000–6,000 | Additional dwell time after clicking an organic result |
+| `RETRY_CLICK_PAUSE` | 1,500–3,500 | Pause before re-clicking a card that opened no tab |
 | `CLAIM_SETTLE` | 2,000–4,500 | Pause after clicking "Claim points" before verifying the claim landed |
 
 ### TIMEOUTS Constants
@@ -66,6 +66,14 @@ Fixed limits (not affected by speed multiplier):
 | `TAB_CAPTURE` | 10,000 ms | Max wait for a new tab to be created (first card click) |
 | `TAB_CAPTURE_RETRY` | 3,000 ms | Capture window for card re-clicks (a working re-click opens its tab almost at once) |
 | `CARD_CLICK_ATTEMPTS` | 3 | Clicks tried before a card is reported as a blocked pop-up |
+| `EXPAND_SECTION_RENDER` | 1,500 ms | How long a section gets to render its tiles after a toggle click |
+| `EXTRACT_SECTION_WAIT` | 4,000 ms | How long extraction waits for an expanded section's tiles to enter the DOM |
+| `FLYOUT_RENDER` | 3,000 ms | How long a flyout ("Points breakdown", "Claim points") gets to open after its toggle is clicked |
+| `SECTION_CONFIRM_POLL` | 250 ms | Re-read interval for a toggle's `aria-expanded` while confirming |
+| `SECTION_TOGGLE_CLICK_ROUNDS` | 2 | Clicks tried before a section is reported unexpandable |
+| `SHOW_MORE_CLICKS` | 10 | Max "Show more" pages to walk in one section |
+| `SCROLL_SETTLE` | 350 ms | Wait after scrollIntoView before reading a tile's coordinates |
+| `DEBUGGER_ATTACH_SETTLE` | 600 ms | Warm-up after a fresh CDP attach (the first input can be dropped) |
 | `AUTH_REDIRECT_GRACE` | 5,000 ms | How long an off-rewards page gets to bounce back before it counts as a sign-in redirect |
 | `CLAIM_READ_ATTEMPTS` | 4 | "Ready to claim" card reads tried after navigating to the rewards home page |
 | `CLAIM_VERIFY_POLLS` | 6 | Flyout re-reads before an unconfirmed claim is reported |
@@ -75,12 +83,12 @@ Fixed limits (not affected by speed multiplier):
 
 ## Build System
 
-The project uses two tools for compilation:
+The project uses two tools:
 
-- **tsc** — type-checks all source and emits `dist/` for everything except content scripts
-- **esbuild** — bundles content scripts into self-contained files in `dist/content/`
+- **tsc** — type-checks only (`tsc --noEmit`); it never emits any output
+- **esbuild** — produces everything in `dist/`: bundles the main entry points (`background.ts`, `ui/popup.ts`, `ui/onboarding.ts`) into `dist/`, and the content scripts into `dist/content/`; `extension:assets` copies the manifest, icons, and screen HTML on top
 
-Content scripts are bundled separately because Chrome injects them as classic scripts with no module loader. esbuild resolves all `import` statements at build time and emits a single IIFE per file, so they can freely import from `util/` and elsewhere without any runtime module system.
+Content scripts get their own bundling step because Chrome injects them as classic scripts with no module loader. esbuild resolves all `import` statements at build time and emits a single IIFE per file, so they can freely import from `util/` and elsewhere without any runtime module system.
 
 ### Scripts
 
@@ -88,9 +96,9 @@ Content scripts are bundled separately because Chrome injects them as classic sc
 |---|---|
 | `npm run build` | Full extension build + marketing site build |
 | `npm run extension:build` | Extension only: lint → `tsc --noEmit` → esbuild main + content scripts → copy assets |
-| `npm run extension:watch` | `tsc --noEmit --watch` and `esbuild --watch` run in parallel via concurrently |
-| `npm run extension:content` | Re-bundle content scripts only (useful after changing `util/` imports) |
-| `npm run extension:watch:content` | Watch and re-bundle content scripts only |
+| `npm run extension:watch` | `tsc --noEmit --watch` plus esbuild watchers for content scripts, HTML copies, and the manifest (the background/popup bundles are **not** watched — run `extension:main` after changing them) |
+| `npm run extension:content` | Re-bundle content scripts and re-copy `popup.html`/`onboarding.html` |
+| `npm run extension:watch:content` | Watch variant of the above (also watches screen HTML and the manifest) |
 | `npm run website:build` | Build the marketing site (`site/` → `docs/`) via Eleventy |
 | `npm run website:watch` | Eleventy dev server at `localhost:8080` with live reload |
 | `npm run website:preview` | `website:watch` and auto-open browser at `localhost:8080` |
@@ -102,16 +110,16 @@ During `extension:watch`, the IDE handles content script type errors in real tim
 ### tsconfig files
 
 - **`tsconfig.json`** — full config, used by the IDE and `tsc --noEmit`. Includes all `src/**/*`.
-- **`tsconfig.build.json`** — extends `tsconfig.json` but excludes `src/content/`. Used for `tsc` emit only, so tsc and esbuild don't both write to `dist/content/` during watch.
+- **`tsconfig.build.json`** — extends `tsconfig.json` but excludes `src/content/`. **Not currently referenced by any npm script** — it dates from when tsc emitted `dist/` (esbuild has since taken over all emission). Kept in case a tsc emit path returns; do not add content scripts to it.
 
 ## Project Structure
 
 ```
-manifest.json           Extension config (Manifest V3) — references dist/ for compiled files
+manifest.json           Extension config (Manifest V3) — copied into dist/ by extension:assets; its paths resolve inside dist/
 package.json            npm scripts and dev dependencies
 tsconfig.json           TypeScript config (full — IDE + type check)
-tsconfig.build.json     TypeScript config (emit only — excludes content scripts)
-.eslintrc.json          ESLint config
+tsconfig.build.json     TypeScript config excluding content scripts (currently unused by any npm script)
+eslint.config.mjs       ESLint config (flat config)
 .prettierrc             Prettier formatting config
 src/                    Source files (edit these)
   background.ts         Service worker — tab event listeners, message routing
@@ -138,22 +146,23 @@ src/                    Source files (edit these)
     array.ts            Array utility helpers
     config.ts           URL constants (REWARDS_URL, REWARDS_EARN_URL) and KEEPALIVE_PORT
     context.ts          createContext() — bundles setState/dbg/setPhase for orchestrators
-    debug.ts            Logging helpers (dbg, resetLog) and debug type definitions
+    debug.ts            Logging helpers (dbg, DBG) and debug type definitions
     errors.ts           NotLoggedInError and friends
     execute-with-retry.ts  executeWithRetry() — attempt/linger/retry wrapper with failure recording
     run-activity-loop.ts   runActivityLoop() — shared per-activity iteration, progress, and points tracking
     failures.ts         Failure type and helpers
     format.ts           truncate(), pluralize(), LABEL_MAX
+    linger-reporter.ts  registerLingerReporter() — mirrors active lingers into header.linger for the popup badge
     messaging.ts        MSG_ACTION constants, AppMessage union, PhaseUpdate/ProgressBroadcast types
-    persistent-state.ts chrome.storage.local persistent state + write queue + resetState
+    persistent-state.ts chrome.storage.local persistent state + write queue + resetRunState
     phase.ts            PHASE definitions and per-phase progress types
     run-summary.ts      buildRunSummary() — end-of-run summary construction
-    runtime-state.ts    In-memory runtime state (activeOrchestrator) — resets on service worker restart
     screens.ts          SCREENS array and OnboardingScreen interface
     search-queries.ts   PC_SEARCH_QUERIES pool used by farm-pc-searches
     tab-manager.ts      TabManager class — open/close/focus/capture tabs, trusted CDP clicks, section expansion
     timing.ts           randMs, sleep, lingerOnPage, TIMING presets
     update-check.ts     Version comparison for update notifications
+    url.ts              urlKey() — origin+pathname URL comparison helper
   interfaces/
     orchestrator.ts     OrchestratorBase abstract class (+ ensureSectionReady)
     step.ts             StepBase abstract class
@@ -271,12 +280,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Opens the rewards tab and focuses it before starting the orchestrator chain; all tabs are opened in the same window as the extension (the `windowId` is passed in the `START` message from the popup)
 - Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
-- `_executeRun` chains six sub-orchestrators (ActivityExtraction → WarmUp → ExploreOnBing → DailySets → MoreActivities → FarmPcSearches) via `_runOrchestrator`, which sets/clears `activeOrchestrator` in `runtime-state.ts` around each run
+- `_executeRun` chains seven sub-orchestrators (ActivityExtraction → WarmUp → DailySets → ExploreOnBing → MoreActivities → FarmPcSearches → ClaimPoints) via `_runOrchestrator`, which sets/clears `ctx.activeOrchestrator` around each run
 - Records `startedAt` at the top of `run()` so `_endRun` can compute the run duration
 - `_endRun(ctx, endReason)` takes a `RunEndReason` from the `RUN_END` enum (`success`, `stopped`, `not-logged-in`, `fatal`, `setup-failed`); the centralized `END_MESSAGES` table in the same file maps each reason to its status string and debug message
 - On run end, builds a `RunSummary` via `buildRunSummary()` (from `util/run-summary.ts`) and persists it to `runState.lastRunSummary` alongside the final header state in a single `setRunState()` call
 - Closes all opened tabs with staggered random delays (300–1200 ms between closes) to avoid bot-detection patterns
-- Sends a desktop notification on success (controlled by `disableNotifications` preference)
+- Sends a desktop notification at run end — success or failure, each with its own message (controlled by the `disableNotifications` preference)
 
 ### managers/stop-run.ts
 - Guards against double-stop: if there is no active controller, or the existing one is already aborted, returns immediately (so clicking Stop twice is a no-op)
@@ -327,7 +336,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Runs after Explore on Bing to complete "More Activities" tiles (labelled "Keep earning" on the site) — the tab is already on `/earn` by then, so `ensureSectionReady`'s navigation step is a no-op
 - **Page routing**: these live on `/earn`, so it calls `ensureSectionReady(ctx, tabId, SECTION.moreActivities)` — that section renders a preview row plus a "Show more" button, both of which `TabManager.expandSection` must trip before every tile is in the DOM
 - Filters for actionable more-activities cards (`activityType === MORE_ACTIVITIES`, `cardState === Actionable`)
-- Tiles requiring manual input never reach this orchestrator: `classifyCard()` marks them `IGNORED` when the title/description matches `puzzle`, `quiz`, `browser extension`, `set bing`, `install`, `play`, `test`, or `search more`. Zero-point promos (`points === 0` — banners and campaign cards) are also classified `IGNORED`
+- Tiles requiring manual input never reach this orchestrator: `classifyCard()` marks them `IGNORED` when the title/description matches `puzzle`, `quiz`, `browser extension`, `set bing`, `install`, `play`, `test`, `search more`, `bing app`, or `set a goal`. Zero-point promos (`points === 0` — banners and campaign cards) are also classified `IGNORED`
 - For each remaining tile:
   - Uses `TabManager.clickCardAndCaptureTab()` to click the tile; the href is a pre-built Bing search URL so the results page loads immediately — no `performSearch` needed
   - If tab blocked by popup blocker, calls `_waitForPopupUnblock`
@@ -420,7 +429,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - `setState(updates)` — persist partial run state to `chrome.storage.local`
   - `dbg(type, message)` — log to debug panel, auto-tagged with active orchestrator name
   - `fail(category, message)` — record soft failure with category, message, and context (orchestrator/step/activity)
-  - `updateHeader(payload)` — update header state and phase progress, then broadcast to popup
+  - `setPhase(update)` — update header state and phase progress (`PhaseUpdate`), then broadcast to popup
   - `broadcastProgress()` — push current header state to popup via `PROGRESS` message
 - All methods respect the abort signal, so stopping a run propagates cleanly through the entire orchestrator chain
 
@@ -438,9 +447,9 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - `RUN_END` constants and `RunEndReason` type: `'success' | 'stopped' | 'not-logged-in' | 'fatal' | 'setup-failed'` — passed into `_endRun` and stored on `RunSummary.endReason`
 - `RunSummary` interface — persisted to `runState.lastRunSummary` at the end of every run: `{ startedAt, endedAt, endReason, phaseStates, activityCounts: { dailySetsCompleted, exploreCompleted, moreActivitiesCompleted, actionableLeftover }, failureCount }`
 
-### util/runtime-state.ts
-- `activeOrchestrator` / `activeContext` — in-memory only (not persisted); reset on service worker restart
-- `getActiveOrchestrator()` / `setActiveOrchestrator()` — tracks which orchestrator is currently executing; used by `context.dbg()` to label log entries with orchestrator name
+### In-memory runtime state
+- There is no dedicated module: `activeOrchestrator` / `activeStep` / `activeActivity` are fields on the `Context` object (`util/context.ts`), set by `StartRun._runOrchestrator` and `StepBase._run` and read by `ctx.dbg()`/`ctx.fail()` to label log entries and failures
+- `activeController` / `activeContext` are module-level variables in `managers/start-run.ts` — in-memory only (not persisted); reset on service worker restart
 
 ### util/tab-manager.ts
 - `TabManager` class — owns all tab lifecycle operations and state
@@ -505,12 +514,12 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - **Header**: includes a link to the Bing Rewards Dashboard (`rewards.bing.com`) for quick manual access
 - **Phase-based progress display**:
   - Renders per-phase (Warmup, Daily, Explore, More Activities, Farm, Claim) progress bars (`done / total`) and earned-points labels — rows are built from the `PHASES` array in `util/phase.ts`
-  - Uses `PHASE` constants and `PHASE_TIME_LABEL` for display labels
+  - Display labels come from each `PhaseDefinition`'s `label` and `timeLabel` fields in the `PHASE` registry
   - **Animated earnings counter**: when a phase's earned points increase, `animatePhaseEarned(phase, from, to)` smoothly counts the number up over 650 ms with cubic ease-out and adds an `earning` CSS class to the phase row for the duration. `animHandles` / `animDisplayed` track the in-flight `requestAnimationFrame` handle and the currently-displayed value per phase so mid-animation updates continue from the current display value instead of jumping. `stopPhaseAnim(phase)` cancels any pending frame and removes the class (called on stop and on run start).
-- **Run summary card**: after a run ends, the popup reads `lastRunSummary` from run state and delegates to `renderRunSummaryCard()` in `ui/run-summary-card.ts` to display the recap
+- **Run summary card**: after a run ends, the popup reads `lastRunSummary` from run state and delegates to `renderRunSummary()` in `ui/run-summary-card.ts` to display the recap
 - **User preferences panel** (`prefs-panel.ts`):
   - **Skip warm-up** checkbox — persisted to preferences; passed as `skipWarmUp` in `START` message
-  - **Speed multiplier** select (Normal 1.0×, Fast 0.6×, Slow 4.0×, Stealth 8.0×) — persisted to `timingMultiplier` in preferences
+  - **Speed multiplier** button row (Normal 1.0×, Fast 0.6×, Slow 4.0×, Stealth 8.0×) — persisted to `timingMultiplier` in preferences
   - **Debug mode** checkbox — enables verbose logging
   - **Disable notifications** checkbox — suppresses desktop notifications on run completion
 - **Action banner** — data-driven banner shown when `activeUserAction` is set on RunState (e.g., popup blocked, not logged in); renders title, instructions, and action button from `UserActionConfig`; themed via `.theme-amber` or `.theme-danger` CSS classes; clears when the user action completes
@@ -529,7 +538,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Renders user preferences panel in the popup
 - Displays and handles updates for:
   - `skipWarmUp` checkbox
-  - `timingMultiplier` select dropdown (Normal, Fast, Slow, Stealth presets)
+  - `timingMultiplier` button row built from `SPEED_PRESETS` (Normal, Fast, Slow, Stealth — rendered into `#speed-buttons`)
   - `debugMode` checkbox
   - `disableNotifications` checkbox
 - Sends `SET_PREFERENCE` messages to background for each update
@@ -552,9 +561,9 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Scrollable list (height-constrained) to show recent failures
 
 ### ui/run-summary-card.ts
-- `renderRunSummaryCard(summary: RunSummary)` — builds and injects the end-of-run recap card into the popup after a run ends
+- `renderRunSummary(summary: RunSummary)` — builds and injects the end-of-run recap card into the popup after a run ends
 - Reads `lastRunSummary` from run state; formats the duration via `formatDuration()` from `util/format.ts` (`Xh Ym Zs` / `Ym Zs` / `Zs`)
-- Displays end reason (success / stopped / not-logged-in / fatal / setup-failed), per-phase points via `PHASE_LABELS`, and activity counts: daily sets completed, explore cards completed, and any actionable leftovers
+- Displays end reason (success / stopped / not-logged-in / fatal / setup-failed), per-phase points labelled from the `PHASE` registry, and activity counts: daily sets completed, explore cards completed, and any actionable leftovers
 - Shows the total failure count so the user can see at a glance whether the run had any soft failures
 
 ### content/rewards-content.ts
@@ -660,9 +669,9 @@ Edit `src/util/activity.ts` → `generateSearchQuery()`:
 
 1. Create `src/orchestrators/my-orchestrator.ts` extending `OrchestratorBase`
 2. Implement `async run(ctx: Context): Promise<void>`
-3. Use `ctx.dbg()`, `ctx.fail()`, `ctx.updateHeader()` for logging and progress
+3. Use `ctx.dbg()`, `ctx.fail()`, `ctx.setPhase()` for logging and progress
 4. Add to orchestrator chain in `managers/start-run.ts` → `_executeRun()` via `_runOrchestrator()`
-5. The `_runOrchestrator()` helper sets `activeOrchestrator` so context logging auto-tags entries
+5. The `_runOrchestrator()` helper sets `ctx.activeOrchestrator` so context logging auto-tags entries
 
 ### Adding a New Step
 
@@ -670,7 +679,7 @@ Edit `src/util/activity.ts` → `generateSearchQuery()`:
 2. Implement `async run(ctx: Context, ...args): Promise<ReturnType>`
 3. Use `ctx.dbg()` and `ctx.fail()` for logging
 4. Export an instance: `export const myStep = new MyStep()`
-5. Call from orchestrator: `await myStep.run(ctx, arg1, arg2)`
+5. Call from orchestrator: `await myStep._run(ctx, arg1, arg2)` — always `_run`, not `run`: the base-class wrapper sets/clears `ctx.activeStep`, so calling `run()` directly silently loses step attribution in logs and failures
 
 ## Testing
 
@@ -684,11 +693,11 @@ Edit `src/util/activity.ts` → `generateSearchQuery()`:
 7. Monitor the debug panel for extraction results, search queue, and event log
 
 ### Testing Without Running Searches
-To test activity extraction without running searches, add a return statement in `orchestrators/complete-explore-on-bing.ts` → `run` after the mapping step (after `ctx.setState({ activityState: extraction })`):
+To test activity extraction without running searches, cut the orchestrator chain short in `managers/start-run.ts` → `_executeRun()`: extraction runs first (`ActivityExtraction` stores the classified `activityState`), so a `return` after its `_runOrchestrator` call ends the run with extraction results visible in the debug panel:
 
 ```typescript
-await ctx.setState({ activityState: extraction });
-return; // Stop here for testing
+await this._runOrchestrator(ctx, extraction, () => extraction.run(ctx));
+return; // Stop here for testing — extraction results are in the debug panel
 ```
 
 ### Resetting State
@@ -877,9 +886,9 @@ Split into two independent persistent objects in `chrome.storage.local` (via `ut
 - `debug` — debug log entries
 - `lastRunSummary` — `RunSummary` from the most recent run (or `null` if none). Written by `_endRun` and consumed by the popup to render the end-of-run summary card.
 
-**Runtime state** (`util/runtime-state.ts`, in-memory only):
-- `activeOrchestrator` — which orchestrator is currently running (resets on service worker restart)
-- `activeContext` — context object passed to orchestrators (for accessing signal, fail methods)
+**Runtime state** (in-memory only, resets on service worker restart):
+- `ctx.activeOrchestrator` / `ctx.activeStep` / `ctx.activeActivity` — fields on the `Context` object (`util/context.ts`), maintained by `_runOrchestrator` and `StepBase._run`, read by logging/failure tagging
+- `activeController` / `activeContext` — module-level in `managers/start-run.ts`; the handles Stop uses to abort the running chain
 
 **Write serialization**:
 - All storage writes enqueued through `enqueueWrite()` promise chain to prevent race conditions
