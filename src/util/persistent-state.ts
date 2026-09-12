@@ -60,6 +60,8 @@ export interface RunSummary {
 
 export interface UserPreferences {
   skipWarmUp: boolean;
+  /** Auto-pick an answer on quizzes/polls instead of pausing for the user. */
+  autoAnswerQuizzes: boolean;
   disableNotifications: boolean;
   debugMode: boolean;
   ignoredUpdateVersion: string | null;
@@ -83,6 +85,7 @@ export interface RunState {
 
 export const INITIAL_PREFERENCES: UserPreferences = {
   skipWarmUp: false,
+  autoAnswerQuizzes: false,
   disableNotifications: false,
   debugMode: false,
   ignoredUpdateVersion: null,

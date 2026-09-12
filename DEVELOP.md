@@ -50,6 +50,8 @@ All values are `[min, max]` in milliseconds at 1.0× multiplier. Multiply by `ti
 | `RESULT_CLICK_HOVER` | 500–1,500 | Pause after scrolling result into view, before clicking |
 | `RESULT_CLICK_DWELL` | 2,000–6,000 | Additional dwell time after clicking an organic result |
 | `RETRY_CLICK_PAUSE` | 1,500–3,500 | Pause before re-clicking a card that opened no tab |
+| `QUIZ_ANSWER_DWELL` | 2,500–6,000 | Read-the-question pause before auto-picking a quiz/poll answer |
+| `QUIZ_OPTION_POLL` | 700–1,800 | Re-locate interval while the next quiz question renders |
 | `CLAIM_SETTLE` | 2,000–4,500 | Pause after clicking "Claim points" before verifying the claim landed |
 
 ### TIMEOUTS Constants
@@ -77,6 +79,9 @@ Fixed limits (not affected by speed multiplier):
 | `AUTH_REDIRECT_GRACE` | 5,000 ms | How long an off-rewards page gets to bounce back before it counts as a sign-in redirect |
 | `CLAIM_READ_ATTEMPTS` | 4 | "Ready to claim" card reads tried after navigating to the rewards home page |
 | `CLAIM_VERIFY_POLLS` | 6 | Flyout re-reads before an unconfirmed claim is reported |
+| `QUIZ_MAX_ROUNDS` | 15 | Max answers auto-picked in one quiz (only binds when the "1/3" label is unreadable) |
+| `QUIZ_OPTION_POLLS` | 12 | Re-locate attempts while a round's navigation lands |
+| `QUIZ_ABSENT_POLLS` | 2 | Consecutive "no module on this page" reads that mean the quiz ended |
 | `USER_ACTION_POLL` | 2 min | Timeout for user to complete a single-click activity (poll) |
 | `USER_ACTION_QUIZ` | 10 min | Timeout for user to complete a quiz/test/puzzle |
 | `PERMISSION_WAIT` | 10 min | Max wait for user to fix Chrome popup permissions |
@@ -213,6 +218,7 @@ The extension uses Chrome's `runtime.sendMessage` API for all cross-context comm
 | `PERFORM_SEARCH` | BG → search content | `{ query: string }` | Type query, submit search form |
 | `SCROLL_PAGE` | BG → search content | `{ y: number, behavior: 'smooth' \| 'instant' }` | Scroll the page during dwell |
 | `CLICK_RESULT` | BG → search content | (none) | Simulate click on top 3 organic result (35% CTR) |
+| `LOCATE_QUIZ_OPTION` | BG → search content | `{ aim: boolean }` | Report where to click on the quiz/poll module — a random answer, or the answer reveal's "Next" when no option is clickable (`QuizLocateResponse`, carrying `kind: 'quiz' \| 'poll'` and `move: 'answer' \| 'advance'`); the BG does the clicking over CDP |
 | `START` | popup → BG | `{ skipWarmUp: boolean, windowId: number }` | Start a run with preferences |
 | `STOP` | popup → BG | (none) | Cancel active run |
 | `GET_RUN_STATE` | popup → BG | (none) | Fetch current run state |
@@ -276,7 +282,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 ### managers/start-run.ts
 - Implemented as a `StartRun` class that owns a `TabManager` instance shared across all orchestrators
 - Loads preferences at run start via `loadPreferences()` and applies the `timingMultiplier` via `setTimingMultiplier(prefs.timingMultiplier ?? 1.0)` so all downstream timing scales appropriately
-- Resets run state to `INITIAL_RUN_STATE` (preserving preferences: `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds`)
+- Resets run state to `INITIAL_RUN_STATE` (preserving preferences: `skipWarmUp`, `autoAnswerQuizzes`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds`)
 - Opens the rewards tab and focuses it before starting the orchestrator chain; all tabs are opened in the same window as the extension (the `windowId` is passed in the `START` message from the popup)
 - Accepts a `skipWarmUp` flag (forwarded from the popup `START` message); when true, the `WarmUpSearches` orchestrator is skipped entirely and a log entry is written instead
 - Fires `_executeRun` as fire-and-forget (returns immediately so background can ack the message)
@@ -327,6 +333,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - Uses `TabManager.clickCardAndCaptureTab()` to click the card on rewards page and capture the activity's page (trusted CDP click)
   - If tab blocked by popup blocker, calls `_waitForPopupUnblock`
   - Classifies the activity as user-interactive or auto-closeable based on title matching `quiz|poll|test|puzzle`
+    - **Auto-answered**: when the `autoAnswerQuizzes` preference is on *and* `userActionKind` is `quiz` or `poll` (the `AUTO_ANSWERABLE` set — puzzles are excluded, since an arbitrary option can't solve one), calls `steps/auto-answer-quiz` to play the quiz unattended, then dwells via `lingerOnPage()` (standard 6–10s) before closing the tab — the last answer is an anchor to another SERP and the activity credits on *that* load landing, so closing immediately would kill the navigation mid-flight. The preference is read once per phase in `run()` into `this.autoAnswer`. If the step returns `Unsupported` (no quiz module it recognizes on the page), execution falls through to the user-interactive path below — so the preference can save work but never costs points
     - **User-interactive**: calls `steps/linger-on-tab` to activate the tab and wait for user to click **Done** (timeout: 2 min for polls, 10 min for quizzes from `enrichUserActions()`)
     - **Auto-closeable**: calls `lingerOnPage()` (standard 6–10s dwell), then closes the tab
   - Validates completion via `steps/validate-activity` after each activity, retrying once via `executeWithRetry`
@@ -389,8 +396,36 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - `Error`: no response, or the card was `NotFound` in the DOM
 - Logs validation result with activity ID and title for debugging
 
+### steps/auto-answer-quiz.ts
+- Plays a daily-set quiz or poll unattended, so a run needs no person at the keyboard. Opt-in via the `autoAnswerQuizzes` preference (default off); only reached for `userActionKind` of `quiz` or `poll`
+- Signature: `autoAnswerQuiz._run(ctx, tabId, activity, tabs)` → `AutoAnswerStatus.Completed | Unsupported`. It never reports a failure itself — it stops and lets `steps/validate-activity` read the dashboard tile, which is the only real arbiter of whether points landed
+- **Neither module is on rewards.bing.com.** Clicking a quiz or poll tile lands on a normal `www.bing.com` SERP whose whole-page-template carries the module, so both are parsed by `content/quiz-dom.ts` and answered by the **search** content script (`https://www.bing.com/*` already matches — no new content script, match pattern, or host permission)
+- **Quiz and poll are unrelated markup families**, so `quiz-dom.ts` is table-driven off `MODULES` rather than hardcoding one shape:
+  - **Quiz** (`.btom_card`) — multi-question. Question in `.btom_quest`, options in `.btom_opts` (`acf-button-standard.btom_opt > a`), and its own progress label at `.btq_lbl` ("1/3")
+  - **Quiz** (`.btq_main`) — the Copilot-Search / "Bing homepage quiz" variant, in `#b_wpt_container` rather than the `_ml` one. Question in `.btq_quest`, options in `.btq_opts`, progress at `.btq_lbl`. **It does not go straight from one question to the next**: answering re-renders `.btq_main` into a *visible* answer reveal (`.btq_card.btq_ansP` — correct/selected rows, an explanation, "34% got this right") plus the next question's card hidden behind `.btq_hideCompulsary`, and it advances only when `acf-button-standard.btq_nxtQues > button[title="Next"]` is clicked. Clicking Next on the *last* reveal replaces the cards with a score summary (`.btq_card.btq_sumP`, "You got 0 of 3 correct.") whose only links start a different quiz or leave the site — so the shape carries `answered: '.btq_sumP'`, making the summary the module's own "finished" signal
+  - **Poll** (`.btp_card`) — single question. Question in `.btp_q_text`, options in `.btp_choices` (`acf-button-standard.btp_choice > a`), **no** progress label. Voting swaps the choices for a results view, which keeps rendering clickable-looking anchors — so the shape carries an `answered` selector (`.btp_voted, .btp_percentage, .btp_selected`) that short-circuits option lookup to empty. Without it the loop would re-vote every round
+  - The step returns as soon as it answers a poll (`kind === 'poll'` on the Ready reply): there is no next question to wait for
+- **The answer reveal, and `move`**: because of the `.btq_main` family, a `Ready` reply carries `move: 'answer' | 'advance'` (`QUIZ_MOVE` in `util/messaging.ts`) saying whether the point it hands back answers a question or just clicks "Next". `content/quiz-dom.ts` looks for options first and only consults `quizNext()` when none are clickable, so the reveal can never divert a click away from an answerable question. These follow in the step:
+  - An advance is **not a round** — it answers nothing, so it doesn't count against `cap`. It gets its own `advances` counter, capped at `TIMEOUTS.QUIZ_MAX_ROUNDS`, because a "Next" that reappears without advancing would otherwise spin forever where the answer cap can't catch it
+  - The wait that follows an advance passes `null` instead of an `AnsweredRound`, switching the stale-read guard off: the reveal is labelled with the *coming* question ("2/3" lives in the hidden card), so progress and question text read identical either side of the click and comparing them would stall the loop
+  - `_waitForNextRound` returns immediately on a `Ready` reply whose `move` is `advance` — a reveal only exists once the answer landed, so unlike a clickable option it can't be a pre-navigation stale read
+  - The round-1 hand-it-back guards test `untouched` (`rounds === 0 && advances === 0`) rather than `rounds === 0`, so a page we have already advanced past isn't mistaken for one that was never ours
+  - `quizNext()` is skipped entirely on a module whose state is `finished` — the summary's links ("Explore next quiz", and two that leave the site) are not worth a trusted click — and the labelled fallback tier matches an **exact** "Next", which is what keeps it off "Explore next quiz" in the first place
+- **Visibility filtering is load-bearing**: `.btq_hideCompulsary` keeps the next question's option anchors in the DOM while the reveal is up, and clicking one would answer a question the page hasn't shown. `isRendered()` therefore pairs the non-zero rect test with `el.checkVisibility({ checkVisibilityCSS: true, visibilityProperty: true })`, optional-called so an older Chrome degrades to the rect test rather than throwing
+- Per round: dwell `TIMING.QUIZ_ANSWER_DWELL` (2.5–6s, multiplier-scaled — a person reads the question, or the reveal's explanation, first), then `TabManager.clickQuizOption()`; the option is picked at random via `shuffleArray` and clicked over the **trusted CDP path**, since the quiz only advances on a real input event
+- Each option is a real `<a target="_self">` to the next question's SERP URL, so answering **navigates** the tab. `_waitForNextRound()` polls `TabManager.probeQuizOption()` (locate-only, sent with `aim: false` so it neither measures nor scrolls — a probe that clicked would answer the question it is waiting to observe) up to `TIMEOUTS.QUIZ_OPTION_POLLS` times at `TIMING.QUIZ_OPTION_POLL` intervals. A rejected `sendMessage` mid-navigation means "keep polling", the same convention `REWARDS_STATUS` uses
+- Round cap: the quiz's own `.btq_lbl` progress ("1/3") when readable, else `TIMEOUTS.QUIZ_MAX_ROUNDS` (15 — This-or-That runs 10). Polls report no progress and exit after one vote
+- **Stale-read guard**: a probe can land before the answer's navigation commits, so seeing clickable options is not proof the next question rendered. `_waitForNextRound` accepts a `Ready` reply only when `isNewRound()` says the page moved on — compare `progress.current` first, then question text, and trust the reading only when neither is comparable. Without it the loop re-answers the question it just answered
+- **Disabled-options ambiguity**: a card with no clickable options reads `Satisfied`, but that is also how a just-answered question looks while the next one renders, and how unparseable markup looks. Two things resolve it:
+  - `quizOptions()` reports a `QuizEndState` (`util/messaging.ts`), carried on the `Satisfied` reply as `state`: `finished` when the shape's `answered` selector matched (a poll's results view or a quiz's score summary), `disabled` when options are *rendered but disabled*, `unparsed` for the parse misses `no-options-container` / `no-options`. A round-1 `Satisfied` with `state: 'unparsed'` returns `Unsupported` so the activity goes back to the user; marking it complete would cost the points the fallback exists to protect
+  - `disabled` means *wait* — it is also how a question looks between answering it and the next one rendering — while `finished` means *stop*: `_waitForNextRound` returns "done" on it immediately rather than burning its whole poll budget waiting for a question that is never coming (and then logging a WARN for a quiz that in fact finished)
+  - The `answered` selector is matched **on screen only** (`findRendered`), because these families leave earlier cards in the DOM behind a hide class. A hidden match is a leftover, and treating one as evidence would report a live question as finished and never answer it
+  - Failing both, `_waitForNextRound` returns "done" when progress is exhausted (`current >= total`) — polls never reach this wait, since the step returns as soon as one is answered. An unreadable progress label means *unreadable*, so it keeps polling rather than abandoning the quiz partway through
+- **`isEnabled()` walks up to 3 levels** from the anchor: `aria-disabled`/`disabled` sit on the `acf-button-standard` wrapper, not on the inner anchor the locator returns, so checking only the anchor makes the disabled filter inert — and with it the quiz shape's only "played" evidence
+- **A repeated `Absent` is a clean finish**: Bing swaps in a plain SERP after the last answer. One reading could be a half-rendered page mid-navigation, so `_waitForNextRound` wants `TIMEOUTS.QUIZ_ABSENT_POLLS` (2) in a row, then stops with an INFO — no response at all (`sendMessage` rejected mid-navigation) is silence and leaves the streak alone. Only exhausting the poll budget logs a WARN
+
 ### steps/linger-on-tab.ts
-- Pauses automation and waits for user to complete an interactive activity (quiz, poll, puzzle)
+- Pauses automation and waits for user to complete an interactive activity (quiz, poll, puzzle) — reached for puzzles, when `autoAnswerQuizzes` is off, and whenever auto-answer returns `Unsupported`
 - Signature: `lingerOnTab(ctx, tabId, activity)` — the timeout is read from `activity.userActionTimeoutMs` (set by `enrichUserActions()`: 2 min for polls, 10 min for quizzes/puzzles)
 - Header message is built from the activity: `Complete the {userActionKind} "{truncated title}" in the Bing tab, then click Done.` (e.g. `Complete the quiz "Which movie won Best Picture?" in the Bing tab, then click Done.`). Falls back to `'activity'` if `userActionKind` is null.
 - Activates the tab so it's visible to the user
@@ -435,7 +470,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 
 ### util/persistent-state.ts
 - **Preferences & Run State**: Separated into two independent storage objects
-  - `UserPreferences`: `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds` — survives `resetRunState()`
+  - `UserPreferences`: `skipWarmUp`, `autoAnswerQuizzes`, `disableNotifications`, `debugMode`, `timingMultiplier`, `ignoredUpdateVersion`, `seenScreenIds` — survives `resetRunState()`
   - `RunState`: `isRunning`, `isLingering`, warmUpQueries, searchCounters, rewardsTabId, activityState, failures, header, debug, `lastRunSummary` — cleared on run start
 - `loadPreferences()` / `setPreference(updates)` — load/save user preferences
 - `loadRunState()` / `setRunState(updates)` — load/save run state; all writes serialized through `enqueueWrite()` to prevent race conditions
@@ -538,6 +573,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
 - Renders user preferences panel in the popup
 - Displays and handles updates for:
   - `skipWarmUp` checkbox
+  - `autoAnswerQuizzes` checkbox
   - `timingMultiplier` button row built from `SPEED_PRESETS` (Normal, Fast, Slow, Stealth — rendered into `#speed-buttons`)
   - `debugMode` checkbox
   - `disableNotifications` checkbox
@@ -866,7 +902,7 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 Split into two independent persistent objects in `chrome.storage.local` (via `util/persistent-state.ts`):
 
 **UserPreferences** (survives run resets):
-- `skipWarmUp`, `disableNotifications`, `debugMode`, `timingMultiplier`
+- `skipWarmUp`, `autoAnswerQuizzes`, `disableNotifications`, `debugMode`, `timingMultiplier`
 - `ignoredUpdateVersion` (for update notifications)
 - `seenScreenIds` (for onboarding screens)
 - Loaded at run start via `loadPreferences()`

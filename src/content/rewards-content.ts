@@ -14,15 +14,14 @@ import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from '../util/messaging.js';
 import type {
   AppMessage,
   ClaimReadResponse,
-  ClickPoint,
   CountersResponse,
   ExtractResponse,
   LocateResponse,
   RewardsStatusResponse,
   ValidateActivityResponse,
 } from '../util/messaging.js';
+import { clean, locateElement } from './dom-util.js';
 import {
-  clean,
   findBreakdownDialog,
   findClaimCard,
   findClaimConfirm,
@@ -264,26 +263,6 @@ function resolveShowMore(section: HTMLElement): HTMLButtonElement | null {
       (b) => /\b(show|see|view)\s+more\b/i.test(b.textContent ?? '') && isVisible(b),
     ) ?? null
   );
-}
-
-/**
- * An element's on-screen geometry, for the background to aim a trusted click at.
- * Scrolls it into view first, so callers must only reach here once they've
- * decided a click is actually needed — this is not a free query.
- */
-async function locateElement(el: HTMLElement): Promise<ClickPoint | null> {
-  el.scrollIntoView({ block: 'center', inline: 'center' });
-  await sleep(TIMEOUTS.SCROLL_SETTLE);
-  const r = el.getBoundingClientRect();
-  if (r.width === 0 || r.height === 0) return null;
-  return {
-    x: r.left + r.width / 2,
-    y: r.top + r.height / 2,
-    w: r.width,
-    h: r.height,
-    vw: window.innerWidth,
-    vh: window.innerHeight,
-  };
 }
 
 chrome.runtime.onMessage.addListener((msg: AppMessage, _sender, sendResponse) => {

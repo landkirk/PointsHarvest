@@ -29,6 +29,7 @@ const SPEED_PRESETS = [
 // ── DOM refs ────────────────────────────────────────────────────────────────
 
 const skipWarmUpCheck = document.getElementById('skip-warmup-check') as HTMLInputElement;
+const autoAnswerCheck = document.getElementById('auto-answer-check') as HTMLInputElement;
 const disableNotificationsCheck = document.getElementById(
   'disable-notifications-check',
 ) as HTMLInputElement;
@@ -74,6 +75,7 @@ function setActiveSpeedButton(multiplier: number): void {
 /** Sync checkbox states from a freshly-loaded UserPreferences object. */
 export function renderPrefs(prefs: UserPreferences): void {
   skipWarmUpCheck.checked = prefs.skipWarmUp;
+  autoAnswerCheck.checked = prefs.autoAnswerQuizzes;
   disableNotificationsCheck.checked = prefs.disableNotifications;
   debugCheck.checked = prefs.debugMode;
   setActiveSpeedButton(prefs.timingMultiplier ?? 1.0);
@@ -100,6 +102,14 @@ export function bindPrefs(): void {
     chrome.runtime.sendMessage({
       action: MSG_ACTION.SET_PREFERENCE,
       updates: { skipWarmUp: skipWarmUpCheck.checked },
+    });
+    flashSaved();
+  });
+
+  autoAnswerCheck.addEventListener('change', () => {
+    chrome.runtime.sendMessage({
+      action: MSG_ACTION.SET_PREFERENCE,
+      updates: { autoAnswerQuizzes: autoAnswerCheck.checked },
     });
     flashSaved();
   });

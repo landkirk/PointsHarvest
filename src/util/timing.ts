@@ -16,6 +16,8 @@ export const TIMING: Record<string, [number, number]> = {
   RESULT_CLICK_DWELL: [2000, 6000], // additional page dwell after clicking a result
   RETRY_CLICK_PAUSE: [1500, 3500], // pause before re-clicking a card that opened no tab
   CLAIM_SETTLE: [2000, 4500], // pause after clicking "Claim points" before verifying the claim landed
+  QUIZ_ANSWER_DWELL: [2500, 6000], // read-the-question pause before auto-picking a quiz/poll answer
+  QUIZ_OPTION_POLL: [700, 1800], // re-locate interval while the next quiz question renders
 };
 
 export const TIMEOUTS = {
@@ -47,6 +49,11 @@ export const TIMEOUTS = {
   SCROLL_SETTLE: 350, // wait after scrollIntoView before reading a tile's coordinates
   CARD_CLICK_ATTEMPTS: 3, // clicks tried before a card is reported as a blocked pop-up
   DEBUGGER_ATTACH_SETTLE: 600, // first CDP input after a fresh attach can be dropped; let it warm up
+  // Auto-answer caps. A quiz reports its own length ("1/3"), so these only bind
+  // when that label is unreadable — This-or-That runs 10 rounds, hence the slack.
+  QUIZ_MAX_ROUNDS: 15, // max answers auto-picked in one activity
+  QUIZ_OPTION_POLLS: 12, // re-locate attempts while a round's navigation lands
+  QUIZ_ABSENT_POLLS: 2, // consecutive "no module here" reads that mean the quiz ended
   USER_ACTION_POLL: 2 * 60_000, // 2 min — poll activity (single click)
   USER_ACTION_QUIZ: 10 * 60_000, // 10 min — quiz/test/puzzle activity
   PERMISSION_WAIT: 10 * 60_000, // max wait for user to fix Chrome popup permissions

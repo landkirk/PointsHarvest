@@ -4,27 +4,38 @@
 import { LABEL_MAX, pluralize, truncate } from '../util/format.js';
 import { sumCompleted } from '../util/activity.js';
 import { ACTIVITY_TYPE, CardState, SECTION } from '../util/activity-types.js';
+import type { Activity, UserActionKind } from '../util/activity-types.js';
 import { DBG } from '../util/debug.js';
 import type { Context } from '../util/context.js';
 import { OrchestratorBase } from '../interfaces/orchestrator.js';
 import { executeWithRetry } from '../util/execute-with-retry.js';
 import { FAIL } from '../util/failures.js';
-import { loadRunState } from '../util/persistent-state.js';
+import { loadPreferences, loadRunState } from '../util/persistent-state.js';
 import { PHASE } from '../util/phase.js';
 import { lingerOnPage } from '../util/timing.js';
 import { lingerOnTab, type LingerHandle } from '../steps/linger-on-tab.js';
+import { autoAnswerQuiz, AutoAnswerStatus } from '../steps/auto-answer-quiz.js';
 import { validateActivity, ValidationStatus } from '../steps/validate-activity.js';
-import type { Activity } from '../util/activity-types.js';
 import { TabCaptureStatus } from '../util/tab-manager.js';
 import { runActivityLoop } from '../util/run-activity-loop.js';
+
+/**
+ * The kinds auto-answer will play. Puzzles are excluded deliberately: picking an
+ * arbitrary option can't solve one, so they keep prompting the user.
+ */
+const AUTO_ANSWERABLE = new Set<UserActionKind | null>(['quiz', 'poll']);
 
 class CompleteDailySets extends OrchestratorBase {
   readonly name = 'Daily sets';
   private currentLinger: LingerHandle | null = null;
+  /** Read once per phase — the preference can't change mid-run. */
+  private autoAnswer = false;
 
   async run(ctx: Context): Promise<void> {
     ctx.signal.throwIfAborted();
-    const extraction = (await loadRunState()).activityState ?? null;
+    const [prefs, run] = await Promise.all([loadPreferences(), loadRunState()]);
+    this.autoAnswer = prefs.autoAnswerQuizzes;
+    const extraction = run.activityState ?? null;
     if (!extraction || !extraction.rewardsTabId) {
       await ctx.dbg(DBG.WARN, 'No extraction result — skipping daily sets');
       return;
@@ -91,13 +102,27 @@ class CompleteDailySets extends OrchestratorBase {
 
     ctx.signal.throwIfAborted();
 
-    if (activity.requiresUserAction) {
+    // Auto-answer is opt-in and covers quizzes/polls only — a puzzle needs real
+    // input that can't be guessed. An unrecognised page falls through to the
+    // prompt below, so the preference can save work but never costs points.
+    const needsUser =
+      activity.requiresUserAction &&
+      !(
+        this.autoAnswer &&
+        AUTO_ANSWERABLE.has(activity.userActionKind) &&
+        (await autoAnswerQuiz._run(ctx, t.id, activity, this.tabs)) !== AutoAnswerStatus.Unsupported
+      );
+
+    if (needsUser) {
       await ctx.dbg(DBG.INFO, 'User action required — waiting for completion');
       const linger = lingerOnTab(ctx, t.id, activity);
       this.currentLinger = linger;
       await linger.promise;
       this.currentLinger = null;
     } else {
+      // An auto-answered quiz's final answer is an anchor to another SERP, and the
+      // activity credits on *that* load landing — so, like every other crediting
+      // path here, dwell before closing rather than killing the navigation.
       await lingerOnPage('daily set activity', undefined, ctx.signal);
       ctx.signal.throwIfAborted();
       await this.tabs.closeTabWithChildren(t.id);

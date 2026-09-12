@@ -18,20 +18,7 @@
 
 import { CardState, CARD_SOURCE, SECTION } from '../util/activity-types.js';
 import type { CardSource, RawCard, SectionKey } from '../util/activity-types.js';
-
-// Some titles carry zero-width characters (U+200B–U+200D, U+FEFF).
-// Escapes keep the source pure ASCII (no invisible bytes).
-const ZERO_WIDTH_RE = /[\u200B-\u200D\uFEFF]/g;
-
-/**
- * Strip zero-width characters and collapse all whitespace runs (including NBSP
- * and newlines from wrapped markup) to single spaces. Both sides of every title
- * comparison go through this, so a DOM title rendered with U+00A0 still equals
- * the extraction-time title it came from.
- */
-export function clean(text: string | undefined | null): string {
-  return (text ?? '').replace(ZERO_WIDTH_RE, '').replace(/\s+/g, ' ').trim();
-}
+import { clean } from './dom-util.js';
 
 /**
  * Only a control the user can actually see counts. Headers routinely render

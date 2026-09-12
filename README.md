@@ -21,11 +21,11 @@ Points Harvest reads your live counters off the rewards dashboard rather than as
 ## What it does
 
 - **Explore on Bing** — Detects and completes all your "Search on Bing" activity cards, mapping each to the right query automatically
-- **Daily Set tiles** — Opens daily set activities and handles simple ones automatically; surfaces quizzes and polls so you can complete them
+- **Daily Set tiles** — Opens daily set activities and handles simple ones automatically; surfaces quizzes and polls so you can complete them, or answers them for you if you turn on **Auto-answer quizzes and polls**
 - **More Activities** — Completes additional activity tiles automatically — opens each tile's search page, dwells, and validates; skips puzzles, quizzes, and install prompts
 - **PC Search farming** — After activities are done, farms remaining searches until the daily cap is reached. The cap depends on your Rewards tier (Member/Silver/Gold) and is now shared across PC and mobile; the extension reads your live counter off the dashboard rather than assuming a fixed number, so it stops instead of burning searches that earn nothing
 - **Auto-claim** — At the end of each run, claims any pending points from the rewards page's "Ready to claim" flyout, so earned points don't sit unclaimed and expire
-- **Hands-on when it matters** — Quizzes, polls, and puzzles are surfaced for you to complete manually; the extension handles everything else
+- **Hands-on when it matters** — Puzzles are surfaced for you to complete manually, as are quizzes and polls unless you opt into auto-answering them; the extension handles everything else
 
 Delays between actions are drawn from a long-tailed human distribution rather than a fixed interval, so runs don't fall into the mechanical, evenly-spaced pattern that trips Bing's search throttle (and that the STAR Bonus algorithm penalizes). A **Stealth** speed setting stretches everything out further. When the run finishes, a summary card shows the duration, points earned per phase, and activity counts.
 
@@ -57,6 +57,7 @@ Open the extension side panel to access these settings:
 
 - **Speed** — Normal (default), Fast, Slow, or Stealth. Scales how long the extension lingers between actions.
 - **Skip warm-up searches** — Jump straight to the Daily Set instead of running warm-up queries first
+- **Auto-answer quizzes and polls** — Off by default. Picks a random answer on daily-set quizzes and polls instead of pausing for you. Puzzles always ask; an unrecognized quiz page falls back to asking too
 - **Disable notifications** — Suppress the desktop notification when a run completes
 - **Debug mode** — Show a detailed event log and activity breakdown in the popup (useful for troubleshooting)
 - **Purge all state** — Clear all stored data (progress, last run date, search queue, preferences) and reset to a fresh state. Lives in the debug panel, so enable Debug mode to see it
@@ -65,6 +66,7 @@ Open the extension side panel to access these settings:
 
 - If you notice missed points, try the **Slow** or **Stealth** speed setting to give Bing more time to credit each search
 - Quizzes, polls, and puzzles are surfaced for you automatically — complete them in the Bing tab, then click **Done** in the popup (or just close the tab) to continue
+- To run fully unattended, turn on **Auto-answer quizzes and polls**. It picks an answer at random, so on quizzes that score correctness you may earn fewer points than answering properly. Puzzles still wait for you, and any quiz layout it doesn't recognize falls back to asking you rather than being skipped
 - If Chrome's popup blocker prevents an activity tab from opening, the extension pauses and shows exact fix instructions — allow pop-ups for `rewards.bing.com` in Chrome settings, then click **Done** to continue
 - Run it every day. Under the new system the streak bonus (~210 points per 14 days) and STAR Bonus both reward consistency, so a short daily session is worth more than an occasional long one. Daily runs also keep you above the monthly points threshold that maintains your Silver/Gold tier
 - The extension only runs when you manually trigger it — there is no auto-schedule

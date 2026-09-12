@@ -1,6 +1,12 @@
 import { sleep, randMs, rawRandMs, TIMEOUTS, TIMING } from './timing.js';
 import { CONTROL_KIND, LOCATE_STATUS, MSG_ACTION } from './messaging.js';
-import type { AppMessage, ClickPoint, LocateResponse, PageControlKind } from './messaging.js';
+import type {
+  AppMessage,
+  ClickPoint,
+  LocateResponse,
+  PageControlKind,
+  QuizLocateResponse,
+} from './messaging.js';
 import type { ActivityType, SectionDescriptor } from './activity-types.js';
 import type { Context } from './context.js';
 import { FAIL } from './failures.js';
@@ -8,6 +14,17 @@ import { DBG } from './debug.js';
 import { errMsg } from './errors.js';
 
 export type CapturedTab = chrome.tabs.Tab & { id: number };
+
+/**
+ * Outcome of a quiz locate/click. `ok` only reports whether the exchange worked;
+ * `res` is the content script's verdict (null when it never answered), which is
+ * what tells "answered" from "quiz over" from "not a quiz page".
+ */
+export interface QuizClickResult {
+  ok: boolean;
+  error?: string;
+  res: QuizLocateResponse | null;
+}
 
 /** Fields a card click needs; `Activity` is structurally assignable. */
 export interface CardClickTarget {
@@ -223,12 +240,16 @@ export class TabManager {
    * Kept separate from `_clickAt` so a caller can *poll* a target's state without
    * clicking it. Folding the two together makes any confirm-loop re-click what it
    * is trying to observe.
+   *
+   * Generic in the reply type, and the tab is just a tab: the quiz page answers a
+   * different shape (`QuizLocateResponse`) from a different content script, but
+   * needs the identical focus-attach-then-measure ordering below.
    */
-  private async _locate(
+  private async _locate<R = LocateResponse>(
     rewardsTabId: number,
     msg: AppMessage,
     label: string,
-  ): Promise<{ ok: boolean; res?: LocateResponse; error?: string }> {
+  ): Promise<{ ok: boolean; res?: R; error?: string }> {
     this.focusTab(rewardsTabId); // ensure the tab is laid out for correct coordinates
     // Attach BEFORE locating: a fresh attach pops the banner / warms the input
     // pipeline, which would otherwise drop the first click and reflow the page
@@ -238,9 +259,9 @@ export class TabManager {
     } catch (err) {
       return { ok: false, error: `Debugger attach failed for ${label}: ${errMsg(err)}` };
     }
-    let res: LocateResponse | null;
+    let res: R | null;
     try {
-      res = await chrome.tabs.sendMessage(rewardsTabId, msg);
+      res = (await chrome.tabs.sendMessage(rewardsTabId, msg)) as R | null;
     } catch (err) {
       return { ok: false, error: `Locate message error for ${label}: ${errMsg(err)}` };
     }
@@ -323,6 +344,46 @@ export class TabManager {
       { action: MSG_ACTION.LOCATE_CONTROL, control },
       label,
     );
+  }
+
+  /**
+   * Pick and click one answer on the quiz/poll page a daily-set tile opened.
+   *
+   * Same locate-then-trusted-click path as the rewards tiles — the quiz only
+   * advances on a real input event — but aimed at the activity tab rather than
+   * the rewards tab, and answered by the *search* content script (the quiz
+   * renders inside a www.bing.com SERP).
+   *
+   * Reports the locate status rather than a bare ok, because the caller has to
+   * tell three outcomes apart: an answer was clicked (Ready), the quiz has no
+   * options left and is finished (Satisfied), or this page has no quiz module at
+   * all (Absent) and the activity should go back to the user.
+   */
+  async clickQuizOption(tabId: number, label: string): Promise<QuizClickResult> {
+    const loc = await this._locateQuiz(tabId, label, true);
+    if (loc.res?.status !== LOCATE_STATUS.Ready || !loc.res.point) return loc;
+    const click = await this._clickAt(tabId, loc.res.point, label);
+    return { ok: click.ok, error: click.error, res: loc.res };
+  }
+
+  /**
+   * Ask the quiz page what it is showing, without clicking — or measuring, which
+   * scrolls. Separate from `clickQuizOption` for the same reason `_locate` is
+   * separate from `_clickAt`: the between-rounds wait polls for the next
+   * question, and a probe that clicked would answer the very question it is
+   * waiting to observe.
+   */
+  probeQuizOption(tabId: number, label: string): Promise<QuizClickResult> {
+    return this._locateQuiz(tabId, label, false);
+  }
+
+  private async _locateQuiz(tabId: number, label: string, aim: boolean): Promise<QuizClickResult> {
+    const loc = await this._locate<QuizLocateResponse>(
+      tabId,
+      { action: MSG_ACTION.LOCATE_QUIZ_OPTION, aim },
+      label,
+    );
+    return { ok: loc.ok && !!loc.res, error: loc.error, res: loc.res ?? null };
   }
 
   /** Navigate an already-tracked tab to a new URL and wait for it to finish loading. */
