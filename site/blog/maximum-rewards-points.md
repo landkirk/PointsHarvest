@@ -38,7 +38,7 @@ These are the categories the extension works through on each run. It needs a Mic
 #### Phase 2: Daily Set (~900/month)
 
 - **Daily Set tiles** — 30 points/day (3 tiles × 10) = **~900/month**
-  Three rotating tiles that refresh daily, worth 10 points each. Tiles can be quizzes, polls, or article click-throughs. Points Harvest completes the simple ones automatically and pauses on quizzes and polls so you can answer them, then resumes — so this category is only partly hands-off on days the set is quiz- or poll-heavy.
+  Three rotating tiles that refresh daily, worth 10 points each. Tiles can be quizzes, polls, or article click-throughs. Points Harvest completes the simple ones automatically and pauses on quizzes and polls so you can answer them, then resumes. Turn on **Auto-answer quizzes and polls** and it answers those too, at random — fully hands-off, though quizzes that score correctness may pay less than answering them yourself.
 
   *Effort: ~1 minute/day for interactive tiles.*
 
@@ -63,7 +63,7 @@ These are the categories the extension works through on each run. It needs a Mic
 
   *Effort: zero — fully automated.*
 
-> **Subtotal: roughly 2,700–3,000 points/month automated at Silver tier, or ~4,900 at Gold** (whose search cap doubles to 100/day and whose level bonus is 700) — searches, the Daily Set (up to ~900, minus the quiz/poll tiles you answer), your Monthly Level Bonus, and a typical STAR payout — plus whatever Explore and "Keep earning" cards your dashboard serves up. It does *not* cover the Default Search Engine Bonus, which needs Bing set as your browser default. A full run takes about 2–5 minutes.
+> **Subtotal: roughly 2,700–3,000 points/month automated at Silver tier, or ~4,900 at Gold** (whose search cap doubles to 100/day and whose level bonus is 700) — searches, the Daily Set (up to ~900, minus the quiz/poll tiles you answer, unless you turn on auto-answer), your Monthly Level Bonus, and a typical STAR payout — plus whatever Explore and "Keep earning" cards your dashboard serves up. It does *not* cover the Default Search Engine Bonus, which needs Bing set as your browser default. A full run takes about 2–5 minutes.
 
 ### The STAR Bonus: 0–1,500 Points
 
@@ -110,7 +110,7 @@ Under the new system, **Xbox and Game Pass are now the majority of the program's
 
 ## A Realistic Monthly Estimate
 
-- **Points Harvest only (~3,000 pts, ~$3/month, ~$36/year at Silver)** — Run the extension daily, spend a minute on quizzes and polls. That's the searches, Daily Set, level bonus, and a typical ~300 STAR Bonus. Best effort-to-reward ratio, though the reward is smaller than it was.
+- **Points Harvest only (~3,000 pts, ~$3/month, ~$36/year at Silver)** — Run the extension daily, spend a minute on quizzes and polls (or let auto-answer take them). That's the searches, Daily Set, level bonus, and a typical ~300 STAR Bonus. Best effort-to-reward ratio, though the reward is smaller than it was.
 
 - **Points Harvest + easy manual wins (~3,400–4,000 pts, ~$3.40–4.00/month at Silver)** — Add the Default Search Engine Bonus (150/month at Silver) by setting Bing as your default, keep a few streaks alive for stamp bonuses, and do the app check-in. The shared search cap means adding phone searches no longer helps.
 

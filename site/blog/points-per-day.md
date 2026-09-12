@@ -75,7 +75,7 @@ The caps above are ceilings, and three things regularly keep people under them.
 
 The daily maximum is a small number now, but it's still a fixed chore: run the searches, work through the Daily Set, click the activity tiles, stop when the counter stops moving. That's the part [Points Harvest](https://pointsharvest.com) does for you.
 
-It reads your live points counter off the Rewards dashboard rather than assuming a fixed cap, so it stops when your tier's ceiling is actually reached instead of burning searches that earn nothing. Delays between actions are drawn from a human-shaped distribution rather than a fixed interval, which avoids the throttle that costs manual searchers points. It works through the Explore on Bing cards, the Daily Set, and the More Activities tiles, and pauses on quizzes and polls so you can answer those yourself. A full run takes about 2–5 minutes.
+It reads your live points counter off the Rewards dashboard rather than assuming a fixed cap, so it stops when your tier's ceiling is actually reached instead of burning searches that earn nothing. Delays between actions are drawn from a human-shaped distribution rather than a fixed interval, which avoids the throttle that costs manual searchers points. It works through the Explore on Bing cards, the Daily Set, and the More Activities tiles, and pauses on quizzes and polls so you can answer those yourself — or answers them for you if you turn on auto-answer. A full run takes about 2–5 minutes.
 
 Running daily also keeps your Bing search and Daily Set streaks alive, which feed the stamp bonuses and the STAR consistency check.
 

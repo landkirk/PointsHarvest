@@ -11,7 +11,7 @@ Points Harvest is a free, open-source Chrome extension that automates your daily
 It handles:
 
 - **Warm-up searches** — a few quick searches to prime your session before the real work begins
-- **Daily Set tiles** — the trivia, polls, and quizzes (it waits for you on interactive ones)
+- **Daily Set tiles** — the trivia, polls, and quizzes (it waits for you on interactive ones, or answers quizzes and polls itself if you turn on auto-answer)
 - **Explore on Bing** activities — the "Search on Bing" cards on your rewards dashboard
 - **More Activities tiles** — additional activity cards below the daily set (opens each tile's search page, dwells, and validates; skips puzzles and quizzes)
 - **PC search farming** — runs web searches until your daily search cap is reached
@@ -62,6 +62,8 @@ Go to **Chrome Settings → Privacy and security → Site settings → Pop-ups a
 The extension will open a Bing Rewards tab, read your activity cards, and start working through them automatically. The side panel shows each phase — **Warm-up**, **Daily Sets**, **Explore on Bing**, **More Activities**, **PC Searches**, and **Claim points** — with its own progress bar and points earned.
 
 > **Note:** For quiz and poll tiles in the Daily Set, Points Harvest will pause and activate the tab so you can complete it. A **"Done — I completed the action"** button appears in the side panel — click it when you're finished, or just close the tab, and the extension will continue.
+>
+> Want it fully unattended? Turn on **Auto-answer quizzes and polls** in the side panel's settings. It picks answers at random, so quizzes that score correctness may earn fewer points than answering them yourself. Puzzles still wait for you, and any quiz layout it doesn't recognize falls back to asking you.
 
 ## How Long Does It Take?
 
