@@ -28,7 +28,7 @@ Popup (Start button)
     → start-run (StartRun class, owns TabManager)
       → activity-extraction (opens rewards tab, confirms login via DOM probe, parses activity cards from the DOM)
       → warm-up-searches (optional warm-up phase)
-      → complete-daily-sets (on /, opens daily set tiles; waits for user on quizzes/polls)
+      → complete-daily-sets (on /, opens daily set tiles; auto-answers quizzes/polls if opted in, else waits for user)
       → complete-explore-on-bing (navigates to /earn, clicks "Search on Bing" cards, runs search queries)
       → complete-more-activities (still on /earn; opens "Keep earning" tiles, dwells, validates)
       → farm-pc-searches (runs searches until the PC counter cap is reached)
@@ -54,13 +54,14 @@ rewards.bing.com was rewritten in 2026 (React + react-aria + Tailwind). The dash
 
 **Orchestrators** (`src/orchestrators/`) — Phase executors called by managers. `OrchestratorBase` (`src/interfaces/orchestrator.ts`) provides the base class, including `ensureSectionReady()` — the phase preamble that hops the rewards tab between `/` and `/earn` (each `SECTION` entry carries its host `url`) and then expands the section. `TabManager` (`src/util/tab-manager.ts`) handles all tab operations including `clickCardAndCaptureTab`, `expandSection`, and the trusted CDP click.
 
-**Steps** (`src/steps/`) — Reusable async routines called by orchestrators: `fetch-counters`, `perform-search`, `linger-on-tab`, `validate-activity`, `wait-for-user-action`.
+**Steps** (`src/steps/`) — Reusable async routines called by orchestrators: `auto-answer-quiz`, `fetch-counters`, `perform-search`, `linger-on-tab`, `validate-activity`, `wait-for-user-action`.
 
 **Shared helpers** — `run-activity-loop.ts` (per-activity iteration, progress, points) and `execute-with-retry.ts` (attempt/linger/retry + failure recording) are used by all three activity orchestrators; prefer them over hand-rolling a loop.
 
 **Content Scripts** (`src/content/`) — Injected into Bing pages. Bundled as IIFEs by esbuild and excluded from `tsconfig.build.json`.
 - `rewards-content.ts` — Runs on `rewards.bing.com`; message router handling `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`. DOM parsing itself lives in `rewards-dom.ts` (inlined by esbuild).
-- `search-content.ts` — Runs on `www.bing.com`; handles `PERFORM_SEARCH` message, fills and submits the search box.
+- `search-content.ts` — Runs on `www.bing.com`; handles `PERFORM_SEARCH` (fills and submits the search box), `SCROLL_PAGE`, `CLICK_RESULT`, and `LOCATE_QUIZ_OPTION`. Daily-set quizzes and polls render on a Bing SERP, not on rewards.bing.com, so their parsing lives in `quiz-dom.ts` (table-driven `MODULES`, one row per markup family) and is inlined here.
+- `dom-util.ts` — `clean()` and `locateElement()`, shared by both content scripts.
 
 **State**
 - `src/util/persistent-state.ts` — `chrome.storage.local` backed; survives service worker restarts. `RunState` (progress, warm-up queries, counters, `activityState`, failures, debug log) is wiped by `resetRunState()` at every run start — there is no run-date gate and no mid-run resumption. `UserPreferences` (`skipWarmUp`, `timingMultiplier`, `debugMode`, …) persists across runs. All writes serialized through `enqueueWrite()`.
@@ -110,7 +111,7 @@ CSS selectors in this project must be verified against actual DOM structure. Whe
 Most cross-context communication uses `chrome.runtime.sendMessage`. Constants live in `src/util/messaging.ts` (`MSG_ACTION`), and `AppMessage` is a discriminated union — add new fields/actions there so payloads stay typed. Key flows:
 - Popup ↔ Background: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
 - Background ↔ Rewards content: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`, `READ_CLAIM`
-- Background → Search content: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
+- Background → Search content: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`, `LOCATE_QUIZ_OPTION`
 - Background → Popup (push): `PROGRESS`, `DEBUG_ENTRY`, `FAILURE_ENTRY`
 
-The exception: the trusted card click is dispatched by the background directly into the page over the Chrome DevTools Protocol, not via a message. The content script only reports where to aim (`LOCATE_CARD`).
+The exception: the trusted card click is dispatched by the background directly into the page over the Chrome DevTools Protocol, not via a message. The content script only reports where to aim (`LOCATE_CARD`, and `LOCATE_QUIZ_OPTION` for auto-answered quizzes/polls).

@@ -1,6 +1,6 @@
 {
   "name": "pointsharvest",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "license": "SEE LICENSE IN LICENSE",
   "author": "Landon Kirk",
   "repository": {
@@ -28,7 +28,7 @@
   "devDependencies": {
     "@11ty/eleventy": "^3.1.6",
     "@eslint/js": "^10.0.1",
-    "chrome-types": "^0.1.445",
+    "chrome-types": "^0.1.446",
     "concurrently": "^10.0.5",
     "esbuild": "^0.28.2",
     "eslint": "^10.10.0",

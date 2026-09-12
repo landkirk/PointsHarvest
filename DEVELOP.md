@@ -134,12 +134,13 @@ src/                    Source files (edit these)
   orchestrators/
     activity-extraction.ts       Opens rewards tab, waits for content script, classifies and stores activities
     complete-explore-on-bing.ts  Iterates mapped cards, clicks each, runs searches
-    complete-daily-sets.ts       Opens each daily set tile; lingers for interactive ones
+    complete-daily-sets.ts       Opens each daily set tile; auto-answers or lingers for interactive ones
     complete-more-activities.ts  Opens More Activities tiles, dwells, and validates; skips interactive tile types
     farm-pc-searches.ts          Farms remaining PC search points after cards are done
     claim-points.ts              Claims pending points via the "Claim points" flyout on /
     warm-up-searches.ts          Runs warm-up searches before the main Explore phase
   steps/
+    auto-answer-quiz.ts        Play a daily-set quiz/poll unattended (opt-in via autoAnswerQuizzes)
     fetch-counters.ts          Read the PC search counter from the "Points breakdown" flyout (CDP open → read → close)
     perform-search.ts          Dwell and execute a single search in a tab
     linger-on-tab.ts           Pause automation and wait for user to complete a tile
@@ -179,13 +180,15 @@ src/                    Source files (edit these)
     onboarding.ts       Onboarding flow controller
     debug-panel.ts      renderDebug(), appendLogEntry(), renderActivitiesAndCounters()
     failure-banner.ts   renderActionBanner(), renderFailures(), appendFailure()
-    prefs-panel.ts      Settings panel (speed, warm-up, notifications, debug, purge)
+    prefs-panel.ts      Settings panel (speed, warm-up, auto-answer, notifications, debug, purge)
     run-summary-card.ts End-of-run summary card rendering
     screens/            HTML fragments for onboarding screens (ToS, Bing warning, changelog)
   content/
+    dom-util.ts         clean() + locateElement() shared by both content scripts — inlined into each bundle
+    quiz-dom.ts         DOM parsing for the SERP-hosted quiz/poll modules (table-driven MODULES) — inlined into search-content
     rewards-content.ts  Content script injected into rewards.bing.com — message router (bundled by esbuild)
     rewards-dom.ts      DOM parsing for the redesigned rewards site (cards, badges, points flyout) — inlined into rewards-content
-    search-content.ts   Content script injected into www.bing.com (bundled by esbuild)
+    search-content.ts   Content script injected into www.bing.com — search, scroll, result click, quiz locate (bundled by esbuild)
 dist/                   Compiled extension output (generated — do not edit)
 site/                   Eleventy source for the marketing site (pointsharvest.com)
   _includes/              Layouts (base.njk, post.njk) and partials (nav, footer)
@@ -504,6 +507,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - `navigateTab(tabId, url, signal)` — point an existing tracked tab at a new URL and wait for load (used for the `/` ↔ `/earn` hops)
   - `OrchestratorBase.ensureSectionReady(ctx, tabId, section)` (in `interfaces/orchestrator.ts`) is the phase preamble: it navigates the rewards tab to the section's `url` (idempotent — "already there" compares **origin + pathname** via `urlKey`, not pathname alone, or a tab that drifted off rewards.bing.com would match on `/` and be left there, sending every later message to a tab with no rewards content script), then opens the section via `expandSection`, returning `false` when the section's cards can't be put in the DOM
   - `expandSection(ctx, rewardsTabId, section)` — open a section so its cards are in the DOM: locates the disclosure toggle via `LOCATE_CONTROL`, clicks it over CDP with a poll-until-settled confirm loop (never re-clicks on a stale read — that would toggle a slow-committing section shut), then clicks "Show more" until no new tiles appear. Returns `SectionExpandResult` `{ ready, tiles, via }`, where `ready` is decided by the tile count
+  - `clickQuizOption(tabId, label)` / `probeQuizOption(tabId, label)` — quiz/poll counterparts of the card click, aimed at the **activity tab** (answered by the search content script via `LOCATE_QUIZ_OPTION`) rather than the rewards tab. Both return `QuizClickResult` `{ ok, error?, res }`, where `res` is the content script's `QuizLocateResponse` verdict. `clickQuizOption` locates with `aim: true` and dispatches a trusted CDP click on a `Ready` reply; `probeQuizOption` sends `aim: false` and never clicks or scrolls, so `steps/auto-answer-quiz` can poll for the next question without answering it. Both share the generic `_locate<R>()` (focus → attach debugger → message) with the card click
   - `assertTabExists(ctx, tabId, phase)` — check if tab still exists; call `ctx.fail()` if not
   - `closeAll()` — detach any debuggers, then close all tracked tabs with staggered random delays (300–1200 ms between each close) to simulate human behavior and avoid bot detection
 - **The card click — `_trustedClickCard`**: tiles gate their activation beacon on a **trusted** event (`isTrusted: true`), which a content script cannot forge — a synthetic click navigates but never credits the activity. So the background attaches the Chrome DevTools Protocol debugger and dispatches a real `Input.dispatchMouseEvent` sequence:
@@ -623,7 +627,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - Cards themselves are plain `<a data-rac data-react-aria-pressable="true" href="…">` with no `aria-label`
 
 ### content/search-content.ts
-- Bundled by esbuild as an IIFE (cannot use ES modules)
+- Bundled by esbuild as an IIFE; like `rewards-content.ts` it imports at source level (`content/dom-util.ts`, `content/quiz-dom.ts`, `util/`) and esbuild inlines them
 - **Search handler** (`PERFORM_SEARCH` message):
   - Finds search input: `#sb_form_q` (preferred) or `textarea[name="q"]` (fallback)
   - Clears existing text by simulating Ctrl+A + Delete
@@ -643,6 +647,7 @@ Defined as the `FAIL` const in `src/util/failures.ts` (callers reference `FAIL.T
   - Pauses 500–1500 ms (hover time from `TIMING.RESULT_CLICK_HOVER`)
   - Dispatches pointer/mouse events (same sequence as card click: over, move, down, up, click)
   - Returns `{ ok: true }` or `{ ok: false, error: string }`
+- **Quiz locate handler** (`LOCATE_QUIZ_OPTION` message, `{ aim }`) — locate-only, never clicks; the background dispatches the trusted click. `findQuizCard()` (`content/quiz-dom.ts`) finds the module; options win outright (one picked at random via `shuffleArray`), and only when none are clickable — and the module isn't `finished` — does it look for the answer reveal's "Next" via `quizNext()`. With `aim: true` the target is measured via `locateElement()` (scrolls into view, waits `SCROLL_SETTLE`). Replies `QuizLocateResponse`: `Ready` (`point`, `move`, `kind`, `progress`, `question`, `via`), `Satisfied` with a `QuizEndState` (`finished` / `disabled` / `unparsed`), or `Absent` when the page has no quiz/poll module. See **steps/auto-answer-quiz.ts** for the module families and how the caller reads each status
 - **DOM Selectors**:
   - `#sb_form_q` — primary search input
   - `textarea[name="q"]` — fallback search input
@@ -890,6 +895,11 @@ The workflow excludes `.git`, `.github`, and `.DS_Store` files from the ZIP.
 - Check web console (DevTools) for errors from content script
 - Failure will be logged: "Card click message error: no response"
 
+**Auto-answer asked me to do the quiz anyway**
+- Expected when the page has no quiz/poll module `content/quiz-dom.ts` recognizes — auto-answer hands the activity back rather than risk the points. Enable debug mode and look for `No quiz module found for …` or `Quiz module has no readable options (…)`
+- A new markup family is one row in `MODULES` (`content/quiz-dom.ts`); capture the module's outerHTML from the SERP and add its card/question/options/progress/answered selectors
+- Puzzles always ask — they are not in `AUTO_ANSWERABLE`
+
 **Activity stuck on user-action (quiz/poll/puzzle)**
 - Popup header shows a specific message like `Complete the quiz "..." in the Bing tab, then click Done.`
 - User must click **Done** button in popup after completing the activity (or close the tab directly)
@@ -935,7 +945,7 @@ Split into two independent persistent objects in `chrome.storage.local` (via `ut
 - **Rewards tab**: Opened by `start-run.ts` before orchestrator chain, untracked (not in `openedTabIds`) so it's not closed by `closeAll()`; manually closed by `_endRun` after run finishes. It is reused for the whole run — navigated between `/` and `/earn` by `ensureSectionReady()`, and polled for counters during the farm phase (there is no separate breakdown tab)
 - **Search/activity tabs**: Opened by orchestrators via `clickCardAndCaptureTab()`, tracked, closed individually after completion or by `closeAll()`
 - **Closing behavior**: `closeAll()` detaches any attached debuggers, then closes all tracked tabs with staggered random delays (300–1200 ms between each) to avoid bot-detection patterns
-- **Debugger attachment**: the trusted-click path attaches the CDP debugger to the rewards tab lazily and keeps it attached for the run. `chrome.debugger.onDetach` → `forgetDebuggee()` keeps the attached-set honest when Chrome detaches us unilaterally
+- **Debugger attachment**: the trusted-click path attaches the CDP debugger lazily — to the rewards tab, and to a daily-set activity tab when auto-answer clicks a quiz option — and keeps it attached for the run. `chrome.debugger.onDetach` → `forgetDebuggee()` keeps the attached-set honest when Chrome detaches us unilaterally
 
 ### Message Passing
 
@@ -945,7 +955,7 @@ Key flows:
 - **Popup ↔ Background**: `START`, `STOP`, `GET_RUN_STATE`, `GET_PREFERENCES`, `SET_PREFERENCE`, `PING`, `PURGE`, `USER_ACTION_COMPLETE`, `RESET_STALE`
 - **Background → Popup (broadcasts)**: `PROGRESS` (per-phase state), `DEBUG_ENTRY`, `FAILURE_ENTRY`
 - **Background ↔ Rewards content**: `REWARDS_STATUS`, `EXTRACT_SECTIONS`, `LOCATE_CARD`, `LOCATE_CONTROL`, `VALIDATE_ACTIVITY`, `READ_COUNTERS`, `READ_CLAIM`
-- **Background → Search content**: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`
+- **Background → Search content**: `PERFORM_SEARCH`, `SCROLL_PAGE`, `CLICK_RESULT`, `LOCATE_QUIZ_OPTION`
 
 Note that not every cross-context action is a message: every trusted click (card, section toggle, "Show more") is dispatched by the **background** straight into the page over the Chrome DevTools Protocol (`Input.dispatchMouseEvent`), bypassing the content script entirely. The content script's role there is limited to `LOCATE_CARD`/`LOCATE_CONTROL`, which report where to aim.
 
