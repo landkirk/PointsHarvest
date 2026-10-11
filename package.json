@@ -28,12 +28,12 @@
   "devDependencies": {
     "@11ty/eleventy": "^3.1.6",
     "@eslint/js": "^10.0.1",
-    "chrome-types": "^0.1.452",
-    "concurrently": "^10.0.5",
+    "chrome-types": "^0.1.454",
+    "concurrently": "^10.0.6",
     "esbuild": "^0.28.2",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
-    "prettier": "^3.9.9",
+    "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.71.1"
   }
