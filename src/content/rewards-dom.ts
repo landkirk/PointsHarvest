@@ -279,9 +279,9 @@ export function parsePointsBreakdown(dialog: HTMLElement): { current: number; ma
 // Earned points sit unclaimed (and expire after a month) until claimed. The
 // "Ready to claim" card — on the rewards root page `/` only — shows the
 // claimable total and opens a `[role="dialog"]` flyout titled "Claim points":
-// a headline total, an Activity/Points grid, and a footer confirm button whose
-// text is ALSO exactly "Claim points" (hence the anchored regex and the
-// button-only matching below). When nothing is claimable the confirm is
+// a headline total, an Activity/Points grid, and a confirm control whose label
+// is ALSO exactly "Claim points" (hence the anchored regex and the
+// inside-a-button matching below). When nothing is claimable the confirm is
 // replaced by an "Earn more points" link and the grid reads
 // "No points to claim right now".
 
@@ -339,21 +339,33 @@ export function findClaimDialog(): HTMLElement | null {
 }
 
 /**
- * The flyout's footer confirm button. The dialog HEADING is also "Claim
- * points", so this matches only `<button>` elements by their own exact cleaned
- * text, and excludes the header Close (aria-label) and the "How it works"
- * disclosure trigger (aria-expanded).
+ * The flyout's confirm control. The dialog HEADING is also "Claim points", so
+ * this matches only elements whose own exact cleaned text is "Claim points"
+ * AND that sit inside a `<button>` (the heading has none), excluding the
+ * header Close (aria-label) and the "How it works" disclosure (aria-expanded).
+ *
+ * Two layouts seen: a plain footer `<button>Claim points</button>`, and (Oct
+ * 2026) a card-style `<button>` wrapping the total, a "Pending" badge, and a
+ * button-styled `<div><span>Claim points</span></div>` that is not itself a
+ * button. Returns the innermost exact match so the click aims at the label.
  */
 export function findClaimConfirm(dialog: HTMLElement): HTMLElement | null {
-  return (
-    Array.from(dialog.querySelectorAll<HTMLButtonElement>('button')).find(
-      (b) =>
-        isVisible(b) &&
-        CLAIM_DIALOG_TITLE_RE.test(clean(b.textContent)) &&
-        !b.hasAttribute('aria-expanded') &&
-        b.getAttribute('aria-label') !== 'Close',
-    ) ?? null
+  const matches = Array.from(dialog.querySelectorAll<HTMLElement>('button, button *')).filter(
+    (el) => CLAIM_DIALOG_TITLE_RE.test(clean(el.textContent)),
   );
+  // Document order puts ancestors first; the last match is the innermost.
+  for (const el of matches.reverse()) {
+    const b = el.closest('button');
+    if (
+      b &&
+      isVisible(el) &&
+      !b.hasAttribute('aria-expanded') &&
+      b.getAttribute('aria-label') !== 'Close'
+    ) {
+      return el;
+    }
+  }
+  return null;
 }
 
 export interface ClaimFlyoutParse {
