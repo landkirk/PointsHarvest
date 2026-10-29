@@ -14,7 +14,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       
       - name: Get version
         id: version
@@ -26,7 +26,7 @@ jobs:
           fi
       
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
 
@@ -42,7 +42,7 @@ jobs:
           zip -r PointsHarvest-${{ steps.version.outputs.version }}.zip PointsHarvest-${{ steps.version.outputs.version }}/
       
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: PointsHarvest-*.zip
@@ -51,13 +51,13 @@ jobs:
       
       - name: Upload artifact to github releases (manual trigger)
         if: github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: PointsHarvest-extension
           path: PointsHarvest-*.zip
 
       - name: Upload versioned zip to R2
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           wranglerVersion: "4"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload latest-version.txt to R2
         run: echo -n "${{ steps.version.outputs.version }}" > latest-version.txt
-      - uses: cloudflare/wrangler-action@v3
+      - uses: cloudflare/wrangler-action@v4
         with:
           wranglerVersion: "4"
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
